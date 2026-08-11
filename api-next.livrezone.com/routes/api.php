@@ -1,0 +1,31 @@
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Auth\SocialAuthController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\ProfileController;
+
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user()->load('profile');
+});
+
+Route::prefix('auth')->group(function () {
+    Route::get('/redirect/{provider}', [SocialAuthController::class, 'redirect']);
+    Route::get('/callback/{provider}', [SocialAuthController::class, 'callback'])
+    ->middleware('web');
+    Route::post('/logout', [SocialAuthController::class, 'logout'])->middleware('auth:sanctum');
+});
+
+Route::middleware('auth:sanctum')->prefix('dashboard')->group(function () {
+    Route::get('/listings', [DashboardController::class, 'index']);
+    Route::patch('/listings/{listing}/inline-edit', [DashboardController::class, 'updateInline']);
+    Route::patch('/listings/{listing}/status', [DashboardController::class, 'updateStatus']);
+    
+    Route::post('/listings/bulk-status', [DashboardController::class, 'bulkUpdateStatus']);
+    Route::post('/listings/bulk-discount', [DashboardController::class, 'bulkApplyDiscount']);
+});
+Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
+    Route::get('/', [ProfileController::class, 'show']);
+    Route::post('/', [ProfileController::class, 'update']);
+});

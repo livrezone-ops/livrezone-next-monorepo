@@ -1,0 +1,37 @@
+# Ignorer tout le workspace par défaut
+/*
+!/.gitignore
+
+# Conserver uniquement les deux projets actifs
+!/next.livrezone.com/
+!/api-next.livrezone.com/
+
+# Frontend Next.js
+/next.livrezone.com/*
+!/next.livrezone.com/frontend/
+/next.livrezone.com/frontend/node_modules/
+/next.livrezone.com/frontend/.next/
+/next.livrezone.com/frontend/.env*
+!/next.livrezone.com/frontend/.env.example
+
+# Ancien dépôt Git sauvegardé
+/next.livrezone.com/.git-backup/
+
+# Backend Laravel
+/api-next.livrezone.com/vendor/
+/api-next.livrezone.com/node_modules/
+/api-next.livrezone.com/.env
+/api-next.livrezone.com/storage/logs/*
+/api-next.livrezone.com/storage/framework/cache/*
+/api-next.livrezone.com/storage/framework/sessions/*
+/api-next.livrezone.com/storage/framework/views/*
+/api-next.livrezone.com/bootstrap/cache/*.php
+
+# Fichiers système et éditeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+*.rar
+*.zip
