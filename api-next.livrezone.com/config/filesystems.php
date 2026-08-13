@@ -60,6 +60,47 @@ return [
             'report' => false,
         ],
 
+        'book_covers_originals' => [
+            'driver' => 'local',
+            'root' => env(
+                'BOOK_COVERS_ORIGINAL_PATH',
+                storage_path('app/private/book-covers')
+            ),
+            'visibility' => 'private',
+            'throw' => true,
+        ],
+
+        'book_covers_public' => [
+            'driver' => 'local',
+            'root' => env(
+                'BOOK_COVERS_PUBLIC_PATH',
+                public_path('book-covers')
+            ),
+            'url' => env(
+                'BOOK_COVERS_URL',
+                rtrim(env('APP_URL', 'http://localhost'), '/') . '/book-covers'
+            ),
+            'visibility' => 'public',
+            'throw' => true,
+        ],
+
+        'book_covers_base' => [
+            'driver' => 'local',
+            'root' => env('BOOK_COVERS_PUBLIC_PATH') ? dirname(env('BOOK_COVERS_PUBLIC_PATH')) : public_path('book-covers'),
+            'visibility' => 'public',
+            'throw' => false,
+        ],
+
+        'book_covers_temp' => [
+            'driver' => 'local',
+            'root' => env(
+                'BOOK_COVERS_TEMP_PATH',
+                storage_path('app/private/book-covers-temp')
+            ),
+            'visibility' => 'private',
+            'throw' => true,
+        ],
+
     ],
 
     /*

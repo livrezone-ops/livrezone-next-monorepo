@@ -46,6 +46,35 @@ class User extends Authenticatable
         return $this->hasMany(Rating::class);
     }
 
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class);
+    }
+
+    public function cartItems()
+    {
+        return $this->hasMany(CartItem::class);
+    }
+
+    public function chatThreadsAsUserOne()
+    {
+        return $this->hasMany(ChatThread::class, 'user_one_id');
+    }
+
+    public function chatThreadsAsUserTwo()
+    {
+        return $this->hasMany(ChatThread::class, 'user_two_id');
+    }
+
+    /**
+     * Retourne tous les fils de discussion de l'utilisateur.
+     */
+    public function chatThreads()
+    {
+        return ChatThread::where('user_one_id', $this->id)
+            ->orWhere('user_two_id', $this->id);
+    }
+
     /**
      * Sécurité globale : Remplacer le nom par le nickname partout sur le site.
      */

@@ -29,3 +29,7 @@ Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
     Route::get('/', [ProfileController::class, 'show']);
     Route::post('/', [ProfileController::class, 'update']);
 });
+
+// Public Listings Routes
+Route::get('/listings', [\App\Http\Controllers\Api\ListingController::class, 'index']);
+Route::get('/listings/{id}', [\App\Http\Controllers\Api\ListingController::class, 'show']);

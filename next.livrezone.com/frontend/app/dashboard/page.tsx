@@ -1,105 +1,123 @@
-'use client'
-import { useAuth } from '../../hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
-import api from '../../lib/axios';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import React from "react";
+import DashboardClient from "@/components/DashboardClient";
+import { redirect } from 'next/navigation';
 
-export default function DashboardPage() {
-    const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
-    const router = useRouter();
+// Forcer le rendu dynamique (SSR) — obligatoire car on utilise cache: no-store
+export const dynamic = 'force-dynamic';
 
-    useEffect(() => {
-        if (!authLoading && !isAuthenticated) {
-            router.push('/login');
-        }
-    }, [isAuthenticated, authLoading, router]);
+interface Listing {
+  id: number;
+  title: string;
+  price: number;
+  discount_price?: number | null;
+  book_condition: string;
+  isbn_13?: string | null;
+  status: string;
+  created_at: string;
+  cover_path?: string | null;
+  cover_source_url?: string | null;
+  book?: {
+    cover_url?: string | null;
+    authors?: string[] | string | null;
+  } | null;
+  category?: {
+    name_fr: string;
+  } | null;
+}
 
-    const { data: dashboardData, isLoading: dataLoading } = useQuery({
-        queryKey: ['dashboard-listings'],
-        queryFn: async () => {
-            const { data } = await api.get('/dashboard/listings');
-            return data;
-        },
-        enabled: isAuthenticated,
+const mockListings: Listing[] = [
+  {
+    id: 1,
+    title: "La Boîte à merveilles",
+    price: 35.00,
+    discount_price: 25.00,
+    book_condition: "occas",
+    isbn_13: "9782800100201",
+    status: "published",
+    created_at: "2026-08-11T12:00:00Z",
+    book: {
+      authors: "Ahmed Sefrioui",
+      cover_url: null
+    },
+    category: { name_fr: "Romans" }
+  },
+  {
+    id: 2,
+    title: "Le Dernier Jour d'un condamné",
+    price: 30.00,
+    book_condition: "neuf",
+    isbn_13: "9782253006091",
+    status: "published",
+    created_at: "2026-08-12T14:30:00Z",
+    book: {
+      authors: "Victor Hugo",
+      cover_url: null
+    },
+    category: { name_fr: "Romans" }
+  }
+];
+
+import { cookies } from 'next/headers';
+
+async function getDashboardData(): Promise<Listing[] | null> {
+  try {
+    const cookieStore = await cookies();
+    // Convert array of cookies into a standard Cookie header string
+    const cookieHeader = cookieStore.getAll().map(c => `${c.name}=${c.value}`).join('; ');
+
+    const baseUrl = (process.env.INTERNAL_API_URL 
+      || process.env.NEXT_PUBLIC_API_URL 
+      || "https://api-next.livrezone.com").replace(/\/api\/?$/, '');
+
+    // 1. Fetch current authenticated user
+    const userRes = await fetch(`${baseUrl}/api/user`, {
+      cache: "no-store",
+      headers: { 
+        'Accept': 'application/json', 
+        'Host': 'api-next.livrezone.com',
+        'Cookie': cookieHeader,
+        'Referer': 'https://next.livrezone.com'
+      }
     });
 
-    if (authLoading || dataLoading) {
-        return <div className="flex h-screen items-center justify-center">Chargement de votre espace...</div>;
+    if (!userRes.ok) {
+        console.error("[SSR] Could not fetch user, status:", userRes.status);
+        return null; // Return null to indicate unauthorized
     }
 
-    if (!user) return null;
+    const userData = await userRes.json();
+    const userId = userData.id;
 
-    return (
-        <div className="min-h-screen bg-gray-100 p-8">
-            <div className="mx-auto max-w-7xl">
-                <div className="mb-8 flex items-center justify-between rounded-xl bg-white p-6 shadow">
-                    <div className="flex items-center gap-4">
-                        <img 
-                            src={user.profile.logo} 
-                            alt="Logo Profil" 
-                            className="h-16 w-16 rounded-full object-cover shadow-sm"
-                        />
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-800">Bienvenue, {user.profile.nickname}</h1>
-                            <p className="text-sm text-gray-500">{user.email}</p>
-                        </div>
-                    </div>
-                    <button 
-                        onClick={logout}
-                        className="rounded bg-red-500 px-4 py-2 font-semibold text-white hover:bg-red-600"
-                    >
-                        Déconnexion
-                    </button>
-                </div>
+    // 2. Fetch listings for this user
+    const res = await fetch(`${baseUrl}/api/listings?user_id=${userId}&limit=100`, {
+      cache: "no-store",
+      headers: { 
+        'Accept': 'application/json', 
+        'Host': 'api-next.livrezone.com',
+        'Referer': 'https://next.livrezone.com'
+      }
+    });
+    
+    if (!res.ok) return [];
+    
+    const json = await res.json();
+    return json.data && Array.isArray(json.data) ? json.data : [];
+  } catch (e) {
+    console.error("[SSR] getDashboardData error:", e);
+    return []; // Network errors for listings can return empty array, but if auth failed earlier it returns null.
+  }
+}
 
-                <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-                    <div className="rounded-xl bg-white p-6 shadow border-l-4 border-blue-500">
-                        <p className="text-sm text-gray-500">Annonces Actives</p>
-                        <p className="text-3xl font-bold text-gray-800">{dashboardData?.meta.active_count || 0}</p>
-                    </div>
-                    <div className="rounded-xl bg-white p-6 shadow border-l-4 border-green-500">
-                        <p className="text-sm text-gray-500">Annonces Vendues</p>
-                        <p className="text-3xl font-bold text-gray-800">{dashboardData?.meta.sold_count || 0}</p>
-                    </div>
-                </div>
+export default async function DashboardPage() {
+  const listings = await getDashboardData();
+  // If listings is null, it means authentication failed
+  if (listings === null) {
+    redirect('/login');
+  }
 
-                <div className="rounded-xl bg-white p-6 shadow">
-                    <h2 className="mb-4 text-xl font-semibold">Vos annonces ({dashboardData?.meta.total || 0})</h2>
-                    {(!dashboardData?.data || dashboardData.data.length === 0) ? (
-                        <p className="text-gray-500">Vous n'avez aucune annonce pour le moment.</p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm text-gray-500">
-                                <thead className="bg-gray-50 text-xs uppercase text-gray-700">
-                                    <tr>
-                                        <th className="px-6 py-3">Titre</th>
-                                        <th className="px-6 py-3">Prix</th>
-                                        <th className="px-6 py-3">Statut</th>
-                                        <th className="px-6 py-3">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {dashboardData.data.map((listing: any) => (
-                                        <tr key={listing.id} className="border-b bg-white">
-                                            <td className="px-6 py-4 font-medium text-gray-900">{listing.title}</td>
-                                            <td className="px-6 py-4">{listing.price} MAD</td>
-                                            <td className="px-6 py-4">
-                                                <span className={`rounded-full px-2 py-1 text-xs font-semibold ${listing.status === 'sold' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
-                                                    {listing.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <button className="text-blue-600 hover:underline">Modifier</button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
+  return (
+    <div className="w-[90%] max-w-7xl mx-auto py-8">
+      <DashboardClient initialListings={listings} />
+    </div>
+  );
 }

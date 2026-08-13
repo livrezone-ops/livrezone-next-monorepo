@@ -22,6 +22,8 @@ export function useAuth() {
             return data;
         },
         retry: false,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        throwOnError: false,
     });
 
     const logoutMutation = useMutation({

@@ -1,0 +1,522 @@
+{
+    "languages": [
+        {
+            "id": 3,
+            "code": "en",
+            "name_fr": "Anglais"
+        },
+        {
+            "id": 1,
+            "code": "ar",
+            "name_fr": "Arabe"
+        },
+        {
+            "id": 6,
+            "code": "autre",
+            "name_fr": "Autre"
+        },
+        {
+            "id": 5,
+            "code": "ber",
+            "name_fr": "Berbère \/ Amazigh"
+        },
+        {
+            "id": 4,
+            "code": "es",
+            "name_fr": "Espagnol"
+        },
+        {
+            "id": 2,
+            "code": "fr",
+            "name_fr": "Français"
+        }
+    ],
+    "levels": [
+        {
+            "id": 1,
+            "code": "PRESCOLAIRE",
+            "name_fr": "Préscolaire",
+            "cycle": "primaire"
+        },
+        {
+            "id": 2,
+            "code": "C1",
+            "name_fr": "C1",
+            "cycle": "primaire"
+        },
+        {
+            "id": 3,
+            "code": "C2",
+            "name_fr": "C2",
+            "cycle": "primaire"
+        },
+        {
+            "id": 4,
+            "code": "C3",
+            "name_fr": "C3",
+            "cycle": "primaire"
+        },
+        {
+            "id": 5,
+            "code": "C4",
+            "name_fr": "C4",
+            "cycle": "primaire"
+        },
+        {
+            "id": 6,
+            "code": "C5",
+            "name_fr": "C5",
+            "cycle": "primaire"
+        },
+        {
+            "id": 7,
+            "code": "C6",
+            "name_fr": "C6",
+            "cycle": "primaire"
+        },
+        {
+            "id": 8,
+            "code": "1AC",
+            "name_fr": "1AC",
+            "cycle": "college"
+        },
+        {
+            "id": 9,
+            "code": "2AC",
+            "name_fr": "2AC",
+            "cycle": "college"
+        },
+        {
+            "id": 10,
+            "code": "3AC",
+            "name_fr": "3AC",
+            "cycle": "college"
+        },
+        {
+            "id": 11,
+            "code": "TRONC_COMMUN",
+            "name_fr": "Tronc commun",
+            "cycle": "lycee"
+        },
+        {
+            "id": 12,
+            "code": "1BAC",
+            "name_fr": "1re année BAC",
+            "cycle": "lycee"
+        },
+        {
+            "id": 13,
+            "code": "2BAC",
+            "name_fr": "2e année BAC",
+            "cycle": "lycee"
+        },
+        {
+            "id": 14,
+            "code": "LICENCE",
+            "name_fr": "Supérieur - Licence",
+            "cycle": "universitaire"
+        },
+        {
+            "id": 15,
+            "code": "MASTER",
+            "name_fr": "Supérieur - Master",
+            "cycle": "universitaire"
+        },
+        {
+            "id": 16,
+            "code": "DOCTORAT",
+            "name_fr": "Supérieur - Doctorat",
+            "cycle": "universitaire"
+        },
+        {
+            "id": 17,
+            "code": "FORMATION_PRO",
+            "name_fr": "Formation professionnelle",
+            "cycle": "professionnel"
+        },
+        {
+            "id": 18,
+            "code": "NON_APPLICABLE",
+            "name_fr": "Non applicable",
+            "cycle": "autre"
+        }
+    ],
+    "subjects": [
+        {
+            "id": 3,
+            "code": "ANGLAIS",
+            "name_fr": "Anglais",
+            "family": "scolaire"
+        },
+        {
+            "id": 1,
+            "code": "ARABE",
+            "name_fr": "Arabe",
+            "family": "scolaire"
+        },
+        {
+            "id": 21,
+            "code": "ARTS",
+            "name_fr": "Arts",
+            "family": "commun"
+        },
+        {
+            "id": 17,
+            "code": "AUDIT",
+            "name_fr": "Audit",
+            "family": "universitaire_professionnel"
+        },
+        {
+            "id": 26,
+            "code": "AUTRE",
+            "name_fr": "Autre",
+            "family": "autre"
+        },
+        {
+            "id": 13,
+            "code": "BIG_DATA",
+            "name_fr": "Big Data",
+            "family": "universitaire_professionnel"
+        },
+        {
+            "id": 16,
+            "code": "COMPTABILITE",
+            "name_fr": "Comptabilité",
+            "family": "universitaire_professionnel"
+        },
+        {
+            "id": 12,
+            "code": "DATA_SCIENCE",
+            "name_fr": "Data sciense",
+            "family": "universitaire_professionnel"
+        },
+        {
+            "id": 19,
+            "code": "DROIT",
+            "name_fr": "Droit",
+            "family": "universitaire_professionnel"
+        },
+        {
+            "id": 18,
+            "code": "ECONOMIE_GESTION",
+            "name_fr": "Économie-Gestion",
+            "family": "universitaire_professionnel"
+        },
+        {
+            "id": 20,
+            "code": "EDUCATION_ISLAMIQUE",
+            "name_fr": "Éducation islamique",
+            "family": "scolaire"
+        },
+        {
+            "id": 22,
+            "code": "EPS",
+            "name_fr": "Éducation physique",
+            "family": "scolaire"
+        },
+        {
+            "id": 4,
+            "code": "ESPAGNOL",
+            "name_fr": "Espagnol",
+            "family": "scolaire"
+        },
+        {
+            "id": 15,
+            "code": "FINANCE_MARCHES",
+            "name_fr": "finance des marchés",
+            "family": "universitaire_professionnel"
+        },
+        {
+            "id": 25,
+            "code": "FORMATION_PRO",
+            "name_fr": "Formation professionnelle",
+            "family": "universitaire_professionnel"
+        },
+        {
+            "id": 2,
+            "code": "FRANCAIS",
+            "name_fr": "Français",
+            "family": "scolaire"
+        },
+        {
+            "id": 8,
+            "code": "HISTOIRE_GEO",
+            "name_fr": "Histoire-Géographie",
+            "family": "scolaire"
+        },
+        {
+            "id": 10,
+            "code": "INFORMATIQUE",
+            "name_fr": "Informatique",
+            "family": "commun"
+        },
+        {
+            "id": 5,
+            "code": "MATHEMATIQUES",
+            "name_fr": "Mathématiques",
+            "family": "commun"
+        },
+        {
+            "id": 23,
+            "code": "MEDECINE_SANTE",
+            "name_fr": "Médecine et santé",
+            "family": "universitaire_professionnel"
+        },
+        {
+            "id": 27,
+            "code": "NON_APPLICABLE",
+            "name_fr": "Non applicable",
+            "family": "autre"
+        },
+        {
+            "id": 9,
+            "code": "PHILOSOPHIE",
+            "name_fr": "Philosophie",
+            "family": "scolaire"
+        },
+        {
+            "id": 6,
+            "code": "PHYSIQUE_CHIMIE",
+            "name_fr": "Physique-Chimie",
+            "family": "commun"
+        },
+        {
+            "id": 11,
+            "code": "RESEAU",
+            "name_fr": "Réseau",
+            "family": "universitaire_professionnel"
+        },
+        {
+            "id": 7,
+            "code": "SVT",
+            "name_fr": "Sciences de la vie et de la Terre",
+            "family": "scolaire"
+        },
+        {
+            "id": 24,
+            "code": "SCIENCES_HUMAINES",
+            "name_fr": "Sciences humaines",
+            "family": "universitaire_professionnel"
+        },
+        {
+            "id": 14,
+            "code": "STATISTIQUE",
+            "name_fr": "Statistique",
+            "family": "universitaire_professionnel"
+        }
+    ],
+    "categories": [
+        {
+            "id": 1,
+            "code": "LITTERATURE",
+            "name_fr": "Littérature",
+            "subcategories": [
+                {
+                    "id": 7,
+                    "code": "ROMANS",
+                    "name_fr": "Romans"
+                },
+                {
+                    "id": 8,
+                    "code": "POESIE_THEATRE",
+                    "name_fr": "Poésie et théâtre"
+                },
+                {
+                    "id": 9,
+                    "code": "ESSAIS_BIOGRAPHIES",
+                    "name_fr": "Essais et biographies"
+                },
+                {
+                    "id": 10,
+                    "code": "BD",
+                    "name_fr": "BD"
+                },
+                {
+                    "id": 11,
+                    "code": "MANGAS",
+                    "name_fr": "Mangas"
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "code": "JEUNESSE",
+            "name_fr": "Jeunesse",
+            "subcategories": [
+                {
+                    "id": 12,
+                    "code": "PETITE_ENFANCE",
+                    "name_fr": "Petite enfance"
+                },
+                {
+                    "id": 13,
+                    "code": "HISTOIRES_CONTES",
+                    "name_fr": "Histoires et contes"
+                },
+                {
+                    "id": 14,
+                    "code": "PREMIERES_LECTURES",
+                    "name_fr": "Premières lectures"
+                },
+                {
+                    "id": 15,
+                    "code": "ROMANS_JEUNESSE",
+                    "name_fr": "Romans jeunesse"
+                },
+                {
+                    "id": 16,
+                    "code": "ACTIVITES_COLORIAGE",
+                    "name_fr": "Activités et coloriage"
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "code": "SCOLAIRE",
+            "name_fr": "Scolaire",
+            "subcategories": [
+                {
+                    "id": 17,
+                    "code": "MANUELS_SCOLAIRES",
+                    "name_fr": "Manuels scolaires"
+                },
+                {
+                    "id": 18,
+                    "code": "CAHIERS_EXERCICES",
+                    "name_fr": "Cahiers et exercices"
+                },
+                {
+                    "id": 19,
+                    "code": "EXAMENS_CONCOURS",
+                    "name_fr": "Examens et concours"
+                },
+                {
+                    "id": 20,
+                    "code": "MATERIEL_EDUCATIF",
+                    "name_fr": "Matériel éducatif"
+                },
+                {
+                    "id": 21,
+                    "code": "HISTOIRES_EDUCATIVES",
+                    "name_fr": "Histoires éducatives"
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "code": "UNIVERSITAIRE",
+            "name_fr": "Universitaire et professionnel",
+            "subcategories": [
+                {
+                    "id": 22,
+                    "code": "SCIENCES_TECHNO",
+                    "name_fr": "Sciences et technologie"
+                },
+                {
+                    "id": 23,
+                    "code": "U_INFO",
+                    "name_fr": "Informatique"
+                },
+                {
+                    "id": 24,
+                    "code": "MEDECINE_SANTE",
+                    "name_fr": "Médecine et santé"
+                },
+                {
+                    "id": 25,
+                    "code": "ECONOMIE_GESTION",
+                    "name_fr": "Économie et gestion"
+                },
+                {
+                    "id": 26,
+                    "code": "DROIT",
+                    "name_fr": "Droit"
+                },
+                {
+                    "id": 27,
+                    "code": "SCIENCES_HUMAINES",
+                    "name_fr": "Sciences humaines"
+                },
+                {
+                    "id": 28,
+                    "code": "FORMATION_PRO",
+                    "name_fr": "Formation professionnelle"
+                }
+            ]
+        },
+        {
+            "id": 5,
+            "code": "RELIGION",
+            "name_fr": "Religion",
+            "subcategories": [
+                {
+                    "id": 29,
+                    "code": "QURAN",
+                    "name_fr": "Quran"
+                },
+                {
+                    "id": 30,
+                    "code": "HADITH",
+                    "name_fr": "Hadith"
+                },
+                {
+                    "id": 31,
+                    "code": "FIQH",
+                    "name_fr": "Fiqh"
+                },
+                {
+                    "id": 32,
+                    "code": "SIRA",
+                    "name_fr": "Sira"
+                },
+                {
+                    "id": 33,
+                    "code": "SPIRITUALITE",
+                    "name_fr": "Spiritualité"
+                },
+                {
+                    "id": 34,
+                    "code": "R_AUTRES",
+                    "name_fr": "Autres"
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "code": "VIE_PRATIQUE",
+            "name_fr": "Vie pratique et loisirs",
+            "subcategories": [
+                {
+                    "id": 35,
+                    "code": "DEV_PERSO",
+                    "name_fr": "Développement personnel"
+                },
+                {
+                    "id": 36,
+                    "code": "CUISINE_MAISON",
+                    "name_fr": "Cuisine et maison"
+                },
+                {
+                    "id": 37,
+                    "code": "ARTS_CULTURE",
+                    "name_fr": "Arts et culture"
+                },
+                {
+                    "id": 38,
+                    "code": "SPORT_LOISIRS",
+                    "name_fr": "Sport et loisirs"
+                },
+                {
+                    "id": 39,
+                    "code": "VOYAGE",
+                    "name_fr": "Voyage"
+                },
+                {
+                    "id": 40,
+                    "code": "VP_DIVERS",
+                    "name_fr": "Divers"
+                }
+            ]
+        }
+    ]
+}
