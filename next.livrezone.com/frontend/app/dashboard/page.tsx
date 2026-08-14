@@ -88,12 +88,13 @@ async function getDashboardData(): Promise<Listing[] | null> {
     const userData = await userRes.json();
     const userId = userData.id;
 
-    // 2. Fetch listings for this user
-    const res = await fetch(`${baseUrl}/api/listings?user_id=${userId}&limit=100`, {
+    // 2. Fetch dashboard listings for this user (authentifié)
+    const res = await fetch(`${baseUrl}/api/dashboard/listings?limit=100&filter=all`, {
       cache: "no-store",
       headers: { 
         'Accept': 'application/json', 
         'Host': 'api-next.livrezone.com',
+        'Cookie': cookieHeader,
         'Referer': 'https://next.livrezone.com'
       }
     });
@@ -101,7 +102,7 @@ async function getDashboardData(): Promise<Listing[] | null> {
     if (!res.ok) return [];
     
     const json = await res.json();
-    return json.data && Array.isArray(json.data) ? json.data : [];
+    return json.listings && Array.isArray(json.listings) ? json.listings : [];
   } catch (e) {
     console.error("[SSR] getDashboardData error:", e);
     return []; // Network errors for listings can return empty array, but if auth failed earlier it returns null.

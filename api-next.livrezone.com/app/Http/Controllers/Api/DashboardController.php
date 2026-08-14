@@ -12,20 +12,21 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $request->validate([
-            'filter' => ['nullable', Rule::in(['online', 'offline'])],
+            'filter' => ['nullable', Rule::in(['online', 'offline', 'all'])],
             'search' => 'nullable|string|max:100',
             'sort_by' => ['nullable', Rule::in(['created_at', 'price', 'title'])],
             'sort_dir' => ['nullable', Rule::in(['asc', 'desc'])],
         ]);
 
-        // Note: The Listing model must exist in your new backend or point to the existing DB table
-        $query = Listing::query()->where('user_id', $request->user()->id);
-
+        $userId = $request->user()->id;
         $filter = $request->input('filter', 'online');
+
         if ($filter === 'online') {
-            $query->whereIn('status', ['published', 'pending_admin', 'active']);
+            $query = Listing::getActiveListingsByUser($userId);
+        } elseif ($filter === 'offline') {
+            $query = Listing::getDesactivatedListingsByUser($userId);
         } else {
-            $query->whereIn('status', ['sold', 'rejected', 'deleted', 'archived']);
+            $query = Listing::getListingsByUser($userId);
         }
 
         if ($search = $request->input('search')) {
@@ -35,17 +36,22 @@ class DashboardController extends Controller
             });
         }
 
-        $sortBy = $request->input('sort_by', 'created_at');
-        $sortDir = $request->input('sort_dir', 'desc');
-        $query->orderBy($sortBy, $sortDir);
+        if ($request->filled('sort_by')) {
+            $sortBy = $request->input('sort_by');
+            $sortDir = $request->input('sort_dir', 'desc');
+            $query->orderBy($sortBy, $sortDir);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
 
-        $listings = $query->paginate(8);
+        $limit = $request->input('limit', 8);
+        $listings = $query->with(['book', 'category'])->paginate($limit);
 
-        $activeCount = Listing::where('user_id', $request->user()->id)->whereNotIn('status', ['sold', 'rejected', 'deleted', 'archived'])->count();
-        $soldCount = Listing::where('user_id', $request->user()->id)->where('status', 'sold')->count();
+        $activeCount = Listing::getActiveListingsByUser($userId)->count();
+        $soldCount = Listing::where('user_id', $userId)->where('status', 'sold')->count();
 
         return response()->json([
-            'data' => $listings->items(),
+            'listings' => $listings->items(),
             'meta' => [
                 'current_page' => $listings->currentPage(),
                 'last_page' => $listings->lastPage(),
@@ -75,6 +81,14 @@ class DashboardController extends Controller
 
     public function updateStatus(Request $request, Listing $listing)
     {
+        $authUserId = $request->user()?->id ?? 'AUCUN';
+        \Illuminate\Support\Facades\Log::info('updateStatus appelé', [
+            'listing_id' => $listing->id,
+            'listing_user_id' => $listing->user_id,
+            'auth_user_id' => $authUserId,
+            'status_payload' => $request->input('status'),
+        ]);
+
         if ($listing->user_id !== $request->user()->id) {
             abort(403);
         }

@@ -73,6 +73,11 @@ class Listing extends Model
         'deleted_at',
     ];
 
+    protected $appends = [
+        'cover_url',
+        'cover_thumbnail_url',
+    ];
+
     protected $casts = [
         'price' => 'decimal:2',
         'discount_price' => 'decimal:2',
@@ -270,6 +275,35 @@ public static function latestByUser(
         )->withPivot('sort_order')->withTimestamps();
     }
 
+    public function getCoverUrlAttribute(): ?string
+    {
+        $path = trim((string) ($this->cover_path ?? ''));
+
+        if ($path !== '') {
+            if (\Illuminate\Support\Str::startsWith($path, ['http://', 'https://'])) {
+                return $path;
+            }
+
+            if (self::isUserUploadedCover($path)) {
+                return asset('storage/' . $path);
+            }
+
+            // Couverture catalogue : nom de fichier simple (9782294788222.jpg)
+            $cleanPath = ltrim(str_replace('originals/', '', $path), '/');
+            $baseUrl = env('BOOK_COVERS_URL', url('/book-cover-proxy'));
+            return rtrim($baseUrl, '/') . '/' . $cleanPath;
+        }
+
+        $external = trim((string) ($this->cover_source_url ?? ''));
+
+        return $external !== '' ? $external : null;
+    }
+
+    public function getCoverThumbnailUrlAttribute(): ?string
+    {
+        return $this->getCoverThumbnailUrl(160);
+    }
+
     public function getCoverThumbnailUrl(int $size = 160): ?string
     {
         $path = trim((string) ($this->cover_path ?? ''));
@@ -298,5 +332,34 @@ public static function latestByUser(
         $external = trim((string) ($this->cover_source_url ?? ''));
 
         return $external !== '' ? $external : null;
+    }
+
+    /**
+     * Récupère les annonces actives ou en attente pour un utilisateur (Query Builder)
+     */
+    public static function getActiveListingsByUser(int $userId)
+    {
+        return self::query()
+            ->where('user_id', $userId)
+            ->whereIn('status', ['published', 'pending_admin', 'active']);
+    }
+
+    /**
+     * Récupère les annonces désactivées (vendues, supprimées, rejetées, etc.) pour un utilisateur (Query Builder)
+     */
+    public static function getDesactivatedListingsByUser(int $userId)
+    {
+        return self::query()
+            ->where('user_id', $userId)
+            ->whereIn('status', ['sold', 'deleted', 'rejected', 'archived', 'hidden', 'expired']);
+    }
+
+    /**
+     * Récupère toutes les annonces pour un utilisateur (Query Builder)
+     */
+    public static function getListingsByUser(int $userId)
+    {
+        return self::query()
+            ->where('user_id', $userId);
     }
 }

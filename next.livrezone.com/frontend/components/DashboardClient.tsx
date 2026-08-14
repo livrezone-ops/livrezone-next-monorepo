@@ -35,6 +35,51 @@ interface DashboardClientProps {
 
 export default function DashboardClient({ initialListings }: DashboardClientProps) {
   const { user, logout } = useAuth();
+
+  // Miniature en priorité (chargement léger, comme l'ancien projet), avec fallback
+  // sur la couverture originale via onError si la miniature n'existe pas.
+  const primaryCoverUrl = (l: Listing): string | null =>
+    (l as any).cover_thumbnail_url
+    || (l as any).cover_url
+    || l.book?.cover_url
+    || l.cover_source_url
+    || null;
+
+  const fallbackCoverUrl = (l: Listing): string | null =>
+    (l as any).cover_url
+    || l.book?.cover_url
+    || l.cover_source_url
+    || null;
+
+  const handleCoverError = (e: React.SyntheticEvent<HTMLImageElement>, l: Listing) => {
+    const fallback = fallbackCoverUrl(l);
+    if (fallback && e.currentTarget.src !== fallback) {
+      e.currentTarget.src = fallback;
+    } else {
+      e.currentTarget.style.display = "none";
+    }
+  };
+
+  const statusBadge = (l: Listing): { label: string; className: string } => {
+    switch (l.status) {
+      case "sold":
+        return { label: "Vendu", className: "bg-gray-100 text-gray-600 border-gray-200" };
+      case "deleted":
+        return { label: "Supprimé", className: "bg-rose-50 text-rose-700 border-rose-200" };
+      case "rejected":
+        return { label: "Rejeté", className: "bg-rose-50 text-rose-700 border-rose-200" };
+      case "archived":
+        return { label: "Archivé", className: "bg-gray-100 text-gray-500 border-gray-200" };
+      case "published":
+      case "active":
+        return { label: "En ligne", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+      case "hidden":
+      case "expired":
+        return { label: "Hors ligne", className: "bg-gray-100 text-gray-500 border-gray-200" };
+      default:
+        return { label: "En attente", className: "bg-amber-50 text-amber-700 border-amber-200" };
+    }
+  };
   
   const getAvatarUrl = () => {
     if (!user?.profile?.logo) return null;
@@ -135,7 +180,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
     
     if (editingId) {
       try {
-        await api.patch(`/dashboard/listings/${editingId}/inline-edit`, {
+        await api.post(`/dashboard/listings/${editingId}/inline-edit`, {
           title: editTitle,
           price: editPrice,
           discount_price: editDiscountPrice
@@ -148,9 +193,10 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
           discount_price: editDiscountPrice
         } : l));
         setEditingId(null);
-      } catch (e) {
+      } catch (e: any) {
         console.error("Erreur lors de la mise à jour:", e);
-        alert("Une erreur est survenue lors de l'enregistrement.");
+        const msg = e.response?.data?.message || e.response?.data?.error || "Une erreur est survenue lors de l'enregistrement.";
+        alert(msg);
       }
     }
   };
@@ -165,10 +211,10 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
   const executeAction = async () => {
     try {
       if (confirmModal.action === "delete" && confirmModal.id !== null) {
-        await api.patch(`/dashboard/listings/${confirmModal.id}/status`, { status: 'deleted' });
+        await api.post(`/dashboard/listings/${confirmModal.id}/status`, { status: 'deleted' });
         setListings(listings.map(l => l.id === confirmModal.id ? { ...l, status: "deleted" } : l));
       } else if (confirmModal.action === "sold" && confirmModal.id !== null) {
-        await api.patch(`/dashboard/listings/${confirmModal.id}/status`, { status: 'sold' });
+        await api.post(`/dashboard/listings/${confirmModal.id}/status`, { status: 'sold' });
         setListings(listings.map(l => l.id === confirmModal.id ? { ...l, status: "sold" } : l));
       } else if (confirmModal.action === "bulk_sold") {
         await api.post(`/dashboard/listings/bulk-status`, { ids: selectedIds, status: 'sold' });
@@ -449,10 +495,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                       const isSold = l.status === "sold";
                       const isEditing = editingId === l.id;
 
-                      const coverUrl = l.book?.cover_url 
-                        || (l.cover_path ? `https://api-next.livrezone.com/storage/${l.cover_path}` : null)
-                        || l.cover_source_url 
-                        || null;
+                      const coverUrl = primaryCoverUrl(l);
 
                       return (
                         <tr 
@@ -475,6 +518,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                                     <img 
                                       src={coverUrl} 
                                       alt={l.title} 
+                                      onError={(e) => handleCoverError(e, l)}
                                       className="w-10 h-14 object-contain rounded border border-gray-150 cursor-pointer"
                                     />
                                   </Link>
@@ -563,13 +607,9 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                             )}
                           </td>
                           <td className="px-6 py-4">
-                            {isSold ? (
-                              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 border border-gray-200">Vendu</span>
-                            ) : l.status === "published" || l.status === "active" ? (
-                              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">En ligne</span>
-                            ) : (
-                              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">En attente</span>
-                            )}
+                            {(() => { const b = statusBadge(l); return (
+                              <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${b.className}`}>{b.label}</span>
+                            ); })()}
                           </td>
                           <td className="px-6 py-4 text-gray-400 font-medium">
                             {new Date(l.created_at).toLocaleDateString("fr-FR")}
@@ -612,10 +652,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
             <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 ${viewMode === "cards" ? "block" : "block sm:hidden"}`}>
               {filteredListings.map((l) => {
                   const isSold = l.status === "sold";
-                  const coverUrl = l.book?.cover_url 
-                    || (l.cover_path ? `https://api-next.livrezone.com/storage/${l.cover_path}` : null)
-                    || l.cover_source_url 
-                    || null;
+                  const coverUrl = primaryCoverUrl(l);
 
                   return (
                     <div 
@@ -641,20 +678,16 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
 
                       {/* Status flag */}
                       <div className="absolute top-3 right-3">
-                        {isSold ? (
-                          <span className="text-[9px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 border border-gray-100 rounded-sm">Vendu</span>
-                        ) : l.status === "published" || l.status === "active" ? (
-                          <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50/50 px-2 py-0.5 border border-emerald-100 rounded-sm">En ligne</span>
-                        ) : (
-                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50/50 px-2 py-0.5 border border-amber-100 rounded-sm">En attente</span>
-                        )}
+                        {(() => { const b = statusBadge(l); return (
+                          <span className={`text-[9px] font-bold px-2 py-0.5 border rounded-sm ${b.className}`}>{b.label}</span>
+                        ); })()}
                       </div>
 
                       {/* Image cover & Details */}
                       <div className="flex gap-3 pt-6 border-b border-gray-100 pb-3">
                         <Link href={buildListingUrl(l)} className="w-12 h-16 flex-shrink-0 bg-gray-50 flex items-center justify-center rounded border border-gray-150 text-gray-300 cursor-pointer hover:border-[#6D28D9] transition-colors">
                           {coverUrl ? (
-                            <img src={coverUrl} alt={l.title} className="w-full h-full object-contain" />
+                            <img src={coverUrl} alt={l.title} onError={(e) => handleCoverError(e, l)} className="w-full h-full object-contain" />
                           ) : (
                             <BookOpen className="w-5 h-5 stroke-1" />
                           )}
