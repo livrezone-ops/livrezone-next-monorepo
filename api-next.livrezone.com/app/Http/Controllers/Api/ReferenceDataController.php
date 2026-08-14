@@ -14,7 +14,8 @@ class ReferenceDataController extends Controller
     {
         // 1. Catégories hiérarchiques (L1 avec leurs enfants L2 et L3)
         // On récupère toutes les catégories actives et on les organise
-        $categories = Category::where('is_active', true)
+        $categories = Category::with(['levels', 'subjects'])
+            ->where('is_active', true)
             ->orderBy('sort_order')
             ->get();
             
@@ -54,6 +55,12 @@ class ReferenceDataController extends Controller
                     'name' => $element->name_fr,
                     'slug' => $element->slug,
                     'icon' => $element->icon,
+                    'levels' => $element->levels
+                        ->map(fn ($l) => ['id' => $l->id, 'code' => $l->code, 'name_fr' => $l->name_fr])
+                        ->values(),
+                    'subjects' => $element->subjects
+                        ->map(fn ($s) => ['id' => $s->id, 'code' => $s->code, 'name_fr' => $s->name_fr])
+                        ->values(),
                 ];
                 
                 if ($children) {

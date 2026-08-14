@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Book;
+use App\Models\Category;
 use App\Models\Listing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\Laravel\Facades\Image;
 
@@ -30,6 +32,15 @@ class ListingManagerController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateListing($request);
+
+        // Résolution des relations catégorie / niveau / matière
+        $category = Category::with(['levels', 'subjects'])->findOrFail($validated['category_id']);
+        $this->validateCategoryParent($category, $request->input('parent_category_id'));
+        [$levelId, $subjectId] = $this->resolveLevelSubject(
+            $category,
+            $validated['level_id'] ?? null,
+            $validated['subject_id'] ?? null
+        );
 
         // Recherche du livre par ISBN pour lier book_id et récupérer la couverture catalogue
         $book = null;
@@ -68,12 +79,12 @@ class ListingManagerController extends Controller
             'price' => $validated['price'],
             'discount_price' => $validated['discount_price'] ?? null,
             'currency' => 'MAD',
-            'quantity' => $validated['quantity'] ?? 1,
+            'quantity' => 1,
             'cover_path' => $coverPath,
             'cover_source_url' => $coverSourceUrl,
-            'category_id' => $validated['category_id'],
-            'level_id' => $validated['level_id'] ?? null,
-            'subject_id' => $validated['subject_id'] ?? null,
+            'category_id' => $category->id,
+            'level_id' => $levelId,
+            'subject_id' => $subjectId,
             'language_id' => $validated['language_id'] ?? null,
             'isbn_13' => $validated['isbn_13'] ?? null,
             'status' => 'pending_admin',
@@ -95,6 +106,15 @@ class ListingManagerController extends Controller
         }
 
         $validated = $this->validateListing($request);
+
+        // Résolution des relations catégorie / niveau / matière
+        $category = Category::with(['levels', 'subjects'])->findOrFail($validated['category_id']);
+        $this->validateCategoryParent($category, $request->input('parent_category_id'));
+        [$levelId, $subjectId] = $this->resolveLevelSubject(
+            $category,
+            $validated['level_id'] ?? null,
+            $validated['subject_id'] ?? null
+        );
 
         // Recherche du livre par ISBN pour mettre à jour le lien book_id
         $bookId = $listing->book_id;
@@ -128,14 +148,16 @@ class ListingManagerController extends Controller
             'book_condition' => $validated['book_condition'],
             'price' => $validated['price'],
             'discount_price' => $validated['discount_price'] ?? null,
-            'quantity' => $validated['quantity'] ?? 1,
-            'category_id' => $validated['category_id'],
-            'level_id' => $validated['level_id'] ?? null,
-            'subject_id' => $validated['subject_id'] ?? null,
+            'quantity' => 1,
+            'category_id' => $category->id,
+            'level_id' => $levelId,
+            'subject_id' => $subjectId,
             'language_id' => $validated['language_id'] ?? null,
             'isbn_13' => $validated['isbn_13'] ?? null,
             'cover_path' => $coverPath,
             'cover_source_url' => $coverSourceUrl,
+            'status' => 'pending_admin',
+            'submitted_at' => now(),
         ];
 
         $listing->update($payload);
@@ -154,15 +176,64 @@ class ListingManagerController extends Controller
             'book_condition' => 'required|in:neuf,occas',
             'price' => 'required|numeric|min:0',
             'discount_price' => 'nullable|numeric|min:0|lt:price',
-            'quantity' => 'nullable|integer|min:1',
             'category_id' => 'required|exists:categories,id',
-            'level_id' => 'nullable|exists:levels,id',
-            'subject_id' => 'nullable|exists:subjects,id',
+            'parent_category_id' => 'nullable|integer|exists:categories,id',
+            'level_id' => 'nullable|integer',
+            'subject_id' => 'nullable|integer',
             'language_id' => 'nullable|exists:languages,id',
             'isbn_13' => 'nullable|string|max:20',
             'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:4096',
             'cover_source_url' => 'nullable|url'
         ]);
+    }
+
+    /**
+     * Vérifie que la sous-catégorie appartient bien à la catégorie parente sélectionnée.
+     */
+    private function validateCategoryParent(Category $category, $parentId): void
+    {
+        if ($parentId !== null && (int) $parentId !== (int) $category->parent_id) {
+            throw ValidationException::withMessages([
+                'category_id' => 'La sous-catégorie sélectionnée n\'appartient pas à la catégorie parente choisie.',
+            ]);
+        }
+    }
+
+    /**
+     * Résout le niveau et la matière en respectant les relations de la catégorie
+     * (category_level / category_subject). Impose « Non applicable » quand la
+     * relation l'exige, et rejette toute valeur non autorisée.
+     *
+     * @return array{0: int|null, 1: int|null} [level_id, subject_id]
+     */
+    private function resolveLevelSubject(Category $category, ?int $levelId, ?int $subjectId): array
+    {
+        $allowedLevels = $category->levels;
+        $allowedSubjects = $category->subjects;
+
+        $naLevel = $allowedLevels->first(fn ($l) => $l->code === 'NON_APPLICABLE');
+        $levelIsNA = $allowedLevels->count() === 0 || ($allowedLevels->count() === 1 && $naLevel !== null);
+
+        if ($levelIsNA) {
+            $levelId = $naLevel?->id ?? null;
+        } elseif ($levelId !== null && !in_array($levelId, $allowedLevels->pluck('id')->all(), true)) {
+            throw ValidationException::withMessages([
+                'level_id' => 'Le niveau sélectionné n\'est pas autorisé pour cette catégorie.',
+            ]);
+        }
+
+        $naSubject = $allowedSubjects->first(fn ($s) => $s->code === 'NON_APPLICABLE');
+        $subjectIsNA = $allowedSubjects->count() === 0 || ($allowedSubjects->count() === 1 && $naSubject !== null);
+
+        if ($subjectIsNA) {
+            $subjectId = $naSubject?->id ?? null;
+        } elseif ($subjectId !== null && !in_array($subjectId, $allowedSubjects->pluck('id')->all(), true)) {
+            throw ValidationException::withMessages([
+                'subject_id' => 'La matière sélectionnée n\'est pas autorisée pour cette catégorie.',
+            ]);
+        }
+
+        return [$levelId, $subjectId];
     }
 
     private function storeCover($file)

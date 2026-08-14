@@ -7,11 +7,14 @@ import ListingForm from "@/components/ListingForm";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 import api from "@/lib/axios";
+import ToastContainer from "@/components/Toast";
+import { useToasts } from "@/hooks/useToasts";
 
 export default function EditListingPage() {
   const router = useRouter();
   const params = useParams();
   const { user, isLoading: authLoading } = useAuth();
+  const { toasts, pushToast, dismissToast } = useToasts();
   
   const [initialData, setInitialData] = useState<any>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -74,6 +77,7 @@ export default function EditListingPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
@@ -86,12 +90,15 @@ export default function EditListingPage() {
             initialData={initialData}
             isEditMode={true}
             onSubmitSuccess={() => {
-              alert("Votre annonce a été mise à jour avec succès !");
-              router.push("/dashboard");
+              pushToast("Votre annonce a été mise à jour avec succès");
+              setTimeout(() => router.push("/dashboard"), 1200);
             }} 
+            onError={(message) => pushToast(message, "warning")}
           />
         )}
       </div>
     </div>
+    <ToastContainer toasts={toasts} dismiss={dismissToast} />
+    </>
   );
 }

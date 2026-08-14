@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,6 +15,8 @@ interface CategoryNode {
   name_fr: string;
   slug: string;
   children?: CategoryNode[];
+  levels?: Level[];
+  subjects?: Subject[];
 }
 
 interface Language {
@@ -49,7 +51,6 @@ const formSchema = z.object({
   book_condition: z.enum(["neuf", "occas"], { message: "Sélectionnez un état" }),
   price: z.number({ message: "Le prix est requis" }).min(0, "Le prix doit être positif"),
   discount_price: z.number().min(0, "Le prix réduit doit être positif").optional().nullable(),
-  quantity: z.number().min(1, "La quantité doit être d'au moins 1"),
   category_id: z.number({ message: "Sélectionnez une catégorie" }).min(1),
   level_id: z.number().optional().nullable(),
   subject_id: z.number().optional().nullable(),
@@ -68,30 +69,30 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface ListingFormProps {
-  initialData?: FormValues & { id?: number, cover_path?: string, cover_source_url?: string };
+  initialData?: FormValues & { id?: number, cover_path?: string, cover_source_url?: string, cover_url?: string, cover_thumbnail_url?: string };
   onSubmitSuccess: () => void;
   isEditMode?: boolean;
+  onError?: (message: string) => void;
 }
 
-export default function ListingForm({ initialData, onSubmitSuccess, isEditMode = false }: ListingFormProps) {
+export default function ListingForm({ initialData, onSubmitSuccess, isEditMode = false, onError }: ListingFormProps) {
+  const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'https://api-next.livrezone.com/api').replace(/\/api\/?$/, '');
   const resolveCoverUrl = (path?: string) => {
     if (!path) return null;
     if (path.startsWith('http')) return path;
-    if (path.startsWith('book-covers/')) return `${process.env.NEXT_PUBLIC_API_URL || 'https://api-next.livrezone.com'}/${path}`;
-    return `${process.env.NEXT_PUBLIC_API_URL || 'https://api-next.livrezone.com'}/storage/${path}`;
+    return `${API_ORIGIN}/${path.replace(/^\//, '')}`;
   };
 
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(
-    resolveCoverUrl(initialData?.cover_path) || initialData?.cover_source_url || null
+    initialData?.cover_url || initialData?.cover_source_url || null
   );
   const [coverSourceUrl, setCoverSourceUrl] = useState<string | null>(null);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Recherche ISBN
-  const [isbnInput, setIsbnInput] = useState("");
+  const [isbnInput, setIsbnInput] = useState(initialData?.isbn_13 || "");
   const [isSearchingIsbn, setIsSearchingIsbn] = useState(false);
   const [isbnSearchError, setIsbnSearchError] = useState<string | null>(null);
 
@@ -130,7 +131,6 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
       book_condition: initialData?.book_condition || "occas",
       price: initialData?.price || undefined,
       discount_price: initialData?.discount_price || null,
-      quantity: initialData?.quantity || 1,
       category_id: initialData?.category_id || undefined,
       level_id: initialData?.level_id || null,
       subject_id: initialData?.subject_id || null,
@@ -141,8 +141,10 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
 
   const priceValue = form.watch("price");
 
-  // Initialisation de la hiérarchie de catégories
+  // Initialisation de la hiérarchie de catégories (une seule fois, au chargement)
+  const catInitDone = useRef(false);
   useEffect(() => {
+    if (catInitDone.current || !refData) return;
     const initCat = initialData?.category_id || form.getValues("category_id");
     if (initCat && refData) {
       let found = false;
@@ -175,8 +177,9 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
         }
         if (found) break;
       }
+      catInitDone.current = true;
     }
-  }, [initialData, refData, form.getValues("category_id")]);
+  }, [initialData, refData, form]);
 
   // Initialisation du % de réduction si un discount_price existe
   useEffect(() => {
@@ -187,6 +190,56 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
       setDiscountPercent(pct.toString());
     }
   }, [initialData]);
+
+  // --- Niveau / Matière pilotés par la catégorie sélectionnée ---
+  const findCategoryNode = (cats: CategoryNode[] | undefined, id: number | undefined): CategoryNode | null => {
+    if (!id) return null;
+    for (const c of cats || []) {
+      if (c.id === id) return c;
+      if (c.children) {
+        const f = findCategoryNode(c.children, id);
+        if (f) return f;
+      }
+    }
+    return null;
+  };
+
+  const selectedCategory = useMemo(
+    () => findCategoryNode(refData?.categories, form.watch("category_id")),
+    [refData, form.watch("category_id")]
+  );
+
+  const allowedLevels = selectedCategory?.levels || [];
+  const allowedSubjects = selectedCategory?.subjects || [];
+  const naLevel = allowedLevels.find((l) => l.code === "NON_APPLICABLE");
+  const naSubject = allowedSubjects.find((s) => s.code === "NON_APPLICABLE");
+  const levelIsNA = allowedLevels.length === 0 || (allowedLevels.length === 1 && !!naLevel);
+  const subjectIsNA = allowedSubjects.length === 0 || (allowedSubjects.length === 1 && !!naSubject);
+
+  // Synchronise level/subject quand la catégorie change
+  useEffect(() => {
+    if (!selectedCategory) return;
+
+    if (levelIsNA) {
+      const target = naLevel ? naLevel.id : null;
+      if (form.getValues("level_id") !== target) form.setValue("level_id", target);
+    } else {
+      const cur = form.getValues("level_id");
+      if (cur && !allowedLevels.some((l) => l.id === cur)) {
+        form.setValue("level_id", null);
+      }
+    }
+
+    if (subjectIsNA) {
+      const target = naSubject ? naSubject.id : null;
+      if (form.getValues("subject_id") !== target) form.setValue("subject_id", target);
+    } else {
+      const cur = form.getValues("subject_id");
+      if (cur && !allowedSubjects.some((s) => s.id === cur)) {
+        form.setValue("subject_id", null);
+      }
+    }
+  }, [selectedCategory, levelIsNA, subjectIsNA, allowedLevels, allowedSubjects, form]);
 
   // Fonction de recherche ISBN
   const searchIsbn = async () => {
@@ -287,8 +340,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
   const onSubmit = async (values: FormValues) => {
     try {
       setIsSubmitting(true);
-      setSubmitError(null);
-      
+
       const formData = new FormData();
       Object.keys(values).forEach(key => {
         const val = values[key as keyof FormValues];
@@ -296,6 +348,14 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
           formData.append(key, val.toString());
         }
       });
+
+      // La quantité est toujours fixée à 1 (non modifiable par l'utilisateur)
+      formData.append("quantity", "1");
+
+      // La catégorie parente (L1) pour la validation de la sous-catégorie côté serveur
+      if (typeof selectedL1 === "number") {
+        formData.append("parent_category_id", selectedL1.toString());
+      }
 
       if (coverFile) {
         formData.append("cover_image", coverFile);
@@ -317,7 +377,8 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
       onSubmitSuccess();
     } catch (err: any) {
       console.error(err);
-      setSubmitError(err.response?.data?.message || "Une erreur est survenue lors de l'enregistrement.");
+      const message = err.response?.data?.message || "Une erreur est survenue lors de l'enregistrement.";
+      if (onError) onError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -339,10 +400,9 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
   const l2Categories = currentL1?.children || [];
   const l3Categories = currentL2?.children || [];
 
-  // Niveaux et Matières
-  const selectedLevelId = form.watch("level_id");
-  const currentLevel = refData?.levels.find(l => l.id === selectedLevelId);
-  const subjects = currentLevel?.subjects || [];
+  // Niveaux et Matières (pilotés par la catégorie sélectionnée)
+  const levelOptions = levelIsNA ? (naLevel ? [naLevel] : []) : allowedLevels;
+  const subjectOptions = subjectIsNA ? (naSubject ? [naSubject] : []) : allowedSubjects;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -399,12 +459,6 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
             </div>
         )}
       </div>
-
-      {submitError && (
-        <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-lg border border-red-200 text-sm">
-          {submitError}
-        </div>
-      )}
 
       {/* Formulaire d'annonce */}
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -591,44 +645,46 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                     {form.formState.errors.category_id && <p className="mt-1 text-xs text-red-600">{form.formState.errors.category_id.message}</p>}
                 </div>
 
-                {/* Niveau (Scolaire etc.) */}
+                {/* Niveau */}
                 <div>
                     <label className="mb-1 block text-sm font-semibold text-slate-700">
-                        Niveau (Optionnel)
+                        Niveau {levelIsNA ? "" : "(Optionnel)"}
                     </label>
                     <select {...form.register("level_id", { setValueAs: v => v === "" ? null : parseInt(v) })}
-                            className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20">
-                        <option value="">-- Choisir --</option>
-                        {refData?.levels.map(level => (
-                            <option key={level.id} value={level.id}>{level.name_fr}</option>
-                        ))}
+                            disabled={levelIsNA}
+                            className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed">
+                        {levelIsNA ? (
+                            <option value={naLevel?.id ?? ""}>{naLevel?.name_fr || "Non applicable"}</option>
+                        ) : (
+                            <>
+                                <option value="">-- Choisir --</option>
+                                {levelOptions.map(level => (
+                                    <option key={level.id} value={level.id}>{level.name_fr}</option>
+                                ))}
+                            </>
+                        )}
                     </select>
                 </div>
 
                 {/* Matière */}
-                {subjects.length > 0 && (
-                    <div>
-                        <label className="mb-1 block text-sm font-semibold text-slate-700">
-                            Matière (Optionnel)
-                        </label>
-                        <select {...form.register("subject_id", { setValueAs: v => v === "" ? null : parseInt(v) })}
-                                className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20">
-                            <option value="">-- Choisir --</option>
-                            {subjects.map(subject => (
-                                <option key={subject.id} value={subject.id}>{subject.name_fr}</option>
-                            ))}
-                        </select>
-                    </div>
-                )}
-
-                {/* Quantité */}
                 <div>
                     <label className="mb-1 block text-sm font-semibold text-slate-700">
-                        Quantité <span className="text-red-500">*</span>
+                        Matière {subjectIsNA ? "" : "(Optionnel)"}
                     </label>
-                    <input type="number" min="1" {...form.register("quantity", { valueAsNumber: true })}
-                           className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20" />
-                    {form.formState.errors.quantity && <p className="mt-1 text-xs text-red-600">{form.formState.errors.quantity.message}</p>}
+                    <select {...form.register("subject_id", { setValueAs: v => v === "" ? null : parseInt(v) })}
+                            disabled={subjectIsNA}
+                            className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed">
+                        {subjectIsNA ? (
+                            <option value={naSubject?.id ?? ""}>{naSubject?.name_fr || "Non applicable"}</option>
+                        ) : (
+                            <>
+                                <option value="">-- Choisir --</option>
+                                {subjectOptions.map(subject => (
+                                    <option key={subject.id} value={subject.id}>{subject.name_fr}</option>
+                                ))}
+                            </>
+                        )}
+                    </select>
                 </div>
 
             </div>{/* fin card */}

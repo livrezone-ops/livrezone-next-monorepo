@@ -25,6 +25,7 @@ Route::middleware('auth:sanctum')->prefix('dashboard')->group(function () {
     Route::get('/listings/{listing}', [ListingManagerController::class, 'show']);
     Route::post('/listings', [ListingManagerController::class, 'store']);
     Route::post('/listings/{listing}', [ListingManagerController::class, 'update']);
+    Route::put('/listings/{listing}', [ListingManagerController::class, 'update']);
     Route::post('/listings/{listing}/inline-edit', [DashboardController::class, 'updateInline']);
     Route::post('/listings/{listing}/status', [DashboardController::class, 'updateStatus']);
     Route::post('/listings/{listing}/republish', [DashboardController::class, 'republish']);
