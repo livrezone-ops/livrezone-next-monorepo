@@ -351,7 +351,7 @@ public static function latestByUser(
     {
         return self::query()
             ->where('user_id', $userId)
-            ->whereIn('status', ['sold', 'deleted', 'rejected', 'archived', 'hidden', 'expired']);
+            ->whereIn('status', ['sold', 'deleted', 'rejected', 'hidden', 'expired']);
     }
 
     /**
@@ -360,6 +360,7 @@ public static function latestByUser(
     public static function getListingsByUser(int $userId)
     {
         return self::query()
-            ->where('user_id', $userId);
+            ->where('user_id', $userId)
+            ->where('status', '!=', 'archived');
     }
 }

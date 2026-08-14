@@ -27,6 +27,7 @@ Route::middleware('auth:sanctum')->prefix('dashboard')->group(function () {
     Route::post('/listings/{listing}', [ListingManagerController::class, 'update']);
     Route::post('/listings/{listing}/inline-edit', [DashboardController::class, 'updateInline']);
     Route::post('/listings/{listing}/status', [DashboardController::class, 'updateStatus']);
+    Route::post('/listings/{listing}/republish', [DashboardController::class, 'republish']);
     
     Route::post('/listings/bulk-status', [DashboardController::class, 'bulkUpdateStatus']);
     Route::post('/listings/bulk-discount', [DashboardController::class, 'bulkApplyDiscount']);

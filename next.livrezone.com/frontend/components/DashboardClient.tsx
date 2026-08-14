@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { 
   BookOpen, Plus, Search, Grid, List, CheckCircle, 
-  Trash2, Tag, Edit, Check, X, ShieldAlert, Heart, ShoppingBag
+  Trash2, Tag, Edit, Check, X, ShieldAlert, Heart, ShoppingBag,
+  Eye, Archive, RotateCcw
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/axios";
+import ToastContainer, { ToastData, ToastType } from "@/components/Toast";
 
 interface Listing {
   id: number;
@@ -106,6 +108,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [bulkDiscount, setBulkDiscount] = useState("");
+  const [republishingIds, setRepublishingIds] = useState<Set<number>>(new Set());
 
   // Inline editing state
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -174,7 +177,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
 
   const handleSaveEdit = async () => {
     if (editDiscountPrice !== null && editDiscountPrice >= editPrice) {
-      alert("Le prix réduit doit être inférieur au prix normal.");
+      pushToast("Le prix réduit doit être inférieur au prix normal.", "warning");
       return;
     }
     
@@ -193,41 +196,116 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
           discount_price: editDiscountPrice
         } : l));
         setEditingId(null);
+        pushToast("Annonce mise à jour avec succès");
       } catch (e: any) {
         console.error("Erreur lors de la mise à jour:", e);
         const msg = e.response?.data?.message || e.response?.data?.error || "Une erreur est survenue lors de l'enregistrement.";
-        alert(msg);
+        pushToast(msg, "warning");
       }
     }
   };
 
   // Confirmation Modal state
-  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; action: "delete" | "sold" | "bulk_delete" | "bulk_sold" | null; id: number | null }>({ isOpen: false, action: null, id: null });
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; action: "delete" | "sold" | "bulk_delete" | "bulk_sold" | "archive" | "republish" | null; id: number | null }>({ isOpen: false, action: null, id: null });
 
-  const confirmAction = (action: "delete" | "sold" | "bulk_delete" | "bulk_sold", id: number | null = null) => {
+  const confirmAction = (action: "delete" | "sold" | "bulk_delete" | "bulk_sold" | "archive" | "republish", id: number | null = null) => {
     setConfirmModal({ isOpen: true, action, id });
   };
 
+  // ---------------------------------------------------------------
+  // Notifications toast
+  // ---------------------------------------------------------------
+  const [toasts, setToasts] = useState<ToastData[]>([]);
+  const toastIdRef = useRef(0);
+
+  const pushToast = (message: string, type: ToastType = "success") => {
+    const id = ++toastIdRef.current;
+    setToasts((prev) => [...prev, { id, message, type }]);
+
+    setTimeout(() => {
+      setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 260);
+    }, 3000);
+  };
+
+  const dismissToast = (id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const loadListings = async (listFilter: "online" | "offline" | "all" = filter) => {
+    try {
+      const res = await api.get("/dashboard/listings", {
+        params: { filter: listFilter, limit: 100 },
+      });
+      setListings(res.data.listings);
+    } catch (e) {
+      console.error("Erreur lors du rechargement des annonces:", e);
+    }
+  };
+
   const executeAction = async () => {
+    if (confirmModal.action === "republish" && confirmModal.id !== null) {
+      const id = confirmModal.id;
+      if (republishingIds.has(id)) {
+        setConfirmModal({ isOpen: false, action: null, id: null });
+        return;
+      }
+      setRepublishingIds((prev) => new Set(prev).add(id));
+      try {
+        const res = await api.post(`/dashboard/listings/${id}/republish`);
+        await loadListings(filter);
+        setFilter("all");
+        await loadListings("all");
+        pushToast(res.data?.message || "Article republié avec succès");
+      } catch (e: any) {
+        console.error("Erreur lors de la republication:", e);
+        pushToast(e.response?.data?.message || "Impossible de republier l'annonce.", "warning");
+      } finally {
+        setRepublishingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+      setConfirmModal({ isOpen: false, action: null, id: null });
+      return;
+    }
+
     try {
       if (confirmModal.action === "delete" && confirmModal.id !== null) {
-        await api.post(`/dashboard/listings/${confirmModal.id}/status`, { status: 'deleted' });
-        setListings(listings.map(l => l.id === confirmModal.id ? { ...l, status: "deleted" } : l));
+        const res = await api.post(`/dashboard/listings/${confirmModal.id}/status`, { status: 'deleted' });
+        await loadListings(filter);
+        setFilter("all");
+        await loadListings("all");
+        pushToast(res.data?.message || "Article supprimé avec succès");
       } else if (confirmModal.action === "sold" && confirmModal.id !== null) {
-        await api.post(`/dashboard/listings/${confirmModal.id}/status`, { status: 'sold' });
-        setListings(listings.map(l => l.id === confirmModal.id ? { ...l, status: "sold" } : l));
+        const res = await api.post(`/dashboard/listings/${confirmModal.id}/status`, { status: 'sold' });
+        await loadListings(filter);
+        setFilter("all");
+        await loadListings("all");
+        pushToast(res.data?.message || "Article marqué comme vendu avec succès");
+      } else if (confirmModal.action === "archive" && confirmModal.id !== null) {
+        const res = await api.post(`/dashboard/listings/${confirmModal.id}/status`, { status: 'archived' });
+        await loadListings(filter);
+        setFilter("all");
+        await loadListings("all");
+        pushToast(res.data?.message || "Article archivé avec succès");
       } else if (confirmModal.action === "bulk_sold") {
         await api.post(`/dashboard/listings/bulk-status`, { ids: selectedIds, status: 'sold' });
         setListings(listings.map(l => selectedIds.includes(l.id) ? { ...l, status: "sold" } : l));
         setSelectedIds([]);
+        pushToast("Annonces marquées comme vendues");
       } else if (confirmModal.action === "bulk_delete") {
         await api.post(`/dashboard/listings/bulk-status`, { ids: selectedIds, status: 'deleted' });
         setListings(listings.map(l => selectedIds.includes(l.id) ? { ...l, status: "deleted" } : l));
         setSelectedIds([]);
+        pushToast("Annonces supprimées");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Erreur lors de l'action:", e);
-      alert("Une erreur est survenue.");
+      pushToast(e.response?.data?.message || "Une erreur est survenue.", "warning");
     }
     setConfirmModal({ isOpen: false, action: null, id: null });
   };
@@ -237,8 +315,16 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
     confirmAction("sold", id);
   };
 
+  const handleArchive = (id: number) => {
+    confirmAction("archive", id);
+  };
+
   const handleDelete = (id: number) => {
     confirmAction("delete", id);
+  };
+
+  const handleRepublish = (id: number) => {
+    confirmAction("republish", id);
   };
 
   // Bulk Actions
@@ -269,10 +355,82 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
       }));
       setSelectedIds([]);
       setBulkDiscount("");
+      pushToast("Remise appliquée avec succès");
     } catch (e) {
       console.error("Erreur lors de l'application de la remise:", e);
-      alert("Une erreur est survenue.");
+      pushToast("Une erreur est survenue lors de l'application de la remise.", "warning");
     }
+  };
+
+  // Actions adaptées au statut du listing.
+  const isInactiveListing = (l: Listing) => ["sold", "deleted", "archived"].includes(l.status);
+
+  const renderActions = (l: Listing, bordered: boolean) => {
+    const inactive = isInactiveListing(l);
+    const archived = l.status === "archived";
+    const isRepublishing = republishingIds.has(l.id);
+    const baseIcon = bordered
+      ? "p-1.5 border border-gray-150 text-gray-400 rounded-lg transition-colors cursor-pointer"
+      : "p-1.5 text-gray-400 rounded-md transition-colors cursor-pointer";
+
+    if (inactive) {
+      return (
+        <div className="flex gap-1.5 justify-end items-center">
+          <button
+            onClick={() => handleRepublish(l.id)}
+            disabled={isRepublishing}
+            className={`text-[#6D28D9] hover:text-violet-700 font-bold text-xs cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              isRepublishing ? "opacity-40 cursor-not-allowed" : ""
+            }`}
+            title="Créer une nouvelle annonce à partir de celle-ci"
+          >
+            {isRepublishing ? "Republication..." : "Republier"}
+          </button>
+          {!archived && (
+            <button
+              onClick={() => handleArchive(l.id)}
+              className="text-orange-500 hover:text-orange-600 font-bold text-xs cursor-pointer transition-colors"
+              title="Archiver"
+            >
+              Archiver
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex gap-1.5 justify-end items-center">
+        <Link
+          href={buildListingUrl(l)}
+          className={`${baseIcon} hover:border-violet-600 hover:bg-violet-50 hover:text-violet-600`}
+          title="Visualiser"
+        >
+          <Eye className={bordered ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        </Link>
+        <button
+          onClick={() => handleMarkAsSold(l.id)}
+          className={`${baseIcon} hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-600`}
+          title="Marquer comme vendu"
+        >
+          <CheckCircle className={bordered ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        </button>
+        <Link
+          href={`/annonces/${l.id}/edit`}
+          className={`${baseIcon} hover:border-blue-600 hover:bg-blue-50 hover:text-blue-600`}
+          title="Modifier"
+        >
+          <Edit className={bordered ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        </Link>
+        <button
+          onClick={() => handleDelete(l.id)}
+          className={`${baseIcon} hover:border-rose-600 hover:bg-rose-50 hover:text-rose-600`}
+          title="Supprimer"
+        >
+          <Trash2 className={bordered ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -492,7 +650,6 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {filteredListings.map((l) => {
-                      const isSold = l.status === "sold";
                       const isEditing = editingId === l.id;
 
                       const coverUrl = primaryCoverUrl(l);
@@ -615,31 +772,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                             {new Date(l.created_at).toLocaleDateString("fr-FR")}
                           </td>
                           <td className="px-6 py-4 text-right pr-6">
-                            <div className="flex gap-2 justify-end">
-                              {!isSold && (
-                                <button 
-                                  onClick={() => handleMarkAsSold(l.id)}
-                                  className="p-1.5 text-gray-400 hover:text-emerald-600 rounded-md hover:bg-emerald-50 transition-colors cursor-pointer" 
-                                  title="Marquer comme vendu"
-                                >
-                                  <CheckCircle className="w-4 h-4" />
-                                </button>
-                              )}
-                              <Link 
-                                href={`/annonces/${l.id}/edit`}
-                                className="p-1.5 text-gray-400 hover:text-blue-600 rounded-md hover:bg-blue-50 transition-colors cursor-pointer" 
-                                title="Modifier"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Link>
-                              <button 
-                                onClick={() => handleDelete(l.id)}
-                                className="p-1.5 text-gray-400 hover:text-rose-600 rounded-md hover:bg-rose-50 transition-colors cursor-pointer" 
-                                title="Supprimer"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
+                            {renderActions(l, false)}
                           </td>
                         </tr>
                       );
@@ -651,7 +784,6 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
             {/* Cards View (Responsive default) */}
             <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 ${viewMode === "cards" ? "block" : "block sm:hidden"}`}>
               {filteredListings.map((l) => {
-                  const isSold = l.status === "sold";
                   const coverUrl = primaryCoverUrl(l);
 
                   return (
@@ -723,29 +855,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                         </div>
 
                         <div className="flex gap-1.5">
-                          {!isSold && (
-                            <button 
-                              onClick={() => confirmAction("sold", l.id)}
-                              className="p-1.5 border border-gray-150 hover:border-emerald-600 hover:bg-emerald-50 text-gray-400 hover:text-emerald-600 rounded-lg transition-colors cursor-pointer"
-                              title="Marquer comme vendu"
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          <Link 
-                            href={`/annonces/${l.id}/edit`}
-                            className="p-1.5 border border-gray-150 hover:border-blue-600 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition-colors cursor-pointer"
-                            title="Modifier"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </Link>
-                          <button 
-                            onClick={() => confirmAction("delete", l.id)}
-                            className="p-1.5 border border-gray-150 hover:border-rose-600 hover:bg-rose-50 text-gray-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
-                            title="Retirer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {renderActions(l, true)}
                         </div>
                       </div>
                     </div>
@@ -778,6 +888,14 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                 <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center mb-4 border border-rose-100">
                   <Trash2 className="w-6 h-6 text-rose-500" />
                 </div>
+              ) : confirmModal.action === "archive" ? (
+                <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-4 border border-amber-100">
+                  <Archive className="w-6 h-6 text-amber-600" />
+                </div>
+              ) : confirmModal.action === "republish" ? (
+                <div className="w-12 h-12 rounded-full bg-[#6D28D9]/10 flex items-center justify-center mb-4 border border-[#6D28D9]/20">
+                  <RotateCcw className="w-6 h-6 text-[#6D28D9]" />
+                </div>
               ) : (
                 <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mb-4 border border-emerald-100">
                   <CheckCircle className="w-6 h-6 text-emerald-500" />
@@ -785,12 +903,17 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
               )}
               
               <h3 className="text-lg font-black text-gray-900 mb-2">
-                {confirmModal.action === "delete" || confirmModal.action === "bulk_delete" ? "Supprimer l'annonce ?" : "Marquer comme vendu ?"}
+                {confirmModal.action === "delete" || confirmModal.action === "bulk_delete" ? "Supprimer l'annonce ?" : 
+                 confirmModal.action === "archive" ? "Archiver l'annonce ?" :
+                 confirmModal.action === "republish" ? "Remettre l'annonce en vente ?" :
+                 "Marquer comme vendu ?"}
               </h3>
               
               <p className="text-xs text-gray-500 mb-6 px-2">
                 {confirmModal.action === "delete" ? "Cette action retirera l'annonce de la plateforme. Êtes-vous sûr ?" : 
                  confirmModal.action === "bulk_delete" ? "Voulez-vous vraiment retirer les annonces sélectionnées ?" :
+                 confirmModal.action === "archive" ? "Après l'archivage, cette publication ne sera plus visible. Êtes-vous sûr ?" :
+                 confirmModal.action === "republish" ? "Voulez-vous remettre le book en vente ? Une nouvelle annonce sera créée." :
                  confirmModal.action === "sold" ? "Bravo pour cette vente ! L'annonce n'apparaîtra plus dans les résultats de recherche." :
                  "Marquer ces annonces comme vendues ? Elles n'apparaîtront plus dans les résultats de recherche."}
               </p>
@@ -807,6 +930,10 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                   className={`flex-1 py-2.5 font-bold text-xs rounded-xl text-white transition-colors cursor-pointer shadow-sm ${
                     confirmModal.action === "delete" || confirmModal.action === "bulk_delete" 
                       ? "bg-rose-500 hover:bg-rose-600 border border-rose-600" 
+                      : confirmModal.action === "archive"
+                      ? "bg-amber-500 hover:bg-amber-600 border border-amber-600"
+                      : confirmModal.action === "republish"
+                      ? "bg-[#6D28D9] hover:bg-violet-800 border border-[#6D28D9]"
                       : "bg-emerald-500 hover:bg-emerald-600 border border-emerald-600"
                   }`}
                 >
@@ -817,6 +944,9 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
           </div>
         </div>
       )}
+
+      {/* Notifications toast */}
+      <ToastContainer toasts={toasts} dismiss={dismissToast} />
 
     </div>
   );

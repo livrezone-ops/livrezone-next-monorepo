@@ -81,25 +81,69 @@ class DashboardController extends Controller
 
     public function updateStatus(Request $request, Listing $listing)
     {
-        $authUserId = $request->user()?->id ?? 'AUCUN';
-        \Illuminate\Support\Facades\Log::info('updateStatus appelé', [
-            'listing_id' => $listing->id,
-            'listing_user_id' => $listing->user_id,
-            'auth_user_id' => $authUserId,
-            'status_payload' => $request->input('status'),
-        ]);
-
         if ($listing->user_id !== $request->user()->id) {
             abort(403);
         }
 
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['sold', 'deleted'])]
+            'status' => ['required', Rule::in(['sold', 'deleted', 'archived'])]
         ]);
 
-        $listing->update(['status' => $validated['status']]);
+        $status = $validated['status'];
 
-        return response()->json(['message' => 'Statut mis à jour']);
+        // Un listing ne peut être marqué vendu/supprimé/archivé qu'une seule fois.
+        // Toute répétition d'une action déjà effectuée est ignorée et signalée.
+        if ($listing->status === $status) {
+            $duplicateMessages = [
+                'sold' => 'Article déjà vendu',
+                'deleted' => 'Article déjà supprimé',
+                'archived' => 'Article déjà archivé',
+            ];
+
+            return response()->json([
+                'message' => $duplicateMessages[$status],
+                'listing' => $listing,
+            ], 409);
+        }
+
+        $listing->update(['status' => $status]);
+
+        $successMessages = [
+            'sold' => 'Article marqué comme vendu avec succès',
+            'deleted' => 'Article supprimé avec succès',
+            'archived' => 'Article archivé avec succès',
+        ];
+
+        return response()->json([
+            'message' => $successMessages[$status],
+            'listing' => $listing,
+        ]);
+    }
+
+    /**
+     * Republie une annonce en créant une copie reprenant toutes ses
+     * caractéristiques. L'annonce d'origine est conservée pour l'historique.
+     */
+    public function republish(Request $request, Listing $listing)
+    {
+        if ($listing->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $newListing = $listing->replicate();
+        $newListing->status = 'pending_admin';
+        $newListing->submitted_at = now();
+        $newListing->reviewed_at = null;
+        $newListing->reviewed_by = null;
+        $newListing->moderation_note = null;
+        $newListing->published_at = null;
+        $newListing->deleted_at = null;
+        $newListing->save();
+
+        return response()->json([
+            'message' => 'Article republié avec succès',
+            'listing' => $newListing,
+        ], 201);
     }
 
     public function bulkUpdateStatus(Request $request)
