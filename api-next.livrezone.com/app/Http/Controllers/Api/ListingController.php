@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Level;
 use App\Models\Subject;
 use App\Models\Language;
+use Illuminate\Support\Facades\Gate;
 
 class ListingController extends Controller
 {
@@ -137,12 +138,8 @@ class ListingController extends Controller
             return response()->json(['message' => 'Annonce introuvable.'], 404);
         }
 
-        // Restreindre si l'annonce n'est pas publiée (seul l'auteur ou l'admin peut la voir)
-        if ($listing->status !== 'published') {
-            $user = auth('sanctum')->user();
-            if (!$user || ($user->id !== $listing->user_id && !$user->is_admin)) {
-                return response()->json(['message' => 'Accès interdit.'], 403);
-            }
+        if (!Gate::allows('view', $listing)) {
+            return response()->json(['message' => 'Accès interdit.'], 403);
         }
 
         if ($listing->book) {
