@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useState, useEffect, useMemo } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery } from "@tanstack/react-query";
@@ -75,6 +75,58 @@ interface ListingFormProps {
   onError?: (message: string) => void;
 }
 
+// Construit les valeurs initiales du formulaire depuis initialData (fonction pure).
+const buildListingDefaultValues = (data?: ListingFormProps["initialData"]): Partial<FormValues> => ({
+  title: data?.title || "",
+  description: data?.description || "",
+  book_condition: data?.book_condition || "occas",
+  price: data?.price ?? undefined,
+  discount_price: data?.discount_price ?? null,
+  category_id: data?.category_id || undefined,
+  level_id: data?.level_id ?? null,
+  subject_id: data?.subject_id ?? null,
+  language_id: data?.language_id ?? null,
+  isbn_13: data?.isbn_13 || "",
+});
+
+// Retrouve un nœud de catégorie (feuille incluse) dans l'arbre (fonction pure).
+const findCategoryNode = (cats: CategoryNode[] | undefined, id: number | undefined): CategoryNode | null => {
+  if (!id) return null;
+  for (const c of cats || []) {
+    if (c.id === id) return c;
+    if (c.children) {
+      const f = findCategoryNode(c.children, id);
+      if (f) return f;
+    }
+  }
+  return null;
+};
+
+// Retourne le chemin [L1, L2, L3] jusqu'à la catégorie (fonction pure).
+const getCategoryPath = (cats: CategoryNode[] | undefined, id: number | undefined): CategoryNode[] => {
+  if (!id) return [];
+  for (const c of cats || []) {
+    if (c.id === id) return [c];
+    if (c.children) {
+      const sub = getCategoryPath(c.children, id);
+      if (sub.length) return [c, ...sub];
+    }
+  }
+  return [];
+};
+
+// Résout les règles niveau/matière d'une catégorie (fonction pure, sans effet de bord).
+const getCategoryRules = (cats: CategoryNode[] | undefined, categoryId: number | undefined) => {
+  const category = findCategoryNode(cats, categoryId);
+  const levels = category?.levels || [];
+  const subjects = category?.subjects || [];
+  const naLevel = levels.find((l) => l.code === "NON_APPLICABLE");
+  const naSubject = subjects.find((s) => s.code === "NON_APPLICABLE");
+  const levelApplicable = !(levels.length === 0 || (levels.length === 1 && !!naLevel));
+  const subjectApplicable = !(subjects.length === 0 || (subjects.length === 1 && !!naSubject));
+  return { category, levels, subjects, naLevel, naSubject, levelApplicable, subjectApplicable };
+};
+
 export default function ListingForm({ initialData, onSubmitSuccess, isEditMode = false, onError }: ListingFormProps) {
   const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'https://api-next.livrezone.com/api').replace(/\/api\/?$/, '');
   const resolveCoverUrl = (path?: string) => {
@@ -96,16 +148,13 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
   const [isSearchingIsbn, setIsSearchingIsbn] = useState(false);
   const [isbnSearchError, setIsbnSearchError] = useState<string | null>(null);
 
-  // État local pour gérer la hiérarchie des catégories
-  const [selectedL1, setSelectedL1] = useState<number | "">("");
-  const [selectedL2, setSelectedL2] = useState<number | "">("");
-
   // Pourcentage de réduction
   const [discountPercent, setDiscountPercent] = useState<string>("");
 
   // Fetch reference data
   const { data: refData, isLoading: isLoadingRef } = useQuery<ReferenceData>({
     queryKey: ["reference-data"],
+    staleTime: Infinity,
     queryFn: async () => {
       const res = await api.get("/reference-data");
       // Mappage de name à name_fr pour s'adapter au backend
@@ -125,61 +174,34 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: initialData?.title || "",
-      description: initialData?.description || "",
-      book_condition: initialData?.book_condition || "occas",
-      price: initialData?.price || undefined,
-      discount_price: initialData?.discount_price || null,
-      category_id: initialData?.category_id || undefined,
-      level_id: initialData?.level_id || null,
-      subject_id: initialData?.subject_id || null,
-      language_id: initialData?.language_id || null,
-      isbn_13: initialData?.isbn_13 || "",
-    }
+    defaultValues: buildListingDefaultValues(initialData),
   });
 
-  const priceValue = form.watch("price");
+  // Source de vérité : catégorie sélectionnée observée via React Hook Form.
+  const selectedCategoryId = useWatch({ control: form.control, name: "category_id" });
 
-  // Initialisation de la hiérarchie de catégories (une seule fois, au chargement)
-  const catInitDone = useRef(false);
+  // Initialisation unique : normalise niveau/matière et applique les valeurs initiales.
+  const initKey = isEditMode && initialData?.id ? String(initialData.id) : "create";
   useEffect(() => {
-    if (catInitDone.current || !refData) return;
-    const initCat = initialData?.category_id || form.getValues("category_id");
-    if (initCat && refData) {
-      let found = false;
-      for (const l1 of refData.categories) {
-        if (l1.id === initCat) {
-          setSelectedL1(l1.id);
-          found = true;
-          break;
-        }
-        if (l1.children) {
-          for (const l2 of l1.children) {
-            if (l2.id === initCat) {
-              setSelectedL1(l1.id);
-              setSelectedL2(l2.id);
-              found = true;
-              break;
-            }
-            if (l2.children) {
-              for (const l3 of l2.children) {
-                if (l3.id === initCat) {
-                  setSelectedL1(l1.id);
-                  setSelectedL2(l2.id);
-                  found = true;
-                  break;
-                }
-              }
-            }
-            if (found) break;
-          }
-        }
-        if (found) break;
+    if (!refData) return;
+    const initial = buildListingDefaultValues(initialData);
+    const r = getCategoryRules(refData.categories, initial.category_id);
+    if (r.category) {
+      if (!r.levelApplicable) {
+        initial.level_id = r.naLevel?.id ?? null;
+      } else if (initial.level_id && !r.levels.some((l) => l.id === initial.level_id)) {
+        initial.level_id = null;
       }
-      catInitDone.current = true;
+      if (!r.subjectApplicable) {
+        initial.subject_id = r.naSubject?.id ?? null;
+      } else if (initial.subject_id && !r.subjects.some((s) => s.id === initial.subject_id)) {
+        initial.subject_id = null;
+      }
     }
-  }, [initialData, refData, form]);
+    form.reset(initial);
+    // Dépend de refData (stable) et de initKey (id du listing) uniquement.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refData, initKey]);
 
   // Initialisation du % de réduction si un discount_price existe
   useEffect(() => {
@@ -191,55 +213,56 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
     }
   }, [initialData]);
 
-  // --- Niveau / Matière pilotés par la catégorie sélectionnée ---
-  const findCategoryNode = (cats: CategoryNode[] | undefined, id: number | undefined): CategoryNode | null => {
-    if (!id) return null;
-    for (const c of cats || []) {
-      if (c.id === id) return c;
-      if (c.children) {
-        const f = findCategoryNode(c.children, id);
-        if (f) return f;
-      }
-    }
-    return null;
-  };
-
-  const selectedCategory = useMemo(
-    () => findCategoryNode(refData?.categories, form.watch("category_id")),
-    [refData, form.watch("category_id")]
+  // --- Règles dérivées de la catégorie sélectionnée (aucun effet de bord) ---
+  const selectedCategoryPath = useMemo(
+    () => getCategoryPath(refData?.categories, selectedCategoryId),
+    [refData, selectedCategoryId]
+  );
+  const rules = useMemo(
+    () => getCategoryRules(refData?.categories, selectedCategoryId),
+    [refData, selectedCategoryId]
   );
 
-  const allowedLevels = selectedCategory?.levels || [];
-  const allowedSubjects = selectedCategory?.subjects || [];
-  const naLevel = allowedLevels.find((l) => l.code === "NON_APPLICABLE");
-  const naSubject = allowedSubjects.find((s) => s.code === "NON_APPLICABLE");
-  const levelIsNA = allowedLevels.length === 0 || (allowedLevels.length === 1 && !!naLevel);
-  const subjectIsNA = allowedSubjects.length === 0 || (allowedSubjects.length === 1 && !!naSubject);
+  const allowedLevels = rules.levels;
+  const allowedSubjects = rules.subjects;
+  const naLevel = rules.naLevel;
+  const naSubject = rules.naSubject;
+  const levelIsNA = !rules.levelApplicable;
+  const subjectIsNA = !rules.subjectApplicable;
+  const levelOptions = levelIsNA ? (naLevel ? [naLevel] : []) : allowedLevels;
+  const subjectOptions = subjectIsNA ? (naSubject ? [naSubject] : []) : allowedSubjects;
 
-  // Synchronise level/subject quand la catégorie change
-  useEffect(() => {
-    if (!selectedCategory) return;
+  // Parent immédiat de la catégorie feuille (pour la validation backend)
+  const parentCategoryId = selectedCategoryPath[selectedCategoryPath.length - 2]?.id;
 
-    if (levelIsNA) {
-      const target = naLevel ? naLevel.id : null;
-      if (form.getValues("level_id") !== target) form.setValue("level_id", target);
-    } else {
-      const cur = form.getValues("level_id");
-      if (cur && !allowedLevels.some((l) => l.id === cur)) {
-        form.setValue("level_id", null);
+  // Handler explicite : met à jour la catégorie ET réconcilie niveau/matière.
+  const handleCategoryChange = (newCategoryId: number | "") => {
+    const val = typeof newCategoryId === "number" && newCategoryId > 0 ? newCategoryId : undefined;
+    const current = form.getValues();
+    let nextLevel = current.level_id ?? null;
+    let nextSubject = current.subject_id ?? null;
+
+    if (val !== undefined) {
+      const r = getCategoryRules(refData?.categories, val);
+      if (!r.levelApplicable) {
+        nextLevel = r.naLevel?.id ?? null;
+      } else if (nextLevel && !r.levels.some((l) => l.id === nextLevel)) {
+        nextLevel = null;
       }
+      if (!r.subjectApplicable) {
+        nextSubject = r.naSubject?.id ?? null;
+      } else if (nextSubject && !r.subjects.some((s) => s.id === nextSubject)) {
+        nextSubject = null;
+      }
+    } else {
+      nextLevel = null;
+      nextSubject = null;
     }
 
-    if (subjectIsNA) {
-      const target = naSubject ? naSubject.id : null;
-      if (form.getValues("subject_id") !== target) form.setValue("subject_id", target);
-    } else {
-      const cur = form.getValues("subject_id");
-      if (cur && !allowedSubjects.some((s) => s.id === cur)) {
-        form.setValue("subject_id", null);
-      }
-    }
-  }, [selectedCategory, levelIsNA, subjectIsNA, allowedLevels, allowedSubjects, form]);
+    form.setValue("category_id", val as number, { shouldDirty: true, shouldValidate: true });
+    form.setValue("level_id", nextLevel, { shouldDirty: true });
+    form.setValue("subject_id", nextSubject, { shouldDirty: true });
+  };
 
   // Fonction de recherche ISBN
   const searchIsbn = async () => {
@@ -258,10 +281,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
         }
         const catId = book.default_category_id || book.category_id;
         if (catId) {
-          form.setValue("category_id", catId);
-          // Forcer le re-calcul des select L1/L2
-          const currentValues = form.getValues();
-          setInitialCatState(catId);
+          form.setValue("category_id", catId, { shouldDirty: true });
         }
         if (book.language_id) form.setValue("language_id", book.language_id);
         if (book.default_level_id || book.level_id) form.setValue("level_id", book.default_level_id || book.level_id);
@@ -280,26 +300,6 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
       setIsbnSearchError("Aucun livre trouvé pour cet ISBN. Vous pouvez remplir les champs manuellement ci-dessous.");
     } finally {
       setIsSearchingIsbn(false);
-    }
-  };
-
-  const setInitialCatState = (catId: number) => {
-    if (!refData) return;
-    let found = false;
-    for (const l1 of refData.categories) {
-      if (l1.id === catId) { setSelectedL1(l1.id); found = true; break; }
-      if (l1.children) {
-        for (const l2 of l1.children) {
-          if (l2.id === catId) { setSelectedL1(l1.id); setSelectedL2(l2.id); found = true; break; }
-          if (l2.children) {
-            for (const l3 of l2.children) {
-              if (l3.id === catId) { setSelectedL1(l1.id); setSelectedL2(l2.id); found = true; break; }
-            }
-          }
-          if (found) break;
-        }
-      }
-      if (found) break;
     }
   };
 
@@ -352,9 +352,9 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
       // La quantité est toujours fixée à 1 (non modifiable par l'utilisateur)
       formData.append("quantity", "1");
 
-      // La catégorie parente (L1) pour la validation de la sous-catégorie côté serveur
-      if (typeof selectedL1 === "number") {
-        formData.append("parent_category_id", selectedL1.toString());
+      // La catégorie parente pour la validation de la sous-catégorie côté serveur
+      if (typeof parentCategoryId === "number") {
+        formData.append("parent_category_id", parentCategoryId.toString());
       }
 
       if (coverFile) {
@@ -393,16 +393,10 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
     );
   }
 
-  // Listes dérivées de la hiérarchie pour les dropdowns
-  const currentL1 = refData?.categories.find(c => c.id === selectedL1);
-  const currentL2 = currentL1?.children?.find(c => c.id === selectedL2);
+  // Listes dérivées de la hiérarchie pour les dropdowns (chemin de la catégorie sélectionnée)
   const l1Categories = refData?.categories || [];
-  const l2Categories = currentL1?.children || [];
-  const l3Categories = currentL2?.children || [];
-
-  // Niveaux et Matières (pilotés par la catégorie sélectionnée)
-  const levelOptions = levelIsNA ? (naLevel ? [naLevel] : []) : allowedLevels;
-  const subjectOptions = subjectIsNA ? (naSubject ? [naSubject] : []) : allowedSubjects;
+  const l2Categories = selectedCategoryPath[0]?.children || [];
+  const l3Categories = selectedCategoryPath[1]?.children || [];
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -601,13 +595,8 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                     <div className="space-y-2">
 
                         {/* Niveau 1 */}
-                        <select value={selectedL1}
-                                onChange={(e) => {
-                                  const val = e.target.value ? parseInt(e.target.value) : "";
-                                  setSelectedL1(val);
-                                  setSelectedL2("");
-                                  form.setValue("category_id", val as number);
-                                }}
+                        <select value={selectedCategoryPath[0]?.id ?? ""}
+                                onChange={(e) => handleCategoryChange(e.target.value ? parseInt(e.target.value) : "")}
                                 className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20">
                             <option value="">-- Choisir une catégorie --</option>
                             {l1Categories.map(cat => (
@@ -617,12 +606,8 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
 
                         {/* Niveau 2 */}
                         {l2Categories.length > 0 && (
-                            <select value={selectedL2}
-                                    onChange={(e) => {
-                                      const val = e.target.value ? parseInt(e.target.value) : "";
-                                      setSelectedL2(val);
-                                      form.setValue("category_id", val as number || selectedL1 as number);
-                                    }}
+                            <select value={selectedCategoryPath[1]?.id ?? ""}
+                                    onChange={(e) => handleCategoryChange(e.target.value ? parseInt(e.target.value) : "")}
                                     className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20">
                                 <option value="">-- Sous-catégorie --</option>
                                 {l2Categories.map(cat => (
@@ -633,7 +618,8 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
 
                         {/* Niveau 3 */}
                         {l3Categories.length > 0 && (
-                            <select {...form.register("category_id", { valueAsNumber: true })}
+                            <select value={selectedCategoryPath[2]?.id ?? ""}
+                                    onChange={(e) => handleCategoryChange(e.target.value ? parseInt(e.target.value) : "")}
                                     className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20">
                                 <option value="">-- Spécialité --</option>
                                 {l3Categories.map(cat => (
