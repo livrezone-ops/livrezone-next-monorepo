@@ -131,12 +131,13 @@ export default function LivreZoneHero({
             >
               {/* Zone gauche */}
               <div className={styles.content}>
-                <h1 className={styles.title}>{msg.title}</h1>
+                <h2 className={styles.title}>{msg.title}</h2>
                 <p className={styles.description}>{msg.description}</p>
                 <div className={styles.actions}>
                   <Link
                     href={msg.primaryAction.href}
                     className={styles.primaryButton}
+                    tabIndex={isActive ? 0 : -1}
                   >
                     {msg.primaryAction.label}
                   </Link>
@@ -144,6 +145,7 @@ export default function LivreZoneHero({
                     <Link
                       href={msg.secondaryAction.href}
                       className={styles.secondaryButton}
+                      tabIndex={isActive ? 0 : -1}
                     >
                       {msg.secondaryAction.label}
                     </Link>

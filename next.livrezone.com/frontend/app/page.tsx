@@ -117,13 +117,13 @@ function loadHeroMessages(): HeroMessage[] {
 }
 
 export const metadata: Metadata = {
-  title: "LivreZone — Acheter et vendre des livres d'occasion au Maroc",
+  title: "LivreZone | Marketplace de livres neufs et d'occasion au Maroc",
   description:
-    "LivreZone, le carrefour des librairies marocaines. Retrouvez des livres neufs et d'occasion, proposés par des librairies et des particuliers, partout au Maroc.",
+    "Découvrez sur LivreZone des annonces de livres neufs et d'occasion proposées par des librairies et des particuliers. Trouvez ou vendez vos livres partout au Maroc.",
   openGraph: {
-    title: "LivreZone — Livres neufs et d'occasion au Maroc",
+    title: "LivreZone | Marketplace de livres neufs et d'occasion au Maroc",
     description:
-      "Le carrefour des librairies marocaines : un large choix de livres proposés par des librairies et des particuliers.",
+      "Découvrez sur LivreZone des annonces de livres neufs et d'occasion proposées par des librairies et des particuliers. Trouvez ou vendez vos livres partout au Maroc.",
     type: "website",
     locale: "fr_MA",
     siteName: "LivreZone",
@@ -141,12 +141,12 @@ const jsonLd = {
 };
 
 const gridSections = [
-  { title: "Nouveautés", categories: [], viewAllUrl: "/annonces" },
-  { title: "Scolaire", categories: ["SCOLAIRE"], viewAllUrl: "/annonces?category=SCOLAIRE" },
-  { title: "Romans", categories: ["ROMANS"], viewAllUrl: "/annonces?category=ROMANS" },
-  { title: "Mangas & BD", categories: ["MANGAS", "BD"], viewAllUrl: "/annonces?category=LITTERATURE" },
-  { title: "Jeunesse", categories: ["JEUNESSE"], viewAllUrl: "/annonces?category=JEUNESSE" },
-  { title: "Universitaire & Professionnel", categories: ["UNIVERSITAIRE"], viewAllUrl: "/annonces?category=UNIVERSITAIRE" },
+  { title: "Livres récemment ajoutés", categories: [], viewAllUrl: "/annonces" },
+  { title: "Livres scolaires neufs et d'occasion", categories: ["SCOLAIRE"], viewAllUrl: "/annonces?category=SCOLAIRE" },
+  { title: "Romans et littérature", categories: ["ROMANS"], viewAllUrl: "/annonces?category=ROMANS" },
+  { title: "Mangas et bandes dessinées", categories: ["MANGAS", "BD"], viewAllUrl: "/annonces?category=LITTERATURE" },
+  { title: "Livres pour enfants et jeunesse", categories: ["JEUNESSE"], viewAllUrl: "/annonces?category=JEUNESSE" },
+  { title: "Livres universitaires et professionnels", categories: ["UNIVERSITAIRE"], viewAllUrl: "/annonces?category=UNIVERSITAIRE" },
   { title: "Religion", categories: ["RELIGION"], viewAllUrl: "/annonces?category=RELIGION" },
 ];
 
@@ -199,32 +199,36 @@ const whyPoints = [
   {
     icon: BookOpen,
     title: "Un large choix de livres",
-    text: "Retrouvez des livres neufs et d'occasion, proposés par des librairies et des particuliers.",
+    text: "Découvrez des livres neufs et d'occasion dans de nombreuses catégories.",
   },
   {
     icon: Store,
-    title: "Le carrefour des librairies",
-    text: "Explorez les catalogues de plusieurs librairies marocaines depuis une seule plateforme.",
+    title: "Librairies et particuliers réunis",
+    text: "Explorez depuis une seule plateforme les annonces proposées par des librairies et des particuliers.",
   },
   {
     icon: RefreshCw,
-    title: "Une seconde vie pour chaque livre",
-    text: "Vendez les livres que vous ne lisez plus et faites-les découvrir à de nouveaux lecteurs.",
+    title: "Une seconde vie pour vos livres",
+    text: "Trouvez de nouveaux lecteurs pour les livres que vous ne lisez plus.",
   },
   {
     icon: MapPin,
-    title: "La lecture accessible partout au Maroc",
-    text: "Recherchez facilement vos livres et trouvez les offres qui vous correspondent, où que vous soyez.",
+    title: "Des annonces partout au Maroc",
+    text: "Recherchez des livres disponibles dans différentes villes et régions du Royaume.",
   },
 ];
 
 export default async function Home() {
   const gridData = await Promise.all(gridSections.map((g) => getGridListings(g.categories)));
-  // Hero : 2 livres de chaque rubrique (max 14)
+
+  // Hero : N livres de chaque rubrique (hors "Livres récemment ajoutés" = index 0)
+  // pour éviter les doublons avec les rubriques. N configurable via .env.
+  const perSection = Number(process.env.HERO_COVERS_NUMBER_PER_SECTION || 2);
   const heroListings: HeroListing[] = gridData
-    .flatMap((listings) => listings.slice(0, 2))
+    .slice(1)
+    .flatMap((listings) => listings.slice(0, perSection))
     .map(toHeroListing)
-    .slice(0, 14);
+    .slice(0, 15);
   const heroMessages = loadHeroMessages();
 
   const renderGrid = (i: number) => (
@@ -238,6 +242,11 @@ export default async function Home() {
 
   return (
     <div className="flex flex-col">
+      {/* ===== H1 UNIQUE (visible, pleine largeur) ===== */}
+      <h1 className="w-full bg-[#1a0a40] text-white text-center text-xl md:text-2xl font-bold py-4 px-4">
+        La marketplace marocaine des livres neufs et d'occasion
+      </h1>
+
       {/* ===== HERO ===== */}
       <LivreZoneHero
         messages={heroMessages}
@@ -272,15 +281,16 @@ export default async function Home() {
               <RefreshCw className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0" />
               <div>
                 <h2 className="text-xl md:text-2xl font-extrabold leading-tight">
-                  Donnez une seconde vie à vos livres
+                  Trouvez un acheteur pour les livres que vous ne lisez plus et
+                  permettez à de nouveaux lecteurs de les découvrir.
                 </h2>
                 <p className="text-white/90 text-sm md:text-base mt-1">
-                  Vendez en quelques minutes les livres que vous ne lisez plus.
+                  Mettez en vente vos livres sur LivreZone en quelques minutes.
                 </p>
               </div>
             </div>
             <Link
-              href="/listing/create"
+              href="/annonces/create"
               className="flex items-center gap-2 bg-white text-[#ea6a0c] font-bold text-sm md:text-base px-6 py-3 rounded-full hover:bg-gray-50 transition-colors flex-shrink-0"
             >
               Vendre un livre

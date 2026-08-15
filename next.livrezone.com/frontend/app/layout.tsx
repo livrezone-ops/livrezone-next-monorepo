@@ -6,11 +6,11 @@ import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: {
-    default: "LivreZone — Livres d'occasion au Maroc",
-    template: "%s | LivreZone",
+    default: "LivreZone | Marketplace de livres neufs et d'occasion au Maroc",
+    template: "%s",
   },
   description:
-    "LivreZone, la marketplace marocaine des livres d'occasion. Achetez et vendez des livres scolaires, romans, professionnels et religieux à petit prix.",
+    "Découvrez sur LivreZone des annonces de livres neufs et d'occasion proposées par des librairies et des particuliers. Trouvez ou vendez vos livres partout au Maroc.",
   openGraph: {
     type: "website",
     locale: "fr_MA",

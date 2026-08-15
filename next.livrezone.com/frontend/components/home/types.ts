@@ -15,7 +15,7 @@ export type HeroMessage = {
 
 export const ALLOWED_HREFS = [
   "/annonces",
-  "/listing/create",
+  "/annonces/create",
   "/profile/complete",
   "/",
 ] as const;
