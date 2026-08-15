@@ -22,6 +22,8 @@ Route::prefix('auth')->group(function () {
 
 Route::middleware('auth:sanctum')->prefix('dashboard')->group(function () {
     Route::get('/listings', [DashboardController::class, 'index']);
+    Route::post('/listings/bulk-status', [DashboardController::class, 'bulkUpdateStatus']);
+    Route::post('/listings/bulk-discount', [DashboardController::class, 'bulkApplyDiscount']);
     Route::get('/listings/{listing}', [ListingManagerController::class, 'show']);
     Route::post('/listings', [ListingManagerController::class, 'store']);
     Route::post('/listings/{listing}', [ListingManagerController::class, 'update']);
@@ -29,9 +31,6 @@ Route::middleware('auth:sanctum')->prefix('dashboard')->group(function () {
     Route::post('/listings/{listing}/inline-edit', [DashboardController::class, 'updateInline']);
     Route::post('/listings/{listing}/status', [DashboardController::class, 'updateStatus']);
     Route::post('/listings/{listing}/republish', [DashboardController::class, 'republish']);
-    
-    Route::post('/listings/bulk-status', [DashboardController::class, 'bulkUpdateStatus']);
-    Route::post('/listings/bulk-discount', [DashboardController::class, 'bulkApplyDiscount']);
 });
 Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
     Route::get('/', [ProfileController::class, 'show']);

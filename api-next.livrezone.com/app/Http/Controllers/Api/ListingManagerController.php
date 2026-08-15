@@ -57,6 +57,8 @@ class ListingManagerController extends Controller
             }
         }
 
+        [$author, $publisher] = $this->resolveAuthorPublisher($book, $validated);
+
         // Gestion de la couverture : priorité à l'upload utilisateur > couverture du book catalogue
         $coverPath = null;
         $coverSourceUrl = null;
@@ -74,6 +76,8 @@ class ListingManagerController extends Controller
             'listing_type' => 'single',
             'book_id' => $bookId,
             'title' => $validated['title'],
+            'author' => $author,
+            'publisher' => $publisher,
             'description' => $validated['description'] ?? '',
             'book_condition' => $validated['book_condition'],
             'price' => $validated['price'],
@@ -120,6 +124,7 @@ class ListingManagerController extends Controller
         $bookId = $listing->book_id;
         $coverPath = $listing->cover_path;
         $coverSourceUrl = $listing->cover_source_url;
+        $book = null;
 
         if (!empty($validated['isbn_13'])) {
             $book = Book::where('isbn_13', $validated['isbn_13'])->first();
@@ -133,6 +138,13 @@ class ListingManagerController extends Controller
             }
         }
 
+        // Repli sur le livre déjà lié si aucun nouveau n'a été trouvé par ISBN
+        if ($book === null && $listing->book_id) {
+            $book = $listing->book;
+        }
+
+        [$author, $publisher] = $this->resolveAuthorPublisher($book ?? null, $validated);
+
         // Upload d'une nouvelle couverture utilisateur (prioritaire)
         if ($request->hasFile('cover_image')) {
             if ($coverPath && !str_starts_with($coverPath, 'http')) {
@@ -144,6 +156,8 @@ class ListingManagerController extends Controller
         $payload = [
             'book_id' => $bookId,
             'title' => $validated['title'],
+            'author' => $author,
+            'publisher' => $publisher,
             'description' => $validated['description'] ?? '',
             'book_condition' => $validated['book_condition'],
             'price' => $validated['price'],
@@ -172,6 +186,8 @@ class ListingManagerController extends Controller
     {
         return $request->validate([
             'title' => 'required|string|max:255',
+            'author' => 'nullable|string|max:255',
+            'publisher' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'book_condition' => 'required|in:neuf,occas',
             'price' => 'required|numeric|min:0',
@@ -234,6 +250,37 @@ class ListingManagerController extends Controller
         }
 
         return [$levelId, $subjectId];
+    }
+
+    /**
+     * Résout l'auteur et l'éditeur d'un listing.
+     * La saisie utilisateur a la priorité ; sinon on se rabat sur les
+     * métadonnées du livre catalogue (authors est stocké en tableau).
+     *
+     * @return array{0: string|null, 1: string|null} [author, publisher]
+     */
+    private function resolveAuthorPublisher(?Book $book, array $validated): array
+    {
+        $author = $validated['author'] ?? null;
+        if ($author === null || trim($author) === '') {
+            $author = null;
+            if ($book) {
+                $authors = is_array($book->authors) ? $book->authors : [];
+                if (!empty($authors)) {
+                    $author = implode(', ', array_filter(array_map('trim', $authors)));
+                }
+            }
+        }
+
+        $publisher = $validated['publisher'] ?? null;
+        if ($publisher === null || trim($publisher) === '') {
+            $publisher = null;
+            if ($book && !empty($book->publisher)) {
+                $publisher = $book->publisher;
+            }
+        }
+
+        return [$author, $publisher];
     }
 
     private function storeCover($file)

@@ -50,6 +50,8 @@ class Listing extends Model
         'book_id',
         'isbn_13',
         'title',
+        'author',
+        'publisher',
         'description',
         'book_condition',
         'price',

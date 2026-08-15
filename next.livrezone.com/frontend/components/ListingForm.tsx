@@ -44,9 +44,21 @@ interface ReferenceData {
   levels: Level[];
 }
 
+interface RawCategory {
+  id: number;
+  name?: string;
+  name_fr?: string;
+  slug?: string;
+  children?: RawCategory[];
+  levels?: Level[];
+  subjects?: Subject[];
+}
+
 // Schéma de validation Zod
 const formSchema = z.object({
   title: z.string().min(3, "Le titre doit faire au moins 3 caractères"),
+  author: z.string().max(255).optional().nullable(),
+  publisher: z.string().max(255).optional().nullable(),
   description: z.string().optional(),
   book_condition: z.enum(["neuf", "occas"], { message: "Sélectionnez un état" }),
   price: z.number({ message: "Le prix est requis" }).min(0, "Le prix doit être positif"),
@@ -78,6 +90,8 @@ interface ListingFormProps {
 // Construit les valeurs initiales du formulaire depuis initialData (fonction pure).
 const buildListingDefaultValues = (data?: ListingFormProps["initialData"]): Partial<FormValues> => ({
   title: data?.title || "",
+  author: data?.author || "",
+  publisher: data?.publisher || "",
   description: data?.description || "",
   book_condition: data?.book_condition || "occas",
   price: data?.price ?? undefined,
@@ -149,7 +163,14 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
   const [isbnSearchError, setIsbnSearchError] = useState<string | null>(null);
 
   // Pourcentage de réduction
-  const [discountPercent, setDiscountPercent] = useState<string>("");
+  const [discountPercent, setDiscountPercent] = useState<string>(() => {
+    const p = initialData?.price;
+    const dp = initialData?.discount_price;
+    if (p && dp && p > 0 && dp > 0 && dp < p) {
+      return Math.round((1 - dp / p) * 100).toString();
+    }
+    return "";
+  });
 
   // Fetch reference data
   const { data: refData, isLoading: isLoadingRef } = useQuery<ReferenceData>({
@@ -158,12 +179,19 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
     queryFn: async () => {
       const res = await api.get("/reference-data");
       // Mappage de name à name_fr pour s'adapter au backend
-      const formatCategories = (cats: any[]): CategoryNode[] => {
-        return cats.map(c => ({
-          ...c,
-          name_fr: c.name || c.name_fr,
-          children: c.children ? formatCategories(c.children) : []
-        }));
+      const formatCategories = (cats: RawCategory[]): CategoryNode[] => {
+        return cats.map(c => {
+          const nameFr = c.name || c.name_fr || "";
+          return {
+            id: c.id,
+            name: nameFr,
+            name_fr: nameFr,
+            slug: c.slug || "",
+            levels: c.levels || [],
+            subjects: c.subjects || [],
+            children: c.children ? formatCategories(c.children) : []
+          };
+        });
       };
       return {
         ...res.data,
@@ -202,16 +230,6 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
     // Dépend de refData (stable) et de initKey (id du listing) uniquement.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refData, initKey]);
-
-  // Initialisation du % de réduction si un discount_price existe
-  useEffect(() => {
-    const p = initialData?.price;
-    const dp = initialData?.discount_price;
-    if (p && dp && p > 0 && dp > 0 && dp < p) {
-      const pct = Math.round((1 - dp / p) * 100);
-      setDiscountPercent(pct.toString());
-    }
-  }, [initialData]);
 
   // --- Règles dérivées de la catégorie sélectionnée (aucun effet de bord) ---
   const selectedCategoryPath = useMemo(
@@ -275,6 +293,10 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
       if (book) {
         form.setValue("title", book.title);
         form.setValue("isbn_13", book.isbn_13 || book.isbn_10);
+        if (Array.isArray(book.authors) && book.authors.length) {
+          form.setValue("author", book.authors.join(", "));
+        }
+        if (book.publisher) form.setValue("publisher", book.publisher);
         if (book.description) form.setValue("description", book.description);
         if (book.indicative_price) {
           form.setValue("price", parseFloat(book.indicative_price));
@@ -296,7 +318,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
           setCoverSourceUrl(url);
         }
       }
-    } catch (err: any) {
+    } catch {
       setIsbnSearchError("Aucun livre trouvé pour cet ISBN. Vous pouvez remplir les champs manuellement ci-dessous.");
     } finally {
       setIsSearchingIsbn(false);
@@ -325,6 +347,25 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
       form.setValue("discount_price", discount);
     } else {
       form.setValue("discount_price", null);
+    }
+  };
+
+  // Calcul automatique du pourcentage quand le prix réduit est saisi manuellement
+  const handleDiscountPriceChange = (val: number | null) => {
+    if (val === null || isNaN(val) || val < 0) {
+      form.setValue("discount_price", null);
+      setDiscountPercent("");
+      return;
+    }
+    const p = form.getValues("price");
+    form.setValue("discount_price", val);
+    if (p && p > 0) {
+      if (val === 0) {
+        setDiscountPercent("");
+      } else {
+        const pct = Math.round((1 - val / p) * 100);
+        setDiscountPercent(Math.min(99, Math.max(0, pct)).toString());
+      }
     }
   };
 
@@ -375,9 +416,10 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
       }
 
       onSubmitSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      const message = err.response?.data?.message || "Une erreur est survenue lors de l'enregistrement.";
+      const axiosErr = err as { response?: { data?: { message?: string } } } | undefined;
+      const message = axiosErr?.response?.data?.message || "Une erreur est survenue lors de l'enregistrement.";
       if (onError) onError(message);
     } finally {
       setIsSubmitting(false);
@@ -406,8 +448,8 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
         <div className="w-14 h-14 bg-white rounded-xl shadow-sm border border-violet-100 flex items-center justify-center text-3xl mb-4 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">
             🤖
         </div>
-        <h2 className="font-black text-black text-lg group-hover:text-[#6D28D9] transition-colors">Scanner des livres avec l'IA</h2>
-        <p className="text-[14px] text-gray-500 mt-2 max-w-lg">Glissez-déposez les photos de vos livres ici (ou cliquez pour parcourir). L'Intelligence Artificielle reconnaîtra les informations automatiquement et remplira le formulaire.</p>
+        <h2 className="font-black text-black text-lg group-hover:text-[#6D28D9] transition-colors">Scanner des livres avec l&apos;IA</h2>
+        <p className="text-[14px] text-gray-500 mt-2 max-w-lg">Glissez-déposez les photos de vos livres ici (ou cliquez pour parcourir). L&apos;Intelligence Artificielle reconnaîtra les informations automatiquement et remplira le formulaire.</p>
       </div>
 
       <div className="flex items-center gap-4 mb-8">
@@ -422,7 +464,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
             {isEditMode ? 'Modifier l\'annonce' : 'Créer une annonce'}
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-            Saisissez l'ISBN du livre pour pré-remplir automatiquement les informations.
+            Saisissez l&apos;ISBN du livre pour pré-remplir automatiquement les informations.
         </p>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -465,6 +507,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                 {/* Aperçu */}
                 <div className="relative w-full pb-[135%] rounded-lg overflow-hidden bg-slate-50 mb-4 border border-slate-200">
                     {coverPreview ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- preview peut être un data URL (FileReader)
                         <img src={coverPreview}
                              alt="Aperçu"
                              className="absolute inset-0 h-full w-full object-contain p-4" />
@@ -517,6 +560,24 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                     <textarea {...form.register("description")} rows={4}
                               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm resize-none focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20"></textarea>
                     {form.formState.errors.description && <p className="mt-1 text-xs text-red-600">{form.formState.errors.description.message}</p>}
+                </div>
+
+                {/* Auteur + Éditeur */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">Auteur</label>
+                        <input type="text" {...form.register("author")}
+                               placeholder="Ex: Victor Hugo"
+                               className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20" />
+                        {form.formState.errors.author && <p className="mt-1 text-xs text-red-600">{form.formState.errors.author.message}</p>}
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">Éditeur</label>
+                        <input type="text" {...form.register("publisher")}
+                               placeholder="Ex: Gallimard"
+                               className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20" />
+                        {form.formState.errors.publisher && <p className="mt-1 text-xs text-red-600">{form.formState.errors.publisher.message}</p>}
+                    </div>
                 </div>
 
                 {/* État du livre + Langue */}
@@ -580,7 +641,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                         <label className="mb-1 block text-sm font-semibold text-slate-700">Prix réduit (MAD)</label>
                         <input type="number" step="0.01" min="0"
                                {...form.register("discount_price", { setValueAs: v => v === "" ? null : parseFloat(v) })}
-                               onFocus={() => setDiscountPercent("")}
+                               onChange={(e) => handleDiscountPriceChange(e.target.value === "" ? null : parseFloat(e.target.value))}
                                placeholder="Optionnel"
                                className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20" />
                         {form.formState.errors.discount_price && <p className="mt-1 text-xs text-red-600">{form.formState.errors.discount_price.message}</p>}
@@ -631,46 +692,47 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                     {form.formState.errors.category_id && <p className="mt-1 text-xs text-red-600">{form.formState.errors.category_id.message}</p>}
                 </div>
 
-                {/* Niveau */}
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">
-                        Niveau {levelIsNA ? "" : "(Optionnel)"}
-                    </label>
-                    <select {...form.register("level_id", { setValueAs: v => v === "" ? null : parseInt(v) })}
-                            disabled={levelIsNA}
-                            className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed">
-                        {levelIsNA ? (
-                            <option value={naLevel?.id ?? ""}>{naLevel?.name_fr || "Non applicable"}</option>
-                        ) : (
-                            <>
-                                <option value="">-- Choisir --</option>
-                                {levelOptions.map(level => (
-                                    <option key={level.id} value={level.id}>{level.name_fr}</option>
-                                ))}
-                            </>
-                        )}
-                    </select>
-                </div>
+                {/* Niveau + Matière */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">
+                            Niveau {levelIsNA ? "" : "(Optionnel)"}
+                        </label>
+                        <select {...form.register("level_id", { setValueAs: v => v === "" ? null : parseInt(v) })}
+                                disabled={levelIsNA}
+                                className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed">
+                            {levelIsNA ? (
+                                <option value={naLevel?.id ?? ""}>{naLevel?.name_fr || "Non applicable"}</option>
+                            ) : (
+                                <>
+                                    <option value="">-- Choisir --</option>
+                                    {levelOptions.map(level => (
+                                        <option key={level.id} value={level.id}>{level.name_fr}</option>
+                                    ))}
+                                </>
+                            )}
+                        </select>
+                    </div>
 
-                {/* Matière */}
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-slate-700">
-                        Matière {subjectIsNA ? "" : "(Optionnel)"}
-                    </label>
-                    <select {...form.register("subject_id", { setValueAs: v => v === "" ? null : parseInt(v) })}
-                            disabled={subjectIsNA}
-                            className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed">
-                        {subjectIsNA ? (
-                            <option value={naSubject?.id ?? ""}>{naSubject?.name_fr || "Non applicable"}</option>
-                        ) : (
-                            <>
-                                <option value="">-- Choisir --</option>
-                                {subjectOptions.map(subject => (
-                                    <option key={subject.id} value={subject.id}>{subject.name_fr}</option>
-                                ))}
-                            </>
-                        )}
-                    </select>
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">
+                            Matière {subjectIsNA ? "" : "(Optionnel)"}
+                        </label>
+                        <select {...form.register("subject_id", { setValueAs: v => v === "" ? null : parseInt(v) })}
+                                disabled={subjectIsNA}
+                                className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed">
+                            {subjectIsNA ? (
+                                <option value={naSubject?.id ?? ""}>{naSubject?.name_fr || "Non applicable"}</option>
+                            ) : (
+                                <>
+                                    <option value="">-- Choisir --</option>
+                                    {subjectOptions.map(subject => (
+                                        <option key={subject.id} value={subject.id}>{subject.name_fr}</option>
+                                    ))}
+                                </>
+                            )}
+                        </select>
+                    </div>
                 </div>
 
             </div>{/* fin card */}
