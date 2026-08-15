@@ -5,8 +5,21 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "LivreZone Next",
-  description: "Plateforme moderne de livres",
+  title: {
+    default: "LivreZone — Livres d'occasion au Maroc",
+    template: "%s | LivreZone",
+  },
+  description:
+    "LivreZone, la marketplace marocaine des livres d'occasion. Achetez et vendez des livres scolaires, romans, professionnels et religieux à petit prix.",
+  openGraph: {
+    type: "website",
+    locale: "fr_MA",
+    siteName: "LivreZone",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
