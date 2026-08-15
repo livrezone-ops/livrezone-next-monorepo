@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "language": "fr",
+    "direction": "ltr",
+    "title": "Tous les livres. Un seul endroit.",
+    "description": "LivreZone rassemble les annonces des librairies et des particuliers pour vous aider à trouver des livres neufs ou d’occasion partout au Maroc.",
+    "primaryAction": {
+      "label": "Découvrir les livres",
+      "href": "/livres"
+    },
+    "secondaryAction": {
+      "label": "Vendre un livre",
+      "href": "/vendre"
+    }
+  },
+  {
+    "id": 2,
+    "language": "ar",
+    "direction": "rtl",
+    "title": "كتابك القادم أقرب مما تتخيل",
+    "description": "يجمع LivreZone عروض المكتبات والأفراد لمساعدتك على العثور على الكتب الجديدة والمستعملة بسهولة في جميع أنحاء المغرب.",
+    "primaryAction": {
+      "label": "تصفّح الكتب",
+      "href": "/livres"
+    },
+    "secondaryAction": {
+      "label": "بِع كتاباً",
+      "href": "/vendre"
+    }
+  },
+  {
+    "id": 3,
+    "language": "fr",
+    "direction": "ltr",
+    "title": "Trouvez un acheteur pour vos livres",
+    "description": "Présentez vos livres à des lecteurs partout au Maroc et donnez-leur une seconde vie facilement grâce à LivreZone.",
+    "primaryAction": {
+      "label": "Vendre un livre",
+      "href": "/vendre"
+    },
+    "secondaryAction": {
+      "label": "Explorer LivreZone",
+      "href": "/livres"
+    }
+  },
+  {
+    "id": 4,
+    "language": "ar",
+    "direction": "rtl",
+    "title": "اعثر على مشترٍ لكتبك",
+    "description": "اعرض كتبك أمام قرّاء من جميع أنحاء المغرب وساعدها على الوصول إلى أصحاب جدد بسهولة عبر LivreZone.",
+    "primaryAction": {
+      "label": "بِع كتاباً",
+      "href": "/vendre"
+    },
+    "secondaryAction": {
+      "label": "اكتشف LivreZone",
+      "href": "/livres"
+    }
+  }
+]
