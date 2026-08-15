@@ -41,6 +41,13 @@ Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
 Route::get('/listings', [\App\Http\Controllers\Api\ListingController::class, 'index']);
 Route::get('/listings/{id}', [\App\Http\Controllers\Api\ListingController::class, 'show']);
 
+// Public Library (seller profile)
+Route::get('/profiles/{nickname}', [ProfileController::class, 'publicLibrary']);
+Route::get('/profiles/{nickname}/ratings', [ProfileController::class, 'ratings']);
+
+// Protected Ratings
+Route::middleware('auth:sanctum')->post('/profiles/{nickname}/ratings', [ProfileController::class, 'storeRating']);
+
 // Public Books Catalogue Routes
 Route::get('/books', [\App\Http\Controllers\Api\BookController::class, 'publicSearch']);
 

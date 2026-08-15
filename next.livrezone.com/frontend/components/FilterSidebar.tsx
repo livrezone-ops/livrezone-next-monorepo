@@ -52,6 +52,7 @@ interface FilterSidebarProps {
   priceMinLimit?: number;
   priceMaxLimit?: number;
   cities?: CityRef[];
+  showCity?: boolean;
 }
 
 interface Draft {
@@ -68,6 +69,7 @@ export default function FilterSidebar({
   priceMinLimit = 0,
   priceMaxLimit = 500,
   cities = [],
+  showCity = true,
 }: FilterSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -159,7 +161,7 @@ export default function FilterSidebar({
       sort: filters.sort,
     });
     const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     setOpen(false);
   };
 
@@ -179,7 +181,7 @@ export default function FilterSidebar({
     const params = new URLSearchParams();
     if (filters.search) params.set("search", filters.search);
     const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     setOpen(false);
   };
 
@@ -537,7 +539,7 @@ export default function FilterSidebar({
           </div>
 
           {/* Ville (menu déroulant multi-sélection) */}
-          {cities.length > 0 && (
+          {showCity && cities.length > 0 && (
             <div
               ref={cityDropdownRef}
               className="relative border-b border-gray-100 py-5"

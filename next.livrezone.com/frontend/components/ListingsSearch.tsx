@@ -17,12 +17,14 @@ interface ListingsSearchProps {
   initialListings?: ListingSummary[];
   initialTotal?: number;
   initialLastPage?: number;
+  userId?: number;
 }
 
 export default function ListingsSearch({
   initialListings,
   initialTotal,
   initialLastPage,
+  userId,
 }: ListingsSearchProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
@@ -42,6 +44,9 @@ export default function ListingsSearch({
   const [total, setTotal] = useState(initialTotal ?? 0);
 
   const hydratedRef = useRef(initialListings !== undefined);
+
+  // Ref sur le haut de la liste des annonces pour un scroll propre (pagination/recherche).
+  const listTopRef = useRef<HTMLDivElement>(null);
 
   // Dernière valeur de recherche effectivement poussée dans l'URL.
   // Permet de distinguer un changement d'URL externe (header) d'un retour
@@ -91,6 +96,7 @@ export default function ListingsSearch({
         const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "https://api-next.livrezone.com").replace(/\/api\/?$/, "");
         const params = new URLSearchParams(searchParams.toString());
         params.set("limit", "12");
+        if (userId) params.set("user_id", String(userId));
         const res = await fetch(`${baseUrl}/api/listings?${params.toString()}`, {
           cache: "no-store",
         });
@@ -108,7 +114,9 @@ export default function ListingsSearch({
           setTotal(0);
         }
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
@@ -116,7 +124,15 @@ export default function ListingsSearch({
     return () => {
       active = false;
     };
-  }, [initialListings, initialLastPage, initialTotal, searchParams]);
+  }, [initialListings, initialLastPage, initialTotal, searchParams, userId]);
+
+  // Au changement de page/recherche, positionne le scroll en haut de la liste.
+  const scrollToListTop = () => {
+    if (typeof window === "undefined") return;
+    requestAnimationFrame(() => {
+      listTopRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+    });
+  };
 
   const updateParams = (newParams: Record<string, string | number | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -130,7 +146,7 @@ export default function ListingsSearch({
     if (!newParams.page) {
       params.delete("page");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -141,12 +157,12 @@ export default function ListingsSearch({
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div ref={listTopRef} className="flex flex-col gap-6">
       {/* Toolbar : recherche + tri + vue */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white border border-gray-100 rounded-xl p-4 shadow-xs">
         <form
           onSubmit={handleSearchSubmit}
-          className="flex-1 flex border border-gray-200 rounded-lg overflow-hidden h-10 shadow-inner"
+          className="w-full sm:flex-1 flex border border-gray-200 rounded-lg overflow-hidden h-12 sm:h-10 shadow-inner"
         >
           <input
             type="search"
@@ -154,7 +170,7 @@ export default function ListingsSearch({
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Rechercher par ISBN, titre ou auteur"
-            className="flex-1 px-3 text-xs bg-transparent focus:outline-none"
+            className="flex-1 min-w-0 px-3 text-xs bg-transparent focus:outline-none"
           />
           <button
             type="submit"
@@ -246,7 +262,10 @@ export default function ListingsSearch({
             <Pagination
               page={pageQ}
               lastPage={lastPage}
-              onGo={(n) => updateParams({ page: n })}
+              onGo={(n) => {
+                updateParams({ page: n });
+                scrollToListTop();
+              }}
             />
           )}
         </div>

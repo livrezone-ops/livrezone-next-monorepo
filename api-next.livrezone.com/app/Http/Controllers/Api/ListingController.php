@@ -147,7 +147,12 @@ class ListingController extends Controller
         });
 
         // Bornes de prix réelles (prix de vente) pour le slider dynamique.
-        $bounds = Listing::where('status', 'published')
+        // Scoped au même périmètre que la recherche (ex: user_id pour une bibliothèque).
+        $boundsQuery = Listing::where('status', 'published');
+        if ($request->filled('user_id')) {
+            $boundsQuery->where('user_id', $request->get('user_id'));
+        }
+        $bounds = $boundsQuery
             ->selectRaw('MIN(COALESCE(discount_price, price)) as min_price, MAX(COALESCE(discount_price, price)) as max_price')
             ->first();
 

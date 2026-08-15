@@ -5,7 +5,7 @@ import Link from "next/link";
 import { 
   Heart, ShoppingCart, Share2, Phone, MessageSquare, 
   Truck, MapPin, Star, BookOpen, Link as LinkIcon, 
-  MessageCircle, Copy, X
+  MessageCircle, Copy, X, Store
 } from "lucide-react";
 
 interface Listing {
@@ -113,6 +113,9 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
   const coverUrl = listing.book?.cover_url
     || listing.cover_source_url
     || null;
+
+  const sellerNickname = listing.user.profile?.nickname || `utilisateur-${listing.user.id}`;
+  const sellerPath = `/${sellerNickname}`;
 
   return (
     <div className="max-w-6xl mx-auto font-sans text-gray-800">
@@ -261,22 +264,26 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
 
           {/* Seller / Contact Box */}
           <div className="pt-8 mt-5 border-t border-gray-100">
-            <div className="flex items-baseline flex-wrap gap-2 mb-4">
-              <span className="font-semibold text-gray-400 text-sm uppercase tracking-wider">Vendeur</span>
-              <span className="text-[#1a0a40] font-black text-2xl leading-none">
+            <div className="flex items-end flex-wrap gap-2 mb-4">
+              <span className="font-semibold text-gray-400 text-xs uppercase tracking-wider">Vendeur</span>
+              <Link href={sellerPath} className="text-[#1a0a40] font-black text-2xl leading-none hover:text-[#6D28D9] transition-colors">
                 {listing.user.profile?.nickname || listing.user.name}
-              </span>
-              {listing.user.profile?.rating_count && listing.user.profile.rating_count > 0 ? (
-                <div className="flex items-center ml-2 bg-yellow-50/50 px-2 py-1 rounded-sm border border-yellow-100 text-xs">
-                  <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                  <span className="ml-1 font-bold text-gray-800">
-                    {listing.user.profile.rating_average?.toFixed(1)}
+              </Link>
+              <div className="ml-auto flex items-center gap-2">
+                <div className="bg-white rounded-lg border border-gray-100 px-2.5 py-1 flex items-center gap-1">
+                  <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                  <span className="font-bold text-gray-800 text-sm leading-none">
+                    {listing.user.profile?.rating_count && listing.user.profile.rating_count > 0
+                      ? listing.user.profile.rating_average?.toFixed(1)
+                      : "-"}
                   </span>
-                  <span className="ml-0.5 text-gray-400">
-                    ({listing.user.profile.rating_count})
-                  </span>
+                  {listing.user.profile?.rating_count && listing.user.profile.rating_count > 0 && (
+                    <span className="text-gray-400 text-[11px] font-medium">
+                      ({listing.user.profile.rating_count})
+                    </span>
+                  )}
                 </div>
-              ) : null}
+              </div>
             </div>
 
             <span className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">Contacter le vendeur</span>
@@ -284,7 +291,7 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* WhatsApp Call */}
               <a 
-                href={cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent("Bonjour, je suis intéressé par votre livre : " + listing.title)}` : "#"} 
+                href={cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent("Bonjour, je suis intéressé")}%0A${encodeURIComponent(shareUrl)}` : "#"} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="group h-11 rounded-lg hover:opacity-95 text-xs font-bold transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-sm"
@@ -310,6 +317,17 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
               >
                 <MessageSquare className="w-4 h-4" />
                 Message
+              </Link>
+            </div>
+
+            {/* Visit Seller Page */}
+            <div className="mt-6">
+              <Link
+                href={sellerPath}
+                className="group flex items-center justify-center w-full h-11 border border-gray-200 text-gray-700 bg-gray-50 hover:bg-violet-50 hover:border-[#6D28D9] hover:text-[#6D28D9] focus:outline-none focus:ring-1 focus:ring-[#6D28D9] font-bold text-xs transition-all duration-200 rounded-lg"
+              >
+                <Store className="w-5 h-5 mr-2 text-gray-400 group-hover:text-[#6D28D9] transition-colors" />
+                Visiter la page du vendeur
               </Link>
             </div>
           </div>

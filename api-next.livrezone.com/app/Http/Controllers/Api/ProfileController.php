@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\City;
+use App\Models\Listing;
+use App\Models\Profile;
+use App\Models\Rating;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,6 +16,110 @@ use Intervention\Image\Laravel\Facades\Image;
 
 class ProfileController extends Controller
 {
+    /**
+     * Affichage public d'une bibliothèque vendeur (page profil).
+     * Renvoie le profil + compteur d'annonces publiées.
+     */
+    public function publicLibrary(string $nickname): JsonResponse
+    {
+        $profile = Profile::query()
+            ->with(['user', 'city'])
+            ->where('nickname', $nickname)
+            ->first();
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profil introuvable.'], 404);
+        }
+
+        $publicationCount = Listing::query()
+            ->forUser($profile->user_id)
+            ->where('status', 'published')
+            ->count();
+
+        return response()->json([
+            'data' => [
+                'user_id' => $profile->user_id,
+                'nickname' => $profile->nickname,
+                'profile_type' => $profile->profile_type,
+                'logo' => $profile->logo,
+                'adresse' => $profile->adresse,
+                'phone' => $profile->phone,
+                'rating_average' => (float) $profile->rating_average,
+                'rating_count' => (int) $profile->rating_count,
+                'publication_count' => $publicationCount,
+                'city' => $profile->city ? ['id' => $profile->city->id, 'name' => $profile->city->name] : null,
+            ],
+        ]);
+    }
+
+    /**
+     * Liste publique des avis d'un vendeur (page profil).
+     */
+    public function ratings(string $nickname): JsonResponse
+    {
+        $profile = Profile::query()
+            ->where('nickname', $nickname)
+            ->first();
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profil introuvable.'], 404);
+        }
+
+        $ratings = Rating::with(['user:id,name,avatar', 'user.profile:id,user_id,nickname'])
+            ->where('profile_id', $profile->id)
+            ->latest()
+            ->paginate(10);
+
+        return response()->json([
+            'data' => $ratings->items(),
+            'meta' => [
+                'current_page' => $ratings->currentPage(),
+                'last_page' => $ratings->lastPage(),
+                'total' => $ratings->total(),
+                'rating_average' => (float) $profile->rating_average,
+                'rating_count' => (int) $profile->rating_count,
+            ],
+        ]);
+    }
+
+    /**
+     * Enregistre ou met à jour l'avis d'un acheteur sur un vendeur.
+     */
+    public function storeRating(Request $request, string $nickname): JsonResponse
+    {
+        $profile = Profile::query()
+            ->where('nickname', $nickname)
+            ->first();
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profil introuvable.'], 404);
+        }
+
+        // Interdiction de l'auto-évaluation.
+        if ($profile->user_id === $request->user()->id) {
+            return response()->json(['message' => "Vous ne pouvez pas évaluer votre propre profil."], 403);
+        }
+
+        $validated = $request->validate([
+            'score' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:1000',
+        ]);
+
+        $rating = Rating::updateOrCreate(
+            ['user_id' => $request->user()->id, 'profile_id' => $profile->id],
+            ['score' => $validated['score'], 'comment' => $validated['comment'] ?? null]
+        );
+
+        $profile->refresh();
+
+        return response()->json([
+            'message' => 'Merci pour votre avis !',
+            'rating' => $rating,
+            'rating_average' => (float) $profile->rating_average,
+            'rating_count' => (int) $profile->rating_count,
+        ]);
+    }
+
     public function show(Request $request): JsonResponse
     {
         return response()->json([

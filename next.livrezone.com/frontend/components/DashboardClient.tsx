@@ -5,11 +5,13 @@ import Link from "next/link";
 import { 
   BookOpen, Plus, Search, Grid, List, CheckCircle, 
   Trash2, Tag, Edit, Check, X, ShieldAlert, Heart, ShoppingBag,
-  Eye, Archive, RotateCcw
+  Eye, Archive, RotateCcw, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/axios";
 import ToastContainer, { ToastData, ToastType } from "@/components/Toast";
+
+const PAGE_SIZE = 12;
 
 interface Listing {
   id: number;
@@ -105,6 +107,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
   const [filter, setFilter] = useState<"online" | "offline" | "all">("online");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
+  const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [bulkDiscount, setBulkDiscount] = useState("");
@@ -150,6 +153,14 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
   });
+
+  // Pagination locale (12 par page)
+  const totalPages = Math.max(1, Math.ceil(filteredListings.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageListings = filteredListings.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
 
   // Checkbox handlers
   const handleToggleSelectAll = () => {
@@ -511,11 +522,11 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
               <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-400">
                 <Search className="h-4 w-4" />
               </span>
-              <input 
-                type="text" 
-                value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
-                placeholder="Rechercher..." 
+<input 
+                  type="text" 
+                  value={search} 
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }} 
+                  placeholder="Rechercher..."
                 className="w-full text-xs border-none bg-transparent py-2 pl-8 pr-3 focus:outline-none"
               />
             </div>
@@ -523,7 +534,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
             {/* Sort options */}
             <select 
               value={sortBy} 
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
               className="text-xs border border-gray-200 bg-white rounded-lg py-2 pl-2 pr-8 focus:outline-none text-gray-600 shadow-xs cursor-pointer"
             >
               <option value="created_at">Date d'ajout</option>
@@ -540,7 +551,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
               ].map(opt => (
                 <button
                   key={opt.val}
-                  onClick={() => { setFilter(opt.val as any); setSelectedIds([]); }}
+                  onClick={() => { setFilter(opt.val as any); setSelectedIds([]); setPage(1); }}
                   className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all text-center flex-1 sm:flex-none cursor-pointer ${
                     filter === opt.val ? "bg-white shadow-xs text-black" : "text-gray-500 hover:text-gray-700"
                   }`}
@@ -649,7 +660,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredListings.map((l) => {
+                    {pageListings.map((l) => {
                       const isEditing = editingId === l.id;
 
                       const coverUrl = primaryCoverUrl(l);
@@ -783,7 +794,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
 
             {/* Cards View (Responsive default) */}
             <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 ${viewMode === "cards" ? "block" : "block sm:hidden"}`}>
-              {filteredListings.map((l) => {
+              {pageListings.map((l) => {
                   const coverUrl = primaryCoverUrl(l);
 
                   return (
@@ -862,6 +873,43 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                   );
                 })}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-2 mb-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  className="flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 cursor-pointer transition-colors"
+                  aria-label="Page précédente"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <div className="flex items-center gap-1.5">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setPage(n)}
+                      className={`px-3 py-2 border rounded-lg font-bold text-xs transition-colors cursor-pointer ${
+                        n === safePage
+                          ? "border-[#6D28D9] bg-[#6D28D9] text-white"
+                          : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  className="flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 cursor-pointer transition-colors"
+                  aria-label="Page suivante"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <div className="bg-white rounded-2xl border border-gray-150 shadow-xs overflow-hidden mt-6">

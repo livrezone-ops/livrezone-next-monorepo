@@ -50,11 +50,25 @@ export interface ListingsQuery {
   sort?: string;
   page?: number;
   limit?: number;
+  userId?: number;
 }
 
 export interface CityRef {
   id: number;
   name: string;
+}
+
+export interface PublicProfile {
+  user_id: number;
+  nickname: string;
+  profile_type?: string | null;
+  logo?: string | null;
+  adresse?: string | null;
+  phone?: string | null;
+  rating_average: number;
+  rating_count: number;
+  publication_count: number;
+  city?: CityRef | null;
 }
 
 export function slugify(text: string): string {
@@ -94,6 +108,7 @@ export async function getPublicListings(query: ListingsQuery): Promise<PublicLis
   if (query.cities) params.set("city", query.cities);
   if (query.minPrice !== undefined && query.minPrice !== null) params.set("min_price", String(query.minPrice));
   if (query.maxPrice !== undefined && query.maxPrice !== null) params.set("max_price", String(query.maxPrice));
+  if (query.userId) params.set("user_id", String(query.userId));
   params.set("sort", query.sort || "latest");
   params.set("page", String(query.page || 1));
   params.set("limit", String(query.limit || 12));
@@ -126,6 +141,22 @@ export async function getPublicListings(query: ListingsQuery): Promise<PublicLis
     };
   } catch {
     return empty;
+  }
+}
+
+export async function getPublicProfile(
+  nickname: string
+): Promise<PublicProfile | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/profiles/${encodeURIComponent(nickname)}`, {
+      next: { revalidate: 300 },
+      headers: { Accept: "application/json", Host: "api-next.livrezone.com" },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.data ?? null;
+  } catch {
+    return null;
   }
 }
 

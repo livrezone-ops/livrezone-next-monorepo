@@ -42,9 +42,11 @@ interface Listing {
     name_fr: string;
     parent?: { name_fr: string } | null;
   } | null;
-  level?: { name_fr: string } | null;
-  subject?: { name_fr: string } | null;
+  level?: { name_fr: string; code?: string } | null;
+  subject?: { name_fr: string; code?: string } | null;
 }
+
+const NON_APPLICABLE = "NON_APPLICABLE";
 
 export default function ListingDetailFetcher({ id }: { id: string }) {
   const { data: listing, isLoading, error } = useQuery<Listing>({
@@ -93,6 +95,10 @@ function ListingDetailContent({ listing }: { listing: Listing }) {
       ? `${parentCategory} › ${categoryName}`
       : categoryName || "Livres";
 
+  const nickname =
+    listing.user.profile?.nickname || `utilisateur-${listing.user.id}`;
+  const sellerPath = `/${nickname}`;
+
   return (
     <div className="w-[90%] max-w-7xl mx-auto py-8">
       <nav className="mb-8 text-xs md:text-sm font-semibold text-gray-500 flex items-center gap-1.5 flex-wrap">
@@ -100,17 +106,33 @@ function ListingDetailContent({ listing }: { listing: Listing }) {
           Accueil
         </Link>
         <ChevronRight className="w-4 h-4 text-gray-400" />
+        <Link href={sellerPath} className="hover:text-[#F97316] transition-colors">
+          {listing.user.profile?.nickname || nickname}
+        </Link>
+        <ChevronRight className="w-4 h-4 text-gray-400" />
         <span className="hover:text-[#F97316] transition-colors cursor-default">
           {breadcrumbCategory}
         </span>
-        {listing.level && (
-          <>
-            <ChevronRight className="w-4 h-4 text-gray-400" />
-            <span className="hover:text-[#F97316] transition-colors cursor-default">
-              {listing.level.name_fr}
-            </span>
-          </>
-        )}
+        {listing.level &&
+          listing.level.code !== NON_APPLICABLE &&
+          listing.level.name_fr && (
+            <>
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+              <span className="hover:text-[#F97316] transition-colors cursor-default">
+                {listing.level.name_fr}
+              </span>
+            </>
+          )}
+        {listing.subject &&
+          listing.subject.code !== NON_APPLICABLE &&
+          listing.subject.name_fr && (
+            <>
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+              <span className="hover:text-[#F97316] transition-colors cursor-default">
+                {listing.subject.name_fr}
+              </span>
+            </>
+          )}
         <ChevronRight className="w-4 h-4 text-gray-400" />
         <span className="text-gray-900 font-bold max-w-[200px] sm:max-w-none truncate">
           {listing.title}
