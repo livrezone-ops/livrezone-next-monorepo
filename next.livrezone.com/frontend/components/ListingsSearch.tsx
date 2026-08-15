@@ -1,140 +1,111 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { 
-  Search, SlidersHorizontal, BookOpen, GraduationCap, 
-  MapPin, ShieldAlert, ChevronLeft, ChevronRight, X
+import {
+  ShieldAlert,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  LayoutGrid,
+  List as ListIcon,
 } from "lucide-react";
 import BookCard from "./BookCard";
+import { buildListingPath, type ListingSummary } from "@/lib/listings-api";
 
-interface Listing {
-  id: number;
-  user_id: number;
-  title: string;
-  price: number;
-  discount_price?: number | null;
-  book_condition: string;
-  isbn_13?: string | null;
-  cover_path?: string | null;
-  cover_source_url?: string | null;
-  book?: {
-    isbn_13?: string | null;
-    authors?: string[] | string | null;
-    cover_url?: string | null;
-  } | null;
-  user?: {
-    profile?: {
-      nickname?: string | null;
-      city?: {
-        name?: string | null;
-      } | null;
-    } | null;
-  } | null;
+interface ListingsSearchProps {
+  initialListings?: ListingSummary[];
+  initialTotal?: number;
+  initialLastPage?: number;
 }
 
-export default function ListingsSearch() {
+export default function ListingsSearch({
+  initialListings,
+  initialTotal,
+  initialLastPage,
+}: ListingsSearchProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Search parameters states
   const searchQ = searchParams.get("search") || "";
-  const catQ = searchParams.get("category") || "";
-  const lvlQ = searchParams.get("level") || "";
-  const condQ = searchParams.get("condition") || "";
   const sortQ = searchParams.get("sort") || "latest";
-  const pageQ = parseInt(searchParams.get("page") || "1");
+  const pageQ = parseInt(searchParams.get("page") || "1", 10) || 1;
 
-  // Local state
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastPage, setLastPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [searchInput, setSearchInput] = useState(searchQ);
+  const [listings, setListings] = useState<ListingSummary[]>(
+    initialListings ? initialListings : []
+  );
+  const [loading, setLoading] = useState(initialListings === undefined);
+  const [lastPage, setLastPage] = useState(initialLastPage ?? 1);
+  const [total, setTotal] = useState(initialTotal ?? 0);
 
-  // Filter options lists
-  const categories = [
-    { code: "", name: "Toutes les catégories" },
-    { code: "litterature", name: "Littérature" },
-    { code: "scolaire", name: "Scolaire" },
-    { code: "universitaire", name: "Universitaire" },
-    { code: "jeunesse", name: "Jeunesse" },
-    { code: "religion", name: "Religion" },
-    { code: "vie-pratique", name: "Vie Pratique" },
-  ];
+  const hydratedRef = useRef(initialListings !== undefined);
 
-  const levels = [
-    { code: "", name: "Tous les niveaux" },
-    { code: "1bac", name: "1re année BAC" },
-    { code: "2bac", name: "2e année BAC" },
-    { code: "tcommun", name: "Tronc Commun" },
-    { code: "college", name: "Collège" },
-    { code: "primaire", name: "Primaire" }
-  ];
+  // Dernière valeur de recherche effectivement poussée dans l'URL.
+  // Permet de distinguer un changement d'URL externe (header) d'un retour
+  // d'écho de notre propre debounce, pour ne jamais écraser la saisie en cours.
+  const lastPushedSearch = useRef(searchQ);
 
-  const conditions = [
-    { code: "", name: "Tous les états" },
-    { code: "neuf", name: "Neuf" },
-    { code: "occas", name: "Occasion" }
-  ];
-
-  // Fetch listings
+  // Synchronise le champ quand l'URL change en dehors de notre debounce
+  // (ex : recherche soumise depuis le header).
   useEffect(() => {
+    if (searchQ !== lastPushedSearch.current) {
+      setSearchInput(searchQ);
+      lastPushedSearch.current = searchQ;
+    }
+  }, [searchQ]);
+
+  // Recherche réactive : filtre au fil de la saisie avec un léger debounce.
+  useEffect(() => {
+    const trimmed = searchInput.trim();
+    if (trimmed === lastPushedSearch.current) return;
+    const timer = setTimeout(() => {
+      lastPushedSearch.current = trimmed;
+      updateParams({ search: trimmed });
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
+
+  useEffect(() => {
+    if (initialListings !== undefined) {
+      hydratedRef.current = false;
+      setListings(initialListings);
+      setLastPage(initialLastPage ?? 1);
+      setTotal(initialTotal ?? 0);
+      setLoading(false);
+      return;
+    }
+
+    if (hydratedRef.current) {
+      hydratedRef.current = false;
+      return;
+    }
+
     let active = true;
     const fetchListings = async () => {
       setLoading(true);
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api-next.livrezone.com";
-        const query = new URLSearchParams({
-          search: searchQ,
-          category: catQ,
-          level: lvlQ,
-          condition: condQ,
-          sort: sortQ,
-          page: pageQ.toString(),
-          limit: "12"
+        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "https://api-next.livrezone.com").replace(/\/api\/?$/, "");
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("limit", "12");
+        const res = await fetch(`${baseUrl}/api/listings?${params.toString()}`, {
+          cache: "no-store",
         });
-
-        const res = await fetch(`${baseUrl}/api/listings?${query.toString()}`, {
-          cache: "no-store"
-        });
-
         if (!res.ok) throw new Error("API error");
-        
         const json = await res.json();
-        
         if (active) {
-          setListings(json.data || []);
+          setListings(Array.isArray(json.data) ? json.data : []);
           setLastPage(json.last_page || 1);
           setTotal(json.total || 0);
         }
-      } catch (e) {
+      } catch {
         if (active) {
-          // Mock fallbacks for demonstration
-          setListings([
-            {
-              id: 1,
-              user_id: 10,
-              title: "La Boîte à merveilles",
-              price: 35.00,
-              discount_price: 25.00,
-              book_condition: "occas",
-              book: { authors: "Ahmed Sefrioui", cover_url: null },
-              user: { profile: { nickname: "ouahib", city: { name: "Casablanca" } } }
-            },
-            {
-              id: 2,
-              user_id: 10,
-              title: "Le Dernier Jour d'un condamné",
-              price: 30.00,
-              book_condition: "neuf",
-              book: { authors: "Victor Hugo", cover_url: null },
-              user: { profile: { nickname: "ouahib", city: { name: "Rabat" } } }
-            }
-          ]);
-          setTotal(2);
+          setListings([]);
           setLastPage(1);
+          setTotal(0);
         }
       } finally {
         if (active) setLoading(false);
@@ -142,10 +113,11 @@ export default function ListingsSearch() {
     };
 
     fetchListings();
-    return () => { active = false; };
-  }, [searchQ, catQ, lvlQ, condQ, sortQ, pageQ]);
+    return () => {
+      active = false;
+    };
+  }, [initialListings, initialLastPage, initialTotal, searchParams]);
 
-  // Helper to push new URL params
   const updateParams = (newParams: Record<string, string | number | null>) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(newParams).forEach(([key, val]) => {
@@ -155,7 +127,6 @@ export default function ListingsSearch() {
         params.set(key, val.toString());
       }
     });
-    // Reset page to 1 on filter changes unless page parameter was explicitly set
     if (!newParams.page) {
       params.delete("page");
     }
@@ -164,250 +135,268 @@ export default function ListingsSearch() {
 
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const searchVal = fd.get("search") as string;
-    updateParams({ search: searchVal });
+    const q = searchInput.trim();
+    lastPushedSearch.current = q;
+    updateParams({ search: q, sort: null });
   };
-
-  const slugify = (text: string) => {
-    return text
-      .toString()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/[^\w\-]+/g, "")
-      .replace(/\-\-+/g, "-")
-      .replace(/^-+/, "")
-      .replace(/-+$/, "");
-  };
-
-  // Render Sidebar
-  const Sidebar = () => (
-    <div className="flex flex-col gap-6 font-sans">
-      {/* Categories */}
-      <div className="bg-white border border-gray-150 rounded-xl p-5 shadow-xs">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3.5">Catégories</h3>
-        <div className="flex flex-col gap-2">
-          {categories.map((c) => (
-            <button
-              key={c.code}
-              onClick={() => updateParams({ category: c.code })}
-              className={`text-left text-xs py-1 px-2 rounded font-bold transition-all cursor-pointer ${
-                catQ === c.code 
-                  ? "bg-violet-50 text-[#6D28D9]" 
-                  : "text-gray-600 hover:bg-gray-50 hover:text-black"
-              }`}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Levels */}
-      <div className="bg-white border border-gray-150 rounded-xl p-5 shadow-xs">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3.5">Niveau Scolaire</h3>
-        <div className="flex flex-col gap-2">
-          {levels.map((l) => (
-            <button
-              key={l.code}
-              onClick={() => updateParams({ level: l.code })}
-              className={`text-left text-xs py-1 px-2 rounded font-bold transition-all cursor-pointer ${
-                lvlQ === l.code 
-                  ? "bg-violet-50 text-[#6D28D9]" 
-                  : "text-gray-600 hover:bg-gray-50 hover:text-black"
-              }`}
-            >
-              {l.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Condition */}
-      <div className="bg-white border border-gray-150 rounded-xl p-5 shadow-xs">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3.5">État du livre</h3>
-        <div className="flex flex-col gap-2">
-          {conditions.map((cond) => (
-            <button
-              key={cond.code}
-              onClick={() => updateParams({ condition: cond.code })}
-              className={`text-left text-xs py-1 px-2 rounded font-bold transition-all cursor-pointer ${
-                condQ === cond.code 
-                  ? "bg-violet-50 text-[#6D28D9]" 
-                  : "text-gray-600 hover:bg-gray-50 hover:text-black"
-              }`}
-            >
-              {cond.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Clear Filters */}
-      {(catQ || lvlQ || condQ || searchQ) && (
-        <button
-          onClick={() => router.push(pathname)}
-          className="w-full text-center py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg text-xs transition-colors cursor-pointer"
-        >
-          Réinitialiser les filtres
-        </button>
-      )}
-    </div>
-  );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 font-sans">
-      
-      {/* Sidebar - Desktop */}
-      <aside className="hidden lg:block lg:col-span-3">
-        <Sidebar />
-      </aside>
+    <div className="flex flex-col gap-6">
+      {/* Toolbar : recherche + tri + vue */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white border border-gray-100 rounded-xl p-4 shadow-xs">
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex-1 flex border border-gray-200 rounded-lg overflow-hidden h-10 shadow-inner"
+        >
+          <input
+            type="search"
+            name="search"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Rechercher par ISBN, titre ou auteur"
+            className="flex-1 px-3 text-xs bg-transparent focus:outline-none"
+          />
+          <button
+            type="submit"
+            className="bg-[#1a0a40] hover:bg-[#6D28D9] text-white font-bold px-4 text-xs transition-colors cursor-pointer"
+          >
+            Go
+          </button>
+        </form>
 
-      {/* Main Search Results Area */}
-      <main className="lg:col-span-9 flex flex-col gap-6">
-        
-        {/* Search header & sorting */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white border border-gray-150 rounded-xl p-4 shadow-xs">
-          
-          {/* Search box input */}
-          <form onSubmit={handleSearchSubmit} className="flex-1 flex border border-gray-200 rounded-lg overflow-hidden h-10 shadow-inner">
-            <span className="flex items-center justify-center pl-3 text-gray-400">
-              <Search className="h-4 w-4" />
-            </span>
-            <input 
-              type="search" 
-              name="search"
-              defaultValue={searchQ}
-              placeholder="Rechercher par titre, auteur ou ISBN..." 
-              className="flex-1 px-3 text-xs bg-transparent focus:outline-none"
-            />
-            <button type="submit" className="bg-[#6D28D9] hover:bg-violet-800 text-white font-bold px-4 text-xs transition-colors cursor-pointer">
-              Go
-            </button>
-          </form>
-
-          <div className="flex items-center gap-3 justify-between sm:justify-start">
-            {/* Mobile Filters trigger */}
-            <button 
-              onClick={() => setMobileFiltersOpen(true)}
-              className="lg:hidden flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer shadow-xs"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filtres
-            </button>
-
-            {/* Sort select */}
+        <div className="flex items-center gap-3 justify-between sm:justify-start">
+          <div className="flex items-center border border-gray-300 rounded-sm bg-white relative h-10">
             <select
               value={sortQ}
               onChange={(e) => updateParams({ sort: e.target.value })}
-              className="text-xs border border-gray-200 rounded-lg py-2 pl-2 pr-8 text-gray-600 focus:outline-none bg-white shadow-xs cursor-pointer"
+              className="h-full pl-2 pr-8 appearance-none bg-transparent text-xs font-bold text-gray-700 focus:outline-none cursor-pointer"
             >
-              <option value="latest">Plus récents</option>
-              <option value="price_asc">Prix croissant</option>
-              <option value="price_desc">Prix décroissant</option>
+              <option value="latest">Trier : les plus récents</option>
+              <option value="price_asc">Trier par prix croissant</option>
+              <option value="price_desc">Trier par prix décroissant</option>
             </select>
+            <ChevronDown className="h-4 w-4 text-gray-500 absolute right-2.5 pointer-events-none" />
           </div>
 
+          {/* Bascule Grille / Liste */}
+          <div className="flex h-10 border border-gray-300 rounded-sm overflow-hidden">
+            <button
+              onClick={() => setView("grid")}
+              className={`flex items-center justify-center gap-1.5 px-3 text-xs font-bold transition-colors cursor-pointer ${
+                view === "grid"
+                  ? "bg-[#1a0a40] text-white"
+                  : "bg-white text-gray-500 hover:text-black"
+              }`}
+              aria-label="Vue grille"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className={`flex items-center justify-center gap-1.5 px-3 text-xs font-bold transition-colors cursor-pointer border-l border-gray-300 ${
+                view === "list"
+                  ? "bg-[#1a0a40] text-white"
+                  : "bg-white text-gray-500 hover:text-black"
+              }`}
+              aria-label="Vue liste"
+            >
+              <ListIcon className="h-4 w-4" />
+            </button>
+          </div>
         </div>
+      </div>
 
-        {/* Loading / Results grid */}
-        {loading ? (
-          <div className="flex items-center justify-center min-h-[300px]">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6D28D9]"></div>
-          </div>
-        ) : listings.length > 0 ? (
-          <div className="flex flex-col gap-8">
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[300px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6D28D9]"></div>
+        </div>
+      ) : listings.length > 0 ? (
+        <div className="flex flex-col gap-8">
+          {view === "grid" ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-6">
-              {listings.map((l) => {
-                const authors = l.book?.authors
-                  ? (Array.isArray(l.book.authors) ? l.book.authors.join(", ") : l.book.authors)
-                  : null;
-
-                // Priorité : cover_url du proxy Laravel (fourni par l'API) → cover_source_url → null
-                const coverUrl = l.book?.cover_url
-                  || l.cover_source_url
-                  || null;
-
-                const nickname = l.user?.profile?.nickname || `utilisateur-${l.user_id}`;
-                const isbn = l.isbn_13 || l.book?.isbn_13 || "livre";
-                const titleSlug = slugify(l.title);
-                const listingUrl = `/${nickname}/${l.id}-${isbn}-${titleSlug}`;
-
-                return (
-                  <BookCard
-                    key={l.id}
-                    title={l.title}
-                    author={authors}
-                    price={l.price}
-                    discountPrice={l.discount_price}
-                    cover={coverUrl}
-                    condition={l.book_condition}
-                    url={listingUrl}
-                    city={l.user?.profile?.city?.name || null}
-                  />
-                );
-              })}
+              {listings.map((l) => (
+                <BookCard
+                  key={l.id}
+                  title={l.title}
+                  author={
+                    l.book?.authors
+                      ? Array.isArray(l.book.authors)
+                        ? l.book.authors.join(", ")
+                        : l.book.authors
+                      : null
+                  }
+                  price={Number(l.price)}
+                  discountPrice={l.discount_price != null ? Number(l.discount_price) : null}
+                  cover={l.book?.cover_url || l.cover_source_url || null}
+                  condition={l.book_condition}
+                  url={buildListingPath(l)}
+                  city={l.user?.profile?.city?.name || null}
+                />
+              ))}
             </div>
-
-            {/* Pagination Controls */}
-            {lastPage > 1 && (
-              <div className="flex justify-center items-center gap-2 mt-4 font-bold text-xs">
-                <button
-                  disabled={pageQ <= 1}
-                  onClick={() => updateParams({ page: pageQ - 1 })}
-                  className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <span className="text-gray-500">
-                  Page <span className="text-black">{pageQ}</span> sur {lastPage}
-                </span>
-                <button
-                  disabled={pageQ >= lastPage}
-                  onClick={() => updateParams({ page: pageQ + 1 })}
-                  className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="bg-white border border-gray-150 rounded-2xl p-16 text-center shadow-xs">
-            <ShieldAlert className="h-16 w-16 text-gray-300 stroke-1 mx-auto mb-4" />
-            <h3 className="text-lg font-black text-gray-950 mb-1">Aucune annonce trouvée</h3>
-            <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
-              Nous n'avons trouvé aucun livre correspondant à vos critères de filtres ou à votre terme de recherche.
-            </p>
-          </div>
-        )}
-
-      </main>
-
-      {/* Mobile Drawer Slide-out */}
-      {mobileFiltersOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div 
-            onClick={() => setMobileFiltersOpen(false)}
-            className="absolute inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
-          ></div>
-          <div className="relative w-72 bg-gray-50 flex flex-col z-10 animate-in slide-in-from-left duration-250 shadow-2xl p-6 overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <span className="text-lg font-black text-black">Filtres</span>
-              <button 
-                onClick={() => setMobileFiltersOpen(false)}
-                className="text-gray-400 hover:text-black p-1"
-              >
-                <X className="h-5 w-5" />
-              </button>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {listings.map((l) => (
+                <ArticleListRow key={l.id} listing={l} />
+              ))}
             </div>
-            <Sidebar />
-          </div>
+          )}
+
+          {lastPage > 1 && (
+            <Pagination
+              page={pageQ}
+              lastPage={lastPage}
+              onGo={(n) => updateParams({ page: n })}
+            />
+          )}
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-100 rounded-2xl p-16 text-center shadow-xs">
+          <ShieldAlert className="h-16 w-16 text-gray-300 stroke-1 mx-auto mb-4" />
+          <h3 className="text-lg font-black text-gray-950 mb-1">
+            Aucune annonce trouvée
+          </h3>
+          <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
+            Nous n&apos;avons trouvé aucun livre correspondant à vos critères de
+            filtres ou à votre terme de recherche.
+          </p>
         </div>
       )}
-
     </div>
+  );
+}
+
+function ArticleListRow({ listing }: { listing: ListingSummary }) {
+  const cover = listing.book?.cover_url || listing.cover_source_url || null;
+  const author = listing.book?.authors
+    ? Array.isArray(listing.book.authors)
+      ? listing.book.authors.join(", ")
+      : listing.book.authors
+    : null;
+  const price = Number(listing.price);
+  const discountPrice =
+    listing.discount_price != null ? Number(listing.discount_price) : null;
+  const hasDiscount = discountPrice !== null && discountPrice < price;
+  const city = listing.user?.profile?.city?.name || null;
+
+  return (
+    <a
+      href={buildListingPath(listing)}
+      className="flex items-center gap-4 bg-white border border-gray-100 rounded-xl p-3 shadow-xs hover:shadow-md transition-shadow transaction-all group"
+    >
+      <div className="w-16 h-20 flex-shrink-0 bg-gray-50 rounded overflow-hidden">
+        {cover ? (
+          <img
+            src={cover}
+            alt={listing.title}
+            loading="lazy"
+            className="w-full h-full object-contain p-1"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
+            Livre
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <h3 className="text-sm font-bold text-gray-900 group-hover:text-[#6D28D9] transition-colors line-clamp-2">
+          {listing.title.charAt(0).toUpperCase() + listing.title.slice(1).toLowerCase()}
+        </h3>
+        {author && <p className="text-xs text-gray-500 mt-0.5 truncate">{author}</p>}
+        <div className="mt-1 flex items-baseline gap-2">
+          <div
+            className={`text-[15px] font-black ${
+              hasDiscount ? "text-[#F97316]" : "text-gray-950"
+            }`}
+          >
+            {new Intl.NumberFormat("fr-FR", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(hasDiscount ? discountPrice! : price)}{" "}
+            <span className="text-[10px] font-medium text-gray-600">MAD</span>
+          </div>
+          {hasDiscount && (
+            <span className="text-xs font-medium text-gray-400 line-through">
+              {new Intl.NumberFormat("fr-FR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }).format(price)}
+            </span>
+          )}
+        </div>
+      </div>
+      {city && <span className="text-xs text-gray-500 flex-shrink-0 hidden sm:block">{city}</span>}
+    </a>
+  );
+}
+
+function pickPages(current: number, last: number): Array<number | "..."> {
+  if (last <= 7) {
+    return Array.from({ length: last }, (_, i) => i + 1);
+  }
+  const set = new Set<number>([1, last, current - 2, current - 1, current, current + 1, current + 2]);
+  const sorted = Array.from(set)
+    .filter((n) => n >= 1 && n <= last)
+    .sort((a, b) => a - b);
+  const out: Array<number | "..."> = [];
+  let prev = 0;
+  for (const n of sorted) {
+    if (n - prev > 1) out.push("...");
+    out.push(n);
+    prev = n;
+  }
+  return out;
+}
+
+function Pagination({
+  page,
+  lastPage,
+  onGo,
+}: {
+  page: number;
+  lastPage: number;
+  onGo: (n: number) => void;
+}) {
+  const pages = pickPages(page, lastPage);
+  return (
+    <nav
+      aria-label="Pagination"
+      className="flex justify-center items-center gap-2 mt-4 font-bold text-xs"
+    >
+      <button
+        disabled={page <= 1}
+        onClick={() => onGo(page - 1)}
+        className="flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      {pages.map((p, i) =>
+        p === "..." ? (
+          <span key={`e${i}`} className="px-1 text-gray-400">
+            …
+          </span>
+        ) : (
+          <button
+            key={p}
+            disabled={p === page}
+            onClick={() => onGo(p)}
+            className={`px-3 py-2 border rounded-lg transition-colors cursor-pointer disabled:cursor-default ${
+              p === page
+                ? "border-[#1a0a40] bg-[#1a0a40] text-white"
+                : "border-gray-200 hover:bg-gray-50 text-gray-700"
+            }`}
+          >
+            {p}
+          </button>
+        )
+      )}
+      <button
+        disabled={page >= lastPage}
+        onClick={() => onGo(page + 1)}
+        className="flex items-center gap-1 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </nav>
   );
 }

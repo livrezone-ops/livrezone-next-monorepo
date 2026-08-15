@@ -30,4 +30,36 @@ class BookController extends Controller
 
         return response()->json(['book' => $book]);
     }
+
+    /**
+     * Recherche publique dans la table books (catalogue, pas uniquement les annonces).
+     * Recherche sur : titre, ISBN, auteur, éditeur.
+     */
+    public function publicSearch(Request $request)
+    {
+        $query = Book::query();
+
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('isbn_13', 'like', "%{$search}%")
+                  ->orWhere('publisher', 'like', "%{$search}%")
+                  // Les auteurs sont stockés en JSON : on compare la représentation texte.
+                  ->orWhere('authors', 'like', "%{$search}%");
+            });
+        }
+
+        $limit = $request->integer('limit', 24);
+        $books = $query->orderBy('title')->paginate($limit);
+
+        $books->getCollection()->transform(function ($book) {
+            if ($book->title) {
+                $book->setAppends(['cover_url']);
+            }
+            return $book;
+        });
+
+        return response()->json($books);
+    }
 }

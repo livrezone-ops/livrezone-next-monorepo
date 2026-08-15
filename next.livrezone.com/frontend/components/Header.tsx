@@ -2,13 +2,22 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   Menu, X, Search, Heart, ShoppingCart, User, 
   Settings, LogOut, MessageSquare, BookOpen, Inbox
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { CATEGORIES } from "@/lib/reference-data";
+
+const NAV_LABELS: Record<string, string> = {
+  SCOLAIRE: "Rentrée Scolaire",
+  JEUNESSE: "Enfants",
+  VIE_PRATIQUE: "Vie Pratique",
+};
 
 export default function Header() {
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -37,14 +46,23 @@ export default function Header() {
   }, []);
 
   const navLinks = [
-    { label: "Rentrée Scolaire", href: "/annonces?category=scolaire" },
-    { label: "Du Maroc", href: "/annonces" },
     { label: "Annonces", href: "/annonces" },
-    { label: "Enfants", href: "/annonces?category=jeunesse" },
-    { label: "Jouets", href: "/annonces?category=jouets" },
-    { label: "Papeterie", href: "/annonces?category=papeterie" },
-    { label: "Magazines", href: "/annonces?category=magazines" },
+    ...CATEGORIES.map((c) => ({
+      label: NAV_LABELS[c.code] ?? c.name,
+      href: `/annonces?category=${c.code}`,
+    })),
   ];
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const q = ((fd.get("q") as string) || "").trim();
+    if (!q) return;
+    const scope = (fd.get("scope") as string) || "vente";
+    const query = encodeURIComponent(q);
+    router.push(scope === "livres" ? `/livres?search=${query}` : `/annonces?search=${query}`);
+    setSearchOpen(false);
+  };
 
   return (
     <header
@@ -95,22 +113,21 @@ export default function Header() {
         </Link>
 
         {/* RECHERCHE DESKTOP */}
-        <div className="flex-1 hidden lg:flex border-2 border-black hover:border-gray-800 focus-within:border-[#6D28D9] rounded-md transition-colors overflow-hidden h-11">
-          <select className="bg-gray-50 border-r border-gray-200 px-3 text-[13px] text-black font-semibold focus:outline-none cursor-pointer appearance-none outline-none">
-            <option>Tous</option>
-            <option>Livres</option>
-            <option>Papeterie</option>
-            <option>Jouets</option>
+        <form onSubmit={handleSearchSubmit} className="flex-1 hidden lg:flex border-2 border-black hover:border-gray-800 focus-within:border-[#6D28D9] rounded-md transition-colors overflow-hidden h-11">
+          <select name="scope" className="bg-gray-50 border-r border-gray-200 px-3 text-[13px] text-black font-semibold focus:outline-none cursor-pointer appearance-none outline-none">
+            <option value="vente">Livres en vente</option>
+            <option value="livres">Base des livres</option>
           </select>
-          <input 
-            type="search" 
-            placeholder="Rechercher sur LivreZone..." 
+          <input
+            type="search"
+            name="q"
+            placeholder="Rechercher par ISBN, titre ou auteur"
             className="flex-1 px-4 text-[13px] text-black placeholder-gray-400 focus:outline-none bg-white"
           />
-          <button className="flex-shrink-0 bg-black hover:bg-[#6D28D9] text-white px-6 transition-colors flex items-center justify-center">
+          <button type="submit" className="flex-shrink-0 bg-black hover:bg-[#6D28D9] text-white px-6 transition-colors flex items-center justify-center">
             <Search className="h-4 w-4" strokeWidth={3} />
           </button>
-        </div>
+        </form>
 
         {/* ICONS CONTAINER */}
         <div className="flex items-center gap-5">
@@ -265,16 +282,21 @@ export default function Header() {
         {/* SEARCH BAR MOBILE (DROPDOWN) */}
         {searchOpen && (
           <div className="absolute top-[78px] left-0 w-full bg-white border-b border-gray-200 p-4 z-40 lg:hidden shadow-lg animate-in slide-in-from-top-4 duration-200">
-            <div className="flex border-2 border-black rounded-md overflow-hidden h-10">
-              <input 
-                type="search" 
-                placeholder="Rechercher sur LivreZone..." 
+            <form onSubmit={handleSearchSubmit} className="flex border-2 border-black rounded-md overflow-hidden h-10">
+              <select name="scope" className="bg-gray-50 border-r border-gray-200 px-2 text-[11px] text-black font-semibold focus:outline-none cursor-pointer appearance-none outline-none">
+                <option value="vente">En vente</option>
+                <option value="livres">Base des livres</option>
+              </select>
+              <input
+                type="search"
+                name="q"
+                placeholder="Rechercher par ISBN, titre ou auteur"
                 className="flex-1 px-4 text-[13px] text-black placeholder-gray-400 focus:outline-none bg-white"
               />
-              <button className="flex-shrink-0 bg-black text-white px-5 flex items-center justify-center">
+              <button type="submit" className="flex-shrink-0 bg-black text-white px-5 flex items-center justify-center">
                 <Search className="h-4 w-4" strokeWidth={3} />
               </button>
-            </div>
+            </form>
           </div>
         )}
       </div>

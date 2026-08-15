@@ -41,6 +41,9 @@ Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
 Route::get('/listings', [\App\Http\Controllers\Api\ListingController::class, 'index']);
 Route::get('/listings/{id}', [\App\Http\Controllers\Api\ListingController::class, 'show']);
 
+// Public Books Catalogue Routes
+Route::get('/books', [\App\Http\Controllers\Api\BookController::class, 'publicSearch']);
+
 // Reference Data for Forms
 Route::get('/reference-data', [ReferenceDataController::class, 'index']);
 Route::get('/books/search', [BookController::class, 'searchByIsbn']);

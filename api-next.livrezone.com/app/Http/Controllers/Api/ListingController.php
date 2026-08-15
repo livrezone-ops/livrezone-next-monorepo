@@ -22,28 +22,23 @@ class ListingController extends Controller
             ->with(['book', 'category', 'user.profile.city'])
             ->where('status', 'published');
 
-        // 1. Filtrer par Catégorie (gère la hiérarchie parent-enfants)
-        if ($request->filled('category')) {
-            $catCode = $request->get('category');
-            $category = Category::where('code', $catCode)->first();
-            
-            if ($category) {
-                // Récupérer la catégorie et tous ses enfants (sous-catégories)
-                $categoryIds = [$category->id];
-                $childrenIds = Category::where('parent_id', $category->id)->pluck('id')->toArray();
-                $categoryIds = array_merge($categoryIds, $childrenIds);
-
-                $query->whereIn('category_id', $categoryIds);
-            }
+        // 1. Filtrer par Catégories : codes (category=A,B ou categories=A,B)
+        //    ou IDs historiques (c=1,2,3), avec inclusion des enfants + affinage.
+        $categoryCodes = $this->csvParam($request, ['categories', 'category']);
+        $categoryIds = !empty($categoryCodes)
+            ? Category::whereIn('code', $categoryCodes)->pluck('id')->all()
+            : $this->csvIntParam($request->get('c'));
+        if (!empty($categoryIds)) {
+            $query->whereIn('category_id', $this->resolveCategoryIds($categoryIds));
         }
 
-        // 2. Filtrer par Niveau (Level)
-        if ($request->filled('level')) {
-            $levelCode = $request->get('level');
-            $levelId = Level::where('code', $levelCode)->value('id');
-            if ($levelId) {
-                $query->where('level_id', $levelId);
-            }
+        // 2. Filtrer par Niveaux (levels=A,B ou lvl=1,2)
+        $levelCodes = $this->csvParam($request, ['levels', 'level']);
+        $levelIds = !empty($levelCodes)
+            ? Level::whereIn('code', $levelCodes)->pluck('id')->all()
+            : $this->csvIntParam($request->get('lvl'));
+        if (!empty($levelIds)) {
+            $query->whereIn('level_id', $levelIds);
         }
 
         // 3. Filtrer par Matière (Subject)
@@ -55,21 +50,56 @@ class ListingController extends Controller
             }
         }
 
-        // 4. Filtrer par Langue (Language)
-        if ($request->filled('language')) {
-            $langCode = $request->get('language');
-            $langId = Language::where('code', $langCode)->value('id');
-            if ($langId) {
-                $query->where('language_id', $langId);
-            }
+        // 4. Filtrer par Langues (languages=fr,ar ou l=2,1)
+        $languageCodes = $this->csvParam($request, ['languages', 'language']);
+        $languageIds = !empty($languageCodes)
+            ? Language::whereIn('code', $languageCodes)->pluck('id')->all()
+            : $this->csvIntParam($request->get('l'));
+        if (!empty($languageIds)) {
+            $query->whereIn('language_id', $languageIds);
         }
 
-        // 5. Filtrer par État (book_condition)
-        if ($request->filled('condition')) {
-            $query->where('book_condition', $request->get('condition'));
+        // 5. Filtrer par État du livre (condition=neuf,occas ou condiciones=.../cond=...)
+        $conditions = $this->csvParam($request, ['conditions', 'condition', 'cond']);
+        $conditions = array_values(array_intersect(
+            array_map('strtolower', $conditions),
+            ['neuf', 'occas']
+        ));
+        if (!empty($conditions)) {
+            $query->whereIn('book_condition', $conditions);
         }
 
-        // 6. Filtrer par Utilisateur (autres annonces du vendeur)
+        // 6. Filtrer par prix de vente (price, ou discount_price si présent).
+        //    Ex : min_price/max_price (ou min/max historique).
+        $minPrice = $this->floatOrNull(
+            $request->has('min_price') ? $request->get('min_price') : $request->get('min')
+        );
+        $maxPrice = $this->floatOrNull(
+            $request->has('max_price') ? $request->get('max_price') : $request->get('max')
+        );
+
+        $priceExpr = '
+            COALESCE(discount_price, price)';
+
+        if ($minPrice !== null) {
+            $query->whereRaw($priceExpr . ' >= ?', [$minPrice]);
+        }
+        if ($maxPrice !== null) {
+            $query->whereRaw($priceExpr . ' <= ?', [$maxPrice]);
+        }
+
+        // 6b. Filtrer par villes (city=1,2 ou city_id=1,2) — communes de l'annonceur
+        $cityIds = !empty($this->csvParam($request, ['city', 'cities']))
+            ? $this->csvParam($request, ['city', 'cities'])
+            : $this->csvIntParam($request->get('city_id'));
+        $cityIds = array_map('intval', array_unique(array_filter($cityIds, 'is_numeric')));
+        if (!empty($cityIds)) {
+            $query->whereHas('user.profile', function ($q) use ($cityIds) {
+                $q->whereIn('city_id', $cityIds);
+            });
+        }
+
+        // 7. Filtrer par Utilisateur (autres annonces du vendeur)
         if ($request->filled('user_id')) {
             $query->where('user_id', $request->get('user_id'));
         }
@@ -79,12 +109,11 @@ class ListingController extends Controller
             $query->where('id', '!=', $request->get('exclude'));
         }
 
-        // 7. Recherche textuelle globale
+        // 8. Recherche textuelle globale (ISBN, titre, auteur, éditeur)
         if ($request->filled('search')) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
                 $q->where('listings.title', 'like', "%{$search}%")
-                  ->orWhere('listings.description', 'like', "%{$search}%")
                   ->orWhere('listings.isbn_13', 'like', "%{$search}%")
                   ->orWhereHas('book', function ($bq) use ($search) {
                       $bq->where('title', 'like', "%{$search}%")
@@ -117,7 +146,16 @@ class ListingController extends Controller
             return $listing;
         });
 
-        return response()->json($listings);
+        // Bornes de prix réelles (prix de vente) pour le slider dynamique.
+        $bounds = Listing::where('status', 'published')
+            ->selectRaw('MIN(COALESCE(discount_price, price)) as min_price, MAX(COALESCE(discount_price, price)) as max_price')
+            ->first();
+
+        $payload = $listings->toArray();
+        $payload['price_min'] = (float) ($bounds->min_price ?? 0);
+        $payload['price_max'] = (float) ($bounds->max_price ?? 500);
+
+        return response()->json($payload);
     }
 
     /**
@@ -149,5 +187,93 @@ class ListingController extends Controller
         return response()->json([
             'data' => $listing
         ]);
+    }
+
+    /**
+     * Récupère la première valeur non vide parmi une liste de paramètres
+     * et la découpe en tableau (support CSV : "ROMANS,BD").
+     */
+    private function csvParam(Request $request, array $keys): array
+    {
+        $value = null;
+        foreach ($keys as $key) {
+            if ($request->has($key) && $request->filled($key)) {
+                $value = $request->get($key);
+                break;
+            }
+        }
+        if ($value === null) {
+            return [];
+        }
+        $parts = is_array($value) ? $value : explode(',', $value);
+        return array_values(array_filter(array_map('trim', $parts), fn ($v) => $v !== ''));
+    }
+
+    /**
+     * Découpe un paramètre CSV en entiers uniques (format historique "c=1,2,3").
+     */
+    private function csvIntParam($value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+        $parts = is_array($value) ? $value : explode(',', $value);
+        $ints = [];
+        foreach ($parts as $part) {
+            $trimmed = trim($part);
+            if (is_numeric($trimmed)) {
+                $ints[] = (int) $trimmed;
+            }
+        }
+        return array_values(array_unique($ints));
+    }
+
+    /**
+     * Convertit une valeur en flottant, ou null si absente/invalide.
+     */
+    private function floatOrNull($value): ?float
+    {
+        if ($value === null || $value === '' || !is_numeric($value)) {
+            return null;
+        }
+        return (float) $value;
+    }
+
+    /**
+     * Résout les IDs de catégories sélectionnés avec :
+     * - inclusion des descendants pour un parent ;
+     * - affinage : si un parent ET un de ses enfants sont cochés, seul l'enfant est retenu.
+     */
+    private function resolveCategoryIds(array $categoryIds): array
+    {
+        if (empty($categoryIds)) {
+            return [];
+        }
+
+        $allCategories = Category::all()->keyBy('id');
+
+        $selected = [];
+        foreach ($categoryIds as $catId) {
+            $category = $allCategories->get($catId);
+            if (!$category) {
+                continue;
+            }
+            $descendants = array_diff($category->selfAndDescendantIds(), [$catId]);
+            $hasSelectedDescendant = count(array_intersect($descendants, $categoryIds)) > 0;
+            if (!$hasSelectedDescendant) {
+                $selected[] = $catId;
+            }
+        }
+
+        $merged = [];
+        foreach ($selected as $catId) {
+            $category = $allCategories->get($catId);
+            if (!$category) {
+                continue;
+            }
+            $merged = array_merge($merged, $category->selfAndDescendantIds());
+        }
+
+        return array_values(array_unique($merged));
     }
 }
