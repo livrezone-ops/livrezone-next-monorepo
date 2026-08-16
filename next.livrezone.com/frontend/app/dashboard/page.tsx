@@ -1,5 +1,6 @@
 import React from "react";
 import DashboardClient from "@/components/DashboardClient";
+import PendingAuthRedirect from "@/components/PendingAuthRedirect";
 import { redirect } from 'next/navigation';
 
 // Forcer le rendu dynamique (SSR) — obligatoire car on utilise cache: no-store
@@ -118,6 +119,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="w-[90%] max-w-7xl mx-auto py-8">
+      <PendingAuthRedirect />
       <DashboardClient initialListings={listings} />
     </div>
   );

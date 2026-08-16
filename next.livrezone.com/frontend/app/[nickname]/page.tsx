@@ -7,6 +7,7 @@ import { MapPin } from "lucide-react";
 import FilterSidebar from "@/components/FilterSidebar";
 import ListingsSearch from "@/components/ListingsSearch";
 import SellerContact from "@/components/SellerContact";
+import SellerAddress from "@/components/SellerAddress";
 import SellerRating from "@/components/SellerRating";
 import {
   getPublicListings,
@@ -174,7 +175,7 @@ export default async function LibraryProfilePage({ params, searchParams }: PageP
           )}
         </div>
 
-        <div className="flex flex-col items-center md:items-start text-center md:text-left flex-grow">
+        <div className="flex flex-col items-center md:items-start text-center md:text-left flex-grow w-full min-w-0">
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900 flex flex-wrap items-center justify-center md:justify-start gap-2 mb-1">
             {profile.nickname}
             {isPro && (
@@ -186,29 +187,29 @@ export default async function LibraryProfilePage({ params, searchParams }: PageP
           <p className="text-sm font-medium text-gray-500 mb-4">
             @ {profile.nickname}
           </p>
-          <div className="flex flex-wrap justify-center md:justify-start items-center gap-2">
+          <div className="flex flex-nowrap justify-center md:justify-start items-center gap-2 w-full">
             {profile.city?.name && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-100 text-xs font-semibold text-gray-600">
+              <span className="inline-flex flex-shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-100 text-xs font-semibold text-gray-600">
                 <MapPin className="w-3.5 h-3.5 text-gray-400" />
                 {profile.city.name}
               </span>
             )}
             {profile.adresse && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-100 text-xs font-semibold text-gray-600">
-                {profile.adresse}
-              </span>
+              <SellerAddress address={profile.adresse} />
             )}
-            <SellerContact
-              phone={profile.phone}
-              userId={profile.user_id}
-            />
+            <div className="flex-shrink-0">
+              <SellerContact
+                phone={profile.phone}
+                userId={profile.user_id}
+              />
+            </div>
           </div>
         </div>
 
         {/* Statistiques */}
-        <div className="flex gap-4 md:gap-6 justify-center md:justify-end mt-4 md:mt-0 items-start min-w-max">
-          <div className="bg-white rounded-xl border border-gray-100 px-5 py-4 flex flex-col items-center justify-center min-w-[100px]">
-            <div className="text-2xl font-black text-gray-900">
+        <div className="flex flex-nowrap gap-3 md:gap-6 justify-center md:justify-end mt-4 md:mt-0 items-center md:items-start">
+          <div className="bg-white rounded-xl border border-gray-100 px-3.5 py-2.5 md:px-5 md:py-4 flex flex-col items-center justify-center min-w-[100px]">
+            <div className="text-xl md:text-2xl font-black text-gray-900">
               {profile.publication_count}
             </div>
             <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-1">

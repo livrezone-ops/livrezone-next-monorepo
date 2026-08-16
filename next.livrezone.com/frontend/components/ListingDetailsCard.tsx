@@ -281,7 +281,7 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
                   <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                   <span className="font-bold text-gray-800 text-sm leading-none">
                     {listing.user.profile?.rating_count && listing.user.profile.rating_count > 0
-                      ? listing.user.profile.rating_average?.toFixed(1)
+                      ? Number(listing.user.profile.rating_average ?? 0).toFixed(1)
                       : "-"}
                   </span>
                   {listing.user.profile?.rating_count && listing.user.profile.rating_count > 0 && (

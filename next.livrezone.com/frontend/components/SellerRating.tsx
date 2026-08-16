@@ -56,7 +56,8 @@ export default function SellerRating({
 
   const handleRate = () => {
     if (!isAuthenticated) {
-      router.push("/login");
+      const current = window.location.pathname + window.location.search;
+      router.push(`/login?next=${encodeURIComponent(current)}`);
       return;
     }
     if (isOwnProfile) return;
@@ -65,11 +66,11 @@ export default function SellerRating({
 
   return (
     <>
-      <div className="flex gap-2 md:gap-3 justify-center md:justify-end">
-        <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 flex flex-col items-center justify-center min-w-[100px]">
-          <div className="text-2xl font-black text-gray-900 flex items-center justify-center gap-1">
+      <div className="flex flex-nowrap gap-2 md:gap-3 justify-center md:justify-end items-center">
+        <div className="bg-white rounded-xl border border-gray-100 px-3.5 py-2.5 md:px-5 md:py-4 flex flex-col items-center justify-center min-w-[100px]">
+          <div className="text-xl md:text-2xl font-black text-gray-900 flex items-center justify-center gap-1">
             {average > 0 ? average : "-"}
-            <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+            <Star className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 fill-yellow-400" />
           </div>
           <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-1">
             {count > 0
@@ -81,9 +82,9 @@ export default function SellerRating({
         {!isOwnProfile && (
           <button
             onClick={handleRate}
-            className="bg-[#6D28D9] text-white font-bold px-5 py-3 rounded-xl hover:bg-[#5b21b6] transition-colors text-sm cursor-pointer shadow-sm flex items-center justify-center"
+            className="bg-[#6D28D9] text-white font-bold px-3 py-2 sm:px-5 sm:py-3 rounded-xl hover:bg-[#5b21b6] transition-colors text-xs sm:text-sm cursor-pointer shadow-sm flex items-center justify-center whitespace-nowrap"
           >
-            <Star className="w-4 h-4 text-yellow-400 mr-2" />
+            <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-400 mr-1.5" />
             {myRating ? "Modifier mon avis" : "Donner mon avis"}
           </button>
         )}

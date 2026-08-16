@@ -2,14 +2,26 @@
 import { useAuth } from '../../hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import {
+    rememberNextPath,
+    consumePendingPath,
+    safeNextPath,
+} from '../../lib/auth-redirect';
 
 export default function LoginPage() {
     const { isAuthenticated, isLoading, loginWithProvider } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
+        const nextParam = new URLSearchParams(window.location.search).get('next');
+        const next = safeNextPath(nextParam);
+        if (next) rememberNextPath(next);
+    }, []);
+
+    useEffect(() => {
         if (isAuthenticated) {
-            router.push('/dashboard');
+            const destination = safeNextPath(consumePendingPath()) || '/dashboard';
+            router.replace(destination);
         }
     }, [isAuthenticated, router]);
 
