@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { MapPin } from "lucide-react";
 import FilterSidebar from "@/components/FilterSidebar";
@@ -157,12 +158,15 @@ export default async function LibraryProfilePage({ params, searchParams }: PageP
       <header className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start bg-slate-50 p-6 sm:p-8 rounded-2xl border border-slate-100 mb-8">
         <div className="flex-shrink-0 relative">
           {logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logo}
-              alt={`Logo ${profile.nickname}`}
-              className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-2 border-white shadow-sm"
-            />
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-2 border-white shadow-sm">
+              <Image
+                src={logo}
+                alt={`Logo ${profile.nickname}`}
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            </div>
           ) : (
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white flex items-center justify-center text-4xl text-slate-400 font-bold uppercase border-2 border-white shadow-sm">
               {profile.nickname.charAt(0)}

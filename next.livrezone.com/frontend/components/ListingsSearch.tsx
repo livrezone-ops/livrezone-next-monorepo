@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import Image from "next/image";
 import {
   ShieldAlert,
   ChevronLeft,
@@ -305,12 +306,15 @@ function ArticleListRow({ listing }: { listing: ListingSummary }) {
     >
       <div className="w-16 h-20 flex-shrink-0 bg-gray-50 rounded overflow-hidden">
         {cover ? (
-          <img
-            src={cover}
-            alt={listing.title}
-            loading="lazy"
-            className="w-full h-full object-contain p-1"
-          />
+          <div className="relative w-full h-full">
+            <Image
+              src={cover}
+              alt={listing.title}
+              fill
+              className="object-contain p-1"
+              unoptimized
+            />
+          </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
             Livre

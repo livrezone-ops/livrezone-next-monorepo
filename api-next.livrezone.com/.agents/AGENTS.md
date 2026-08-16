@@ -1,94 +1,72 @@
+# LivreZone Agent Context
+
 Tu interviens comme développeur senior sur le projet LivreZone.
 
-Ta mission est de poursuivre une migration progressive d’un monolithe Laravel 13 + Livewire vers une architecture découplée :
+Ta mission est de poursuivre la migration progressive du projet historique Laravel + Livewire vers une architecture API REST + Next.js.
+
+---
+
+# Objectif
+
+Architecture cible :
 
 - Backend : Laravel 13 API REST
-- Frontend : Next.js 16.3
+- Frontend : Next.js 16
 - Authentification : Laravel Sanctum + Socialite
 - Base de données : MariaDB
-- Infrastructure : Debian 12, CasaOS, OpenPanel, Caddy, Cloudflare et Docker
+- Infrastructure : Debian 12, Docker, OpenPanel, CasaOS, Caddy et Cloudflare
 
-==================================================
-1. PROJET DE RÉFÉRENCE
-==================================================
+L'objectif est de remplacer progressivement les écrans Livewire par des interfaces Next.js tout en conservant Laravel comme moteur métier.
 
-Le projet historique est accessible ici :
+---
+
+# Projets
+
+## Projet historique (référence uniquement)
+
+Chemin :
 
 /workspace/dev.livrezone.com
+
+SMB :
+
+\\192.168.1.202\dev.livrezone.com
 
 Domaine :
 
 https://dev.livrezone.com
 
-Ce projet utilise Laravel 13 et Livewire.
+IMPORTANT :
 
-Il est développé à environ 60 %.
+Ne jamais modifier ce projet.
 
-RÈGLE ABSOLUE :
+Il sert uniquement de référence pour :
 
-Ne jamais modifier le projet historique.
+- modèles Eloquent ;
+- migrations ;
+- relations ;
+- contrôleurs ;
+- composants Livewire ;
+- vues Blade ;
+- validations ;
+- règles métier ;
+- policies ;
+- seeders ;
+- structure fonctionnelle.
 
-Le projet historique sert uniquement de référence pour consulter :
+---
 
-- les modèles Eloquent ;
-- les migrations ;
-- les relations ;
-- les contrôleurs ;
-- les composants Livewire ;
-- les vues Blade ;
-- la validation ;
-- les règles métier ;
-- les politiques et autorisations ;
-- les seeders ;
-- la structure fonctionnelle.
+## Backend API
 
-Toute fonctionnalité migrée doit être réécrite dans les nouveaux projets.
-
-==================================================
-2. NOUVELLE ARCHITECTURE
-==================================================
-
-Frontend :
-
-/workspace/next.livrezone.com/frontend
-
-Domaine :
-
-https://next.livrezone.com
-
-Technologies :
-
-- Next.js 16.3
-- App Router
-- React 19
-- TypeScript
-- Tailwind CSS
-- TanStack Query
-- Axios
-- React Hook Form
-- Zod
-
-Backend API :
+Chemin :
 
 /workspace/api-next.livrezone.com
 
-Domaine :
+SMB :
 
-https://api-next.livrezone.com
+\\192.168.1.202\api-next.livrezone.com
 
-Technologies :
-
-- Laravel 13
-- PHP 8.5
-- API REST
-- Laravel Sanctum
-- Laravel Socialite
-- MariaDB
-- Intervention Image
-
-IMPORTANT :
-
-Le domaine officiel du backend est exclusivement :
+Domaine officiel :
 
 https://api-next.livrezone.com
 
@@ -96,548 +74,292 @@ Ne jamais utiliser :
 
 https://api.next.livrezone.com
 
-Cet ancien domaine a été supprimé en raison d’un problème de certificat SSL avec le sous-domaine imbriqué.
+Cet ancien domaine a été abandonné.
 
-==================================================
-3. OBJECTIF DE LA MIGRATION
-==================================================
+---
 
-L’objectif est de remplacer progressivement les vues Blade et les composants Livewire par des pages et composants Next.js.
+## Frontend
 
-Laravel reste responsable de :
-
-- l’accès à la base de données ;
-- la logique métier ;
-- les validations ;
-- les autorisations ;
-- l’authentification ;
-- les traitements serveur ;
-- les fichiers et images ;
-- les endpoints API.
-
-Next.js devient responsable de :
-
-- l’interface utilisateur ;
-- la navigation ;
-- les formulaires ;
-- l’état client ;
-- les appels API ;
-- l’expérience utilisateur ;
-- le rendu frontend.
-
-La nouvelle API doit également pouvoir être réutilisée plus tard par une application mobile.
-
-==================================================
-4. CHEMINS CODE SERVER
-==================================================
-
-Les chemins disponibles dans Code Server sont :
-
-Projet historique en lecture seule :
-
-/workspace/dev.livrezone.com
-
-Backend API actif :
-
-/workspace/api-next.livrezone.com
-
-Frontend actif :
+Chemin :
 
 /workspace/next.livrezone.com/frontend
 
-Les mêmes dossiers peuvent également être accessibles par SMB depuis Windows :
+SMB :
 
-\\192.168.1.202\dev.livrezone.com
+\\192.168.1.202\next.livrezone.com
+
+Domaine :
+
+https://next.livrezone.com
+
+---
+
+# Accès aux fichiers
+
+Les fichiers projet, la documentation, les logs et les assets peuvent être consultés via :
+
+Backend :
 
 \\192.168.1.202\api-next.livrezone.com
 
-\\192.168.1.202\next.livrezone.com\frontend
+Frontend :
 
-==================================================
-5. INFRASTRUCTURE DOCKER
-==================================================
+\\192.168.1.202\next.livrezone.com
 
-Le frontend Next.js utilise un conteneur Docker système dédié :
+Toujours vérifier les fichiers existants avant de proposer une modification.
 
-Nom :
+---
 
-livrezone-next
+# Git
 
-Image :
+IMPORTANT :
 
-livrezone-next
+Le dépôt Git principal à utiliser n'est pas situé dans /workspace.
 
-Port :
+Le dépôt Git se trouve ici :
 
-3000:3000
-
-Politique de redémarrage :
-
-unless-stopped
-
-Le domaine next.livrezone.com est envoyé par Caddy vers :
-
-http://127.0.0.1:3000
-
-Le backend Laravel est servi par les conteneurs rootless OpenPanel de l’utilisateur `livrezone`.
-
-Pour voir les conteneurs Laravel/OpenPanel :
-
-sudo docker --context livrezone ps
-
-Services principaux :
-
-- Apache
-- php-fpm-8.5
-- mariadb
-- redis
-
-Les conteneurs rootless ne sont pas nécessairement visibles avec la commande Docker système normale.
-
-==================================================
-6. COMMANDES LARAVEL
-==================================================
-
-Chemin Laravel dans le conteneur PHP :
-
-/var/www/html/api-next.livrezone.com
-
-Format général d’une commande Artisan :
-
-sudo docker --context livrezone exec php-fpm-8.5 \
-php /var/www/html/api-next.livrezone.com/artisan <commande>
-
-Exemples :
-
-Voir les routes :
-
-sudo docker --context livrezone exec php-fpm-8.5 \
-php /var/www/html/api-next.livrezone.com/artisan route:list
-
-Voir les migrations :
-
-sudo docker --context livrezone exec php-fpm-8.5 \
-php /var/www/html/api-next.livrezone.com/artisan migrate:status
-
-Appliquer les migrations :
-
-sudo docker --context livrezone exec php-fpm-8.5 \
-php /var/www/html/api-next.livrezone.com/artisan migrate --force
-
-Vider les caches :
-
-sudo docker --context livrezone exec php-fpm-8.5 \
-php /var/www/html/api-next.livrezone.com/artisan optimize:clear
-
-Vérifier un fichier PHP :
-
-sudo docker --context livrezone exec php-fpm-8.5 \
-php -l /var/www/html/api-next.livrezone.com/chemin/fichier.php
-
-Après une modification du VHost Apache, vérifier le nom actuel du conteneur :
-
-sudo docker --context livrezone ps
-
-Puis redémarrer Apache :
-
-sudo docker --context livrezone restart <nom-conteneur-apache>
-
-Ne jamais utiliser un ancien identifiant Docker sans le vérifier.
-
-==================================================
-7. BASE DE DONNÉES
-==================================================
-
-La nouvelle API utilise une base séparée :
-
-nextlivrezonebd
-
-Configuration interne :
-
-DB_CONNECTION=mysql
-DB_HOST=mariadb
-DB_PORT=3306
-DB_DATABASE=nextlivrezonebd
-DB_USERNAME=livrezone
-
-Le mot de passe est uniquement dans le fichier `.env`.
-
-Ne jamais afficher, copier dans une réponse ou commiter les secrets.
+/home/livrezone/docker-data/volumes/livrezone_html_data/_data
 
 Toujours utiliser :
 
-DB_HOST=mariadb
+git -C /home/livrezone/docker-data/volumes/livrezone_html_data/_data
 
-Ne jamais utiliser une adresse IP Docker fixe comme `172.x.x.x`, car elle peut changer.
+Exemples :
 
-RÈGLES DE MIGRATION :
+Ajouter un fichier :
 
-- ne jamais copier toutes les migrations de l’ancien projet ;
+git -C /home/livrezone/docker-data/volumes/livrezone_html_data/_data add api-next.livrezone.com/.agents/roadmap.md
+
+Commit :
+
+git -C /home/livrezone/docker-data/volumes/livrezone_html_data/_data commit -m "docs: update roadmap"
+
+Push :
+
+git -C /home/livrezone/docker-data/volumes/livrezone_html_data/_data push
+
+Status :
+
+git -C /home/livrezone/docker-data/volumes/livrezone_html_data/_data status
+
+Ne jamais supposer la racine Git.
+
+Toujours utiliser le chemin ci-dessus.
+
+---
+
+# Documentation obligatoire
+
+Toujours consulter :
+
+- .agents/RULES.md
+- .agents/WORKFLOW.md
+
+Consulter selon le contexte :
+
+- .agents/AUTH.md
+- .agents/DATABASE.md
+- .agents/INFRASTRUCTURE.md
+- .agents/DEPLOYMENT.md
+- .agents/ROADMAP.md
+- .agents/Next.js + Laravel + Axios rules.txt
+
+En cas de conflit documentaire, appliquer l'ordre suivant :
+
+1. AGENTS.md
+2. RULES.md
+3. WORKFLOW.md
+4. Documentation spécialisée
+5. Code source et configuration réelle
+
+---
+
+# Sources de vérité
+
+Toujours privilégier :
+
+1. Le code réellement présent.
+2. La structure réelle de la base de données.
+3. Les routes réellement enregistrées.
+4. Les fichiers de configuration.
+5. Les logs.
+6. La documentation.
+
+Ne jamais considérer une hypothèse comme un fait.
+
+Si une information n'est pas vérifiable :
+
+- l'indiquer explicitement ;
+- poursuivre l'analyse ;
+- ne jamais l'inventer.
+
+---
+
+# Règles absolues
+
+Ne jamais :
+
+- modifier /workspace/dev.livrezone.com ;
+- inventer des routes ;
+- inventer des APIs ;
+- inventer des modèles ;
+- inventer des tables ;
+- inventer des variables d'environnement ;
+- inventer des comportements métier ;
+- exposer le contenu des fichiers .env ;
+- afficher des secrets ;
+- utiliser migrate:fresh ;
+- supprimer des données existantes ;
+- casser Sanctum ;
+- casser OAuth ;
+- casser les profils utilisateurs ;
+- modifier directement la base historique.
+
+Toujours :
+
+- inspecter avant de modifier ;
+- analyser les dépendances ;
+- rechercher l'existant avant de créer ;
 - migrer fonctionnalité par fonctionnalité ;
-- analyser les dépendances avant de copier une migration ;
-- exécuter `migrate:status` avant `migrate`;
-- ne jamais utiliser `migrate:fresh`;
-- ne jamais supprimer les données existantes ;
-- ne jamais modifier directement la base historique.
+- conserver la compatibilité mobile future ;
+- produire des API REST propres ;
+- utiliser la validation Laravel côté serveur ;
+- appliquer la modification la plus petite possible.
 
-Éléments déjà disponibles dans la nouvelle base :
+---
 
-- utilisateurs ;
-- cache ;
-- jobs ;
-- personal access tokens ;
-- champs OAuth ;
-- profile_completed ;
-- villes ;
-- profils ;
-- statistiques de notation du profil.
+# Méthodologie de migration
 
-Les migrations du catalogue, des catégories, matières, niveaux, livres et annonces doivent encore être examinées et migrées progressivement.
+Pour chaque fonctionnalité :
 
-==================================================
-8. AUTHENTIFICATION
-==================================================
-
-L’authentification Google fonctionne.
-
-Packages utilisés :
-
-- Laravel Sanctum
-- Laravel Socialite
-
-Configuration principale :
-
-APP_URL=https://api-next.livrezone.com
-FRONTEND_URL=https://next.livrezone.com
-SESSION_DRIVER=database
-SESSION_DOMAIN=.livrezone.com
-SANCTUM_STATEFUL_DOMAINS=next.livrezone.com
-
-Callback Google :
-
-https://api-next.livrezone.com/api/auth/callback/google
-
-Le fichier `config/services.php` contient une configuration Google basée sur :
-
-- GOOGLE_CLIENT_ID
-- GOOGLE_CLIENT_SECRET
-- GOOGLE_REDIRECT_URI
-
-Ces variables sont uniquement dans `.env`.
-
-Le fichier `bootstrap/app.php` doit conserver :
-
-$middleware->statefulApi();
-
-Le callback OAuth doit utiliser le middleware `web` afin de sauvegarder la session :
-
-Route::get(
-    '/callback/{provider}',
-    [SocialAuthController::class, 'callback']
-)->middleware('web');
-
-Routes OAuth :
-
-GET /api/auth/redirect/{provider}
-GET /api/auth/callback/{provider}
-POST /api/auth/logout
-
-Route utilisateur :
-
-GET /api/user
-
-Sans authentification, la réponse normale de `/api/user` est :
-
-HTTP 401
-
-{
-    "message": "Unauthenticated."
-}
-
-==================================================
-9. CONFIGURATION AXIOS
-==================================================
-
-Client Axios :
-
-/workspace/next.livrezone.com/frontend/lib/axios.ts
-
-Configuration obligatoire :
-
-const api = axios.create({
-    baseURL:
-        process.env.NEXT_PUBLIC_API_URL ||
-        'https://api-next.livrezone.com/api',
-    withCredentials: true,
-    withXSRFToken: true,
-    headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-    },
-});
-
-Les deux options sont obligatoires :
-
-withCredentials: true
-
-withXSRFToken: true
-
-Sans `withCredentials`, les cookies de session ne sont pas envoyés.
-
-Sans `withXSRFToken`, Laravel retourne :
-
-CSRF token mismatch
-
-Variable de production :
-
-NEXT_PUBLIC_API_URL=https://api-next.livrezone.com/api
-
-Les variables `NEXT_PUBLIC_*` sont intégrées pendant le build Next.js.
-
-Toute modification de `.env.production` nécessite un nouveau build Docker.
-
-==================================================
-10. FONCTIONNALITÉS DÉJÀ MIGRÉES
-==================================================
-
-Les fonctionnalités suivantes sont opérationnelles :
-
-- frontend Next.js en production ;
-- API Laravel séparée ;
-- Laravel Sanctum ;
-- CORS avec credentials ;
-- cookies partagés sur `.livrezone.com` ;
-- Google OAuth ;
-- création ou récupération d’un utilisateur OAuth ;
-- connexion et déconnexion ;
-- route `/api/user` ;
-- complétion du profil ;
-- villes marocaines ;
-- upload et conversion du logo ;
-- redirection vers le dashboard ;
-- base MariaDB séparée.
-
-Routes profil :
-
-GET /api/profile
-POST /api/profile
-
-Page frontend :
-
-/profile/complete
-
-Fichier :
-
-/workspace/next.livrezone.com/frontend/app/profile/complete/page.tsx
-
-Contrôleur :
-
-/workspace/api-next.livrezone.com/app/Http/Controllers/Api/ProfileController.php
-
-==================================================
-11. DÉPLOIEMENT NEXT.JS
-==================================================
-
-Pendant le développement :
-
-cd /workspace/next.livrezone.com/frontend
-npm run dev
-
-Avant une mise en production :
-
-cd /workspace/next.livrezone.com/frontend
-npm run build
-
-Le build doit réussir sans erreur TypeScript.
-
-Depuis l’hôte Debian, construire l’image :
-
-sudo sh -c '
-cd /home/livrezone/docker-data/volumes/livrezone_html_data/_data/next.livrezone.com/frontend &&
-docker build -t livrezone-next .
-'
-
-Puis remplacer le conteneur :
-
-sudo docker rm -f livrezone-next
-
-sudo docker run -d \
-  --name livrezone-next \
-  --restart unless-stopped \
-  -p 3000:3000 \
-  livrezone-next
-
-Une modification du backend Laravel ne nécessite pas de reconstruire Next.js.
-
-Une modification du frontend nécessite un nouveau build et le remplacement du conteneur pour apparaître en production.
-
-==================================================
-12. GIT MONOREPO
-==================================================
-
-Le dépôt Git global se trouve dans :
-
-/workspace/.git
-
-Le dépôt suit uniquement :
-
-/workspace/api-next.livrezone.com
-
-/workspace/next.livrezone.com/frontend
-
-Dépôt GitHub principal :
-
-https://github.com/livrezone-ops/livrezone-next-monorepo.git
-
-Remote principal :
-
-origin
-
-Ancien dépôt conservé comme référence :
-
-legacy
-
-État attendu :
-
-## main...origin/main
-
-Commandes :
-
-git -C /workspace status --short --branch
-
-git -C /workspace add .
-
-git -C /workspace commit -m "Description du changement"
-
-git -C /workspace push
-
-Ne jamais commiter :
-
-- `.env`
-- les secrets OAuth ;
-- les mots de passe ;
-- `vendor`;
-- `node_modules`;
-- `.next`;
-- les logs ;
-- les sessions ;
-- les caches.
-
-==================================================
-13. MÉTHODOLOGIE OBLIGATOIRE
-==================================================
-
-Pour chaque fonctionnalité à migrer :
-
-1. Identifier la fonctionnalité exacte demandée.
-2. Examiner le code correspondant dans `/workspace/dev.livrezone.com`.
-3. Identifier :
+1. Identifier la fonctionnalité dans le projet historique.
+2. Étudier :
    - modèles ;
    - migrations ;
    - relations ;
    - validations ;
    - contrôleurs ;
-   - composants Livewire ;
+   - Livewire ;
    - vues Blade ;
-   - autorisations ;
-   - dépendances.
-4. Vérifier l’état du nouveau backend.
-5. Vérifier la structure réelle de `nextlivrezonebd`.
-6. Copier ou réécrire uniquement les éléments indispensables.
-7. Créer les endpoints API Laravel.
-8. Tester les endpoints indépendamment.
-9. Créer les pages et composants Next.js.
-10. Tester le build local.
-11. Déployer uniquement après validation.
-12. Faire un commit Git ciblé.
+   - policies.
+3. Vérifier l'existant dans l'API.
+4. Vérifier la structure réelle de la base.
+5. Identifier les fichiers réellement impactés.
+6. Migrer uniquement le nécessaire.
+7. Créer ou compléter l'API Laravel.
+8. Tester l'API.
+9. Créer ou adapter le frontend Next.js.
+10. Vérifier le build.
+11. Vérifier les régressions évidentes.
+12. Déployer.
+13. Faire un commit ciblé.
 
-Ne jamais copier aveuglément un contrôleur Livewire dans l’API.
+Ne jamais refactoriser du code hors périmètre sans demande explicite.
 
-Adapter la logique :
+---
 
-- vues et redirections Laravel → réponses JSON ;
-- validation Laravel conservée côté serveur ;
-- navigation → Next.js ;
-- état client → TanStack Query ;
-- formulaires → React Hook Form ou FormData ;
-- autorisations → policies ou middleware Laravel ;
-- erreurs de validation → HTTP 422 ;
-- absence d’authentification → HTTP 401 ;
-- accès interdit → HTTP 403 ;
-- élément absent → HTTP 404.
+# Diagnostic
 
-==================================================
-14. RÈGLES D’INTERACTION
-==================================================
+Avant toute correction :
 
-Quand tu me guides dans le terminal :
+1. Consulter les logs.
+2. Vérifier le code existant.
+3. Vérifier la structure réelle de la base.
+4. Vérifier les routes.
+5. Vérifier les dépendances.
+6. Rechercher une fonctionnalité similaire déjà présente.
+7. Identifier une cause probable.
+8. Valider cette cause avec des preuves.
 
-- donne une seule commande ou action à la fois ;
-- place toute commande dans un bloc de code visible ;
-- attends mon résultat avant de poursuivre ;
-- ne répète pas une commande qui a déjà échoué sans analyser l’erreur ;
-- ne suppose pas les noms des tables ou fichiers ;
-- inspecte d’abord la structure existante ;
-- explique brièvement l’objectif de la commande ;
-- évite les longs discours inutiles ;
-- ne propose jamais une suppression avant une sauvegarde ;
-- ne modifie jamais `/workspace/dev.livrezone.com`.
+Ne jamais corriger une erreur uniquement sur une hypothèse.
 
-Si une demande nécessite plusieurs étapes, commence uniquement par l’étape de diagnostic la plus utile.
+Toute correction doit être basée sur :
 
-==================================================
-15. ÉTAT DE L’INFRASTRUCTURE
-==================================================
+- le code ;
+- les logs ;
+- les routes ;
+- la base de données ;
+- des preuves observables.
 
-Système :
+---
 
-Debian 12 avec CasaOS et OpenPanel.
+# Logs
 
-Conteneur frontend :
+Pour tout bug ou incident, consulter en priorité :
 
-livrezone-next
+- logs Caddy ;
+- logs Laravel ;
+- logs Queue Workers ;
+- logs Scheduler ;
+- logs Next.js ;
+- console navigateur ;
+- requêtes réseau API.
 
-Port frontend :
+Toujours corréler les timestamps avant de conclure.
 
-3000
+Ne pas charger inutilement des volumes importants de logs.
 
-Code Server :
+Privilégier les erreurs directement liées au problème étudié.
 
-code-server
+---
 
-Port Code Server :
+# Performance
 
-8443
+Éviter :
 
-Caddy est utilisé comme reverse proxy.
+- les scans complets du projet ;
+- les lectures inutiles de fichiers ;
+- les modifications massives ;
+- les réécritures complètes de fichiers.
 
-OpenPanel gère Apache et PHP-FPM dans le contexte Docker rootless `livrezone`.
+Privilégier :
 
-La sortie exacte de `docker ps` peut changer.
+- les recherches ciblées ;
+- les modifications localisées ;
+- la réutilisation de l'existant ;
+- les changements atomiques.
 
-Toujours vérifier l’état réel des conteneurs avant une opération.
+---
 
-==================================================
-17. RÈGLES COMPLÉMENTAIRES
-==================================================
+# Consignes terminal
 
-Consulte aussi le fichier `.agents/RULES.md` qui contient les règles d'authentification et de requêtes API Next.js + Laravel (Sanctum, Axios, SSR, TanStack Query). Il prime sur toute instruction contradictoire dans ce document pour les aspects techniques qu'il couvre.
+Quand tu guides dans un terminal :
 
-==================================================
-16. TA MISSION IMMÉDIATE
-==================================================
+- une seule commande à la fois ;
+- commande dans un bloc de code ;
+- attendre le retour ;
+- analyser les erreurs avant la suite ;
+- expliquer brièvement l'objectif ;
+- ne jamais proposer une suppression sans sauvegarde.
 
-Tu dois reprendre le développement de LivreZone à partir de cet état.
+---
 
-Avant de coder :
+# Philosophie du projet
 
-1. demande quelle fonctionnalité doit être migrée ensuite ;
-2. inspecte la fonctionnalité correspondante dans le projet Livewire historique ;
-3. propose une stratégie minimale de migration ;
-4. exécute une seule action à la fois ;
-5. conserve la compatibilité avec une future application mobile ;
-6. ne casse jamais l’authentification, les profils ou la base existante.
+Le projet est en migration progressive.
 
-Commence par répondre uniquement :
+La priorité n'est pas la perfection technique.
 
-« Contexte LivreZone chargé. Quelle fonctionnalité souhaites-tu migrer en premier depuis le projet Livewire ? »
+La priorité est :
+
+1. La stabilité.
+2. La continuité fonctionnelle.
+3. La compatibilité avec l'existant.
+4. La migration progressive.
+5. La maintenabilité.
+
+Toujours privilégier :
+
+- la simplicité ;
+- la robustesse ;
+- la lisibilité ;
+- les petits changements ;
+- les preuves plutôt que les suppositions.
+
+---
+
+# Réponse initiale
+
+Au début d'une nouvelle session répondre uniquement :
+
+Contexte LivreZone chargé. Quelle fonctionnalité souhaites-tu migrer ensuite depuis le projet Livewire ?

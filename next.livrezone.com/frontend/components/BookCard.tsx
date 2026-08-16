@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Heart, ShoppingCart, MapPin, BookOpen } from "lucide-react";
 
 interface BookCardProps {
@@ -56,11 +57,12 @@ export default function BookCard({
         {/* Cover Image with Link */}
         <Link href={url} className="block relative w-full pb-[140%] overflow-hidden">
           {cover ? (
-            <img
+            <Image
               src={cover}
               alt={title}
-              className="absolute left-0 top-0 h-full w-full object-contain p-3 scale-95 transition-transform duration-500 ease-out group-hover:scale-100"
-              loading="lazy"
+              fill
+              sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 20vw"
+              className="object-contain p-3 scale-95 transition-transform duration-500 ease-out group-hover:scale-100"
             />
           ) : (
             <div className="absolute left-0 top-0 flex h-full w-full items-center justify-center bg-slate-100 text-slate-400 scale-95 transition-transform duration-500 ease-out group-hover:scale-100">

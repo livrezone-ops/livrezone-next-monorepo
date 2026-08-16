@@ -40,6 +40,7 @@ Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
 // Public Listings Routes
 Route::get('/listings', [\App\Http\Controllers\Api\ListingController::class, 'index']);
 Route::get('/listings/{id}', [\App\Http\Controllers\Api\ListingController::class, 'show']);
+Route::get('/sitemap/listings', [\App\Http\Controllers\Api\ListingController::class, 'sitemap']);
 
 // Public Library (seller profile)
 Route::get('/profiles/{nickname}', [ProfileController::class, 'publicLibrary']);

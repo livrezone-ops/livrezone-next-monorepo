@@ -218,27 +218,41 @@ const whyPoints = [
   },
 ];
 
-export default async function Home() {
-  const gridData = await Promise.all(gridSections.map((g) => getGridListings(g.categories)));
+const GridSkeleton = () => (
+  <section className="w-full py-8 border-t border-gray-100 first-of-type:border-t-0 first-of-type:mt-0">
+    <div className="flex items-center justify-between mb-6">
+      <div className="h-6 bg-gray-200 rounded w-1/3 animate-pulse"></div>
+      <div className="h-4 bg-gray-200 rounded w-16 animate-pulse"></div>
+    </div>
+    <div className="flex overflow-hidden gap-5">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="flex-shrink-0 w-[45%] sm:w-[30%] md:w-[22%] lg:w-[calc(20%-16px)]">
+          <div className="w-full pb-[140%] bg-gray-200 rounded-md animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded w-3/4 mt-3 animate-pulse"></div>
+          <div className="h-3 bg-gray-200 rounded w-1/2 mt-2 animate-pulse"></div>
+        </div>
+      ))}
+    </div>
+  </section>
+);
 
-  // Hero : N livres de chaque rubrique (hors "Livres récemment ajoutés" = index 0)
-  // pour éviter les doublons avec les rubriques. N configurable via .env.
-  const perSection = Number(process.env.HERO_COVERS_NUMBER_PER_SECTION || 2);
-  const heroListings: HeroListing[] = gridData
-    .slice(1)
-    .flatMap((listings) => listings.slice(0, perSection))
-    .map(toHeroListing)
-    .slice(0, 15);
-  const heroMessages = loadHeroMessages();
-
-  const renderGrid = (i: number) => (
+async function SuspendedGrid({ section }: { section: typeof gridSections[0] }) {
+  const listings = await getGridListings(section.categories);
+  if (!listings || listings.length === 0) return null;
+  return (
     <HorizontalGrid
-      key={gridSections[i].title}
-      title={gridSections[i].title}
-      listings={gridData[i]}
-      viewAllUrl={gridSections[i].viewAllUrl}
+      title={section.title}
+      listings={listings}
+      viewAllUrl={section.viewAllUrl}
     />
   );
+}
+
+export default async function Home() {
+  // Fetch only hero listings (latest overall) to unblock the initial render quickly
+  const heroData = await getListings();
+  const heroListings: HeroListing[] = heroData.map(toHeroListing).slice(0, 15);
+  const heroMessages = loadHeroMessages();
 
   return (
     <div className="flex flex-col">
@@ -271,8 +285,12 @@ export default async function Home() {
 
       {/* ===== HERO → 2 grilles (Nouveautés, Scolaire) ===== */}
       <div className="w-[90%] max-w-7xl mx-auto py-10 flex flex-col">
-        {renderGrid(0)}
-        {renderGrid(1)}
+        <React.Suspense fallback={<GridSkeleton />}>
+          <SuspendedGrid section={gridSections[0]} />
+        </React.Suspense>
+        <React.Suspense fallback={<GridSkeleton />}>
+          <SuspendedGrid section={gridSections[1]} />
+        </React.Suspense>
 
         {/* ===== BANNIÈRE ===== */}
         <section className="my-8 w-full rounded-2xl bg-gradient-to-r from-[#F97316] to-[#ea6a0c] text-white overflow-hidden">
@@ -300,9 +318,15 @@ export default async function Home() {
         </section>
 
         {/* ===== 3 grilles (Romans, Mangas & BD, Jeunesse) ===== */}
-        {renderGrid(2)}
-        {renderGrid(3)}
-        {renderGrid(4)}
+        <React.Suspense fallback={<GridSkeleton />}>
+          <SuspendedGrid section={gridSections[2]} />
+        </React.Suspense>
+        <React.Suspense fallback={<GridSkeleton />}>
+          <SuspendedGrid section={gridSections[3]} />
+        </React.Suspense>
+        <React.Suspense fallback={<GridSkeleton />}>
+          <SuspendedGrid section={gridSections[4]} />
+        </React.Suspense>
 
         {/* ===== POURQUOI LIVREZONE ===== */}
         <section className="w-full py-10">
@@ -328,8 +352,12 @@ export default async function Home() {
         </section>
 
         {/* ===== 2 grilles (Universitaire & Professionnel, Religion) ===== */}
-        {renderGrid(5)}
-        {renderGrid(6)}
+        <React.Suspense fallback={<GridSkeleton />}>
+          <SuspendedGrid section={gridSections[5]} />
+        </React.Suspense>
+        <React.Suspense fallback={<GridSkeleton />}>
+          <SuspendedGrid section={gridSections[6]} />
+        </React.Suspense>
       </div>
 
       {/* JSON-LD */}

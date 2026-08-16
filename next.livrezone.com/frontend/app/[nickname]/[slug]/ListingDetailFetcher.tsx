@@ -55,7 +55,7 @@ export default function ListingDetailFetcher({
   id: string;
   initialListing?: Listing;
 }) {
-  const { data: listing, isLoading, error } = useQuery<Listing>({
+  const { data: queryListing, error } = useQuery<Listing>({
     queryKey: ["listing", id],
     queryFn: async () => {
       const { data } = await api.get(`/listings/${id}`);
@@ -65,7 +65,9 @@ export default function ListingDetailFetcher({
     retry: false,
   });
 
-  if (isLoading) {
+  const listing = queryListing || initialListing;
+
+  if (!listing) {
     return (
       <div className="w-[90%] max-w-7xl mx-auto py-8">
         <div className="animate-pulse space-y-6">
@@ -74,10 +76,6 @@ export default function ListingDetailFetcher({
         </div>
       </div>
     );
-  }
-
-  if (!listing) {
-    return notFound();
   }
 
   return <ListingDetailContent listing={listing} />;

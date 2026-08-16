@@ -2,10 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { 
   Heart, ShoppingCart, Share2, Phone, MessageSquare, 
   Truck, MapPin, Star, BookOpen, Link as LinkIcon, 
-  MessageCircle, Copy, X, Store
+  MessageCircle, Copy, X, Store, CheckCircle
 } from "lucide-react";
 
 interface Listing {
@@ -139,10 +140,12 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
             )}
 
             {coverUrl ? (
-              <img 
+              <Image 
                 src={coverUrl} 
                 alt={listing.title} 
-                className="absolute inset-0 w-full h-full object-contain p-6"
+                fill
+                className="object-contain p-6"
+                unoptimized
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 text-gray-400">
@@ -190,6 +193,10 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
                   </span>
                 </>
               )}
+              <div className="ml-auto flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 mb-1">
+                <CheckCircle className="w-4 h-4" />
+                <span className="text-xs font-black uppercase tracking-wide">Disponible</span>
+              </div>
             </div>
           </div>
 

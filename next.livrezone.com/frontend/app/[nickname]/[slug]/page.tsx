@@ -58,6 +58,10 @@ function resolveCoverUrl(listing: Listing): string | null {
 }
 
 function buildTitle(listing: Listing): string {
+  const isbn = listing.book?.isbn_13 || listing.isbn_13;
+  if (isbn) {
+    return `${listing.title} (ISBN: ${isbn}) | LivreZone`;
+  }
   return `${listing.title} | LivreZone`;
 }
 

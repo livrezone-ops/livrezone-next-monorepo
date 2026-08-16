@@ -1,17 +1,36 @@
 import type { MetadataRoute } from "next";
-import {
-  getPublicListings,
-  buildListingPath,
-} from "@/lib/listings-api";
+import api from "@/lib/axios";
 
 const SITE_URL = "https://next.livrezone.com";
+
+const slugify = (text: string) => {
+  if (!text) return "";
+  return text
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^\w\-]+/g, "")
+    .replace(/\-\-+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
+};
+
+interface SitemapListing {
+  id: number;
+  title: string;
+  updated_at: string;
+  nickname: string;
+  isbn: string;
+}
 
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const entries: MetadataRoute.Sitemap = [
+  const routes: MetadataRoute.Sitemap = [
     {
-      url: `${SITE_URL}/`,
+      url: SITE_URL,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1,
@@ -30,31 +49,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  const seen = new Set<number>();
-  const seenUrls = new Set<string>();
+  try {
+    const { data } = await api.get("/sitemap/listings");
+    const listings: SitemapListing[] = data.data || [];
 
-  for (let page = 1; page <= 5; page++) {
-    const result = await getPublicListings({ page, limit: 100, sort: "latest" });
-    if (!result.ok || result.data.length === 0) break;
+    const dynamicRoutes: MetadataRoute.Sitemap = listings.map((listing) => ({
+      url: `${SITE_URL}/${listing.nickname}/${listing.id}-${listing.isbn}-${slugify(listing.title)}`,
+      lastModified: new Date(listing.updated_at),
+      changeFrequency: "daily",
+      priority: 0.7,
+    }));
 
-    for (const listing of result.data) {
-      if (seen.has(listing.id)) continue;
-      seen.add(listing.id);
-
-      const path = buildListingPath(listing);
-      const url = `${SITE_URL}${path}`;
-      if (seenUrls.has(url)) continue;
-      seenUrls.add(url);
-
-      entries.push({
-        url,
-        changeFrequency: "weekly",
-        priority: 0.7,
-      });
-    }
-
-    if (page >= result.lastPage) break;
+    return [...routes, ...dynamicRoutes];
+  } catch (error) {
+    console.error("Failed to fetch dynamic sitemap listings:", error);
+    return routes;
   }
-
-  return entries;
 }

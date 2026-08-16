@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { BookOpen } from "lucide-react";
 import { getBooks, type BookSearchItem } from "@/lib/books-api";
 
@@ -126,11 +127,12 @@ export default async function LivresPage({ searchParams }: PageProps) {
               >
                 <div className="relative w-full pb-[130%] overflow-hidden rounded-md bg-gray-50">
                   {book.cover_url ? (
-                    <img
+                    <Image
                       src={book.cover_url}
                       alt={book.title || ""}
-                      loading="lazy"
-                      className="absolute left-0 top-0 h-full w-full object-contain p-2"
+                      fill
+                      className="object-contain p-2"
+                      unoptimized
                     />
                   ) : (
                     <div className="absolute left-0 top-0 flex h-full w-full items-center justify-center bg-slate-100 text-slate-400">

@@ -1,5 +1,26 @@
 # REGLE - AUTHENTIFICATION ET REQUETES API NEXT.JS + LARAVEL
 
+# PRIORITE
+
+Ce document est prioritaire pour toute décision technique liée à :
+
+- Sanctum
+- Socialite
+- Axios
+- Next.js
+- Server Components
+- React Query
+- Authentification
+- Gestion des sessions
+- Cookies
+- Dashboard utilisateur
+
+En cas de conflit avec une documentation plus ancienne,
+ce document fait foi.
+
+
+
+
 ## OBJECTIF
 
 Garantir une authentification fiable entre Next.js et Laravel, éviter les problèmes de transfert manuel des cookies en SSR et maintenir une source de données cohérente dans le dashboard.

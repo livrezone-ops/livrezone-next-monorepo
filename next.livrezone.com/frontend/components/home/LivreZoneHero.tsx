@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import type { HeroMessage } from "./types";
 import styles from "./LivreZoneHero.module.css";
@@ -177,15 +178,14 @@ export default function LivreZoneHero({
                           }
                         >
                           {book.coverUrl ? (
-                            <img
+                            <Image
                               src={book.coverUrl}
                               alt={`Couverture de ${book.title}`}
                               className={styles.cover}
-                              loading={
-                                isActive && slideIndex <= 1
-                                  ? "eager"
-                                  : "lazy"
-                              }
+                              width={300}
+                              height={450}
+                              sizes="(max-width: 768px) 30vw, 20vw"
+                              priority={isActive && slideIndex <= 1}
                             />
                           ) : (
                             <span

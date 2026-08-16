@@ -195,6 +195,30 @@ class ListingController extends Controller
     }
 
     /**
+     * Endpoint optimisé pour la génération du sitemap (Next.js).
+     * Retourne uniquement les champs nécessaires pour construire les URLs.
+     */
+    public function sitemap()
+    {
+        $listings = Listing::with(['user.profile', 'book:id,isbn_13'])
+            ->where('status', 'published')
+            ->select('id', 'title', 'updated_at', 'user_id', 'book_id', 'isbn_13')
+            ->get();
+
+        $data = $listings->map(function ($listing) {
+            return [
+                'id' => $listing->id,
+                'title' => $listing->title,
+                'updated_at' => $listing->updated_at,
+                'nickname' => $listing->user->profile->nickname ?? 'utilisateur-' . $listing->user_id,
+                'isbn' => $listing->isbn_13 ?? $listing->book->isbn_13 ?? 'livre',
+            ];
+        });
+
+        return response()->json(['data' => $data]);
+    }
+
+    /**
      * Récupère la première valeur non vide parmi une liste de paramètres
      * et la découpe en tableau (support CSV : "ROMANS,BD").
      */
