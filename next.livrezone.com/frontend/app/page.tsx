@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import fs from "fs";
 import path from "path";
+import dynamic from "next/dynamic";
 import {
   BookOpen,
   Store,
@@ -10,8 +11,9 @@ import {
   RefreshCw,
   ArrowRight,
 } from "lucide-react";
-import HorizontalGrid from "@/components/HorizontalGrid";
 import LivreZoneHero, { type HeroListing } from "@/components/home/LivreZoneHero";
+
+const HorizontalGrid = dynamic(() => import("@/components/HorizontalGrid"));
 import type { HeroMessage } from "@/components/home/types";
 import { isValidMessage, validateHref } from "@/components/home/types";
 
@@ -49,7 +51,7 @@ async function getListings(category?: string): Promise<Listing[]> {
       || process.env.NEXT_PUBLIC_API_URL
       || "https://api-next.livrezone.com").replace(/\/api\/?$/, '');
 
-    const params = new URLSearchParams({ limit: "12" });
+    const params = new URLSearchParams({ limit: "12", compact: "1" });
     if (category) params.set("category", category);
 
     const res = await fetch(`${baseUrl}/api/listings?${params.toString()}`, {
@@ -75,6 +77,52 @@ async function getGridListings(categories: string[] = []): Promise<Listing[]> {
     if (l && l.id && !seen.has(l.id)) seen.set(l.id, l);
   });
   return Array.from(seen.values());
+}
+
+export type SlimListing = {
+  id: number;
+  title: string;
+  price: number;
+  discount_price: number | null;
+  book_condition: string;
+  authors: string | null;
+  coverUrl: string | null;
+  url: string;
+  city: string | null;
+};
+
+// Réduit la taille de l'objet pour le RSC Payload et gère le thumbnail 320
+function toSlimListing(listing: Listing): SlimListing {
+  const authors = listing.book?.authors
+    ? (Array.isArray(listing.book.authors) ? listing.book.authors.join(", ") : listing.book.authors)
+    : null;
+
+  let coverUrl = listing.book?.cover_url 
+    || (listing.cover_path ? `https://api-next.livrezone.com/storage/${listing.cover_path}` : null)
+    || listing.cover_source_url 
+    || null;
+
+  // Utiliser la vignette 320px pour les grilles
+  if (coverUrl && coverUrl.includes("/book-cover-proxy/") && !coverUrl.includes("/thumbnails/")) {
+    coverUrl = coverUrl.replace("/book-cover-proxy/", "/book-cover-proxy/thumbnails/320/");
+  }
+
+  const nickname = listing.user?.profile?.nickname || `utilisateur-${listing.user_id || ""}`;
+  const isbn = listing.isbn_13 || listing.book?.isbn_13 || "livre";
+  const titleSlug = slugify(listing.title);
+  const url = `/${nickname}/${listing.id}-${isbn}-${titleSlug}`;
+
+  return {
+    id: listing.id,
+    title: listing.title,
+    price: listing.price,
+    discount_price: listing.discount_price ?? null,
+    book_condition: listing.book_condition,
+    authors,
+    coverUrl,
+    url,
+    city: listing.user?.profile?.city?.name || null,
+  };
 }
 
 // Charge et valide les messages du hero (SSR). Retourne 3 messages maximum sans doublon.
@@ -173,13 +221,17 @@ const slugify = (text: string) => {
 
 // Convertit un listing en entrée du mur de couvertures du hero
 function toHeroListing(listing: Listing): HeroListing {
-  const coverUrl =
+  let coverUrl =
     listing.book?.cover_url ||
     (listing.cover_path
       ? `https://api-next.livrezone.com/storage/${listing.cover_path}`
       : null) ||
     listing.cover_source_url ||
     null;
+
+  if (coverUrl && coverUrl.includes("/book-cover-proxy/") && !coverUrl.includes("/thumbnails/")) {
+    coverUrl = coverUrl.replace("/book-cover-proxy/", "/book-cover-proxy/thumbnails/320/");
+  }
 
   const nickname =
     listing.user?.profile?.nickname || `utilisateur-${listing.user_id || ""}`;
@@ -239,10 +291,11 @@ const GridSkeleton = () => (
 async function SuspendedGrid({ section }: { section: typeof gridSections[0] }) {
   const listings = await getGridListings(section.categories);
   if (!listings || listings.length === 0) return null;
+  const slimListings = listings.map(toSlimListing);
   return (
     <HorizontalGrid
       title={section.title}
-      listings={listings}
+      listings={slimListings}
       viewAllUrl={section.viewAllUrl}
     />
   );

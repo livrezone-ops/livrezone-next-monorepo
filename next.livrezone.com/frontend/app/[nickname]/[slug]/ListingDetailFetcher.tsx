@@ -18,6 +18,7 @@ interface Listing {
   discount_price?: number | null;
   cover_path?: string | null;
   cover_source_url?: string | null;
+  isbn_13?: string | null;
   user: {
     id: number;
     name: string;
@@ -47,6 +48,73 @@ interface Listing {
 }
 
 const NON_APPLICABLE = "NON_APPLICABLE";
+
+interface SlimListing {
+  id: number;
+  title: string;
+  price: number;
+  discount_price: number | null;
+  book_condition: string;
+  authors: string | null;
+  coverUrl: string | null;
+  url: string;
+  city: string | null;
+}
+
+function slugify(text: string): string {
+  return text
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^\w\-]+/g, "")
+    .replace(/\-\-+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
+}
+
+function toSlimListing(listing: Listing): SlimListing {
+  const authors = listing.book?.authors
+    ? Array.isArray(listing.book.authors)
+      ? listing.book.authors.join(", ")
+      : listing.book.authors
+    : null;
+
+  let coverUrl =
+    listing.book?.cover_url ||
+    (listing.cover_path
+      ? `https://api-next.livrezone.com/storage/${listing.cover_path}`
+      : null) ||
+    listing.cover_source_url ||
+    null;
+
+  if (
+    coverUrl &&
+    coverUrl.includes("/book-cover-proxy/") &&
+    !coverUrl.includes("/thumbnails/")
+  ) {
+    coverUrl = coverUrl.replace("/book-cover-proxy/", "/book-cover-proxy/thumbnails/320/");
+  }
+
+  const nickname =
+    listing.user.profile?.nickname || `utilisateur-${listing.user.id}`;
+  const isbn = listing.book?.isbn_13 || listing.isbn_13 || "livre";
+  const titleSlug = slugify(listing.title);
+  const url = `/${nickname}/${listing.id}-${isbn}-${titleSlug}`;
+
+  return {
+    id: listing.id,
+    title: listing.title,
+    price: listing.price,
+    discount_price: listing.discount_price ?? null,
+    book_condition: listing.book_condition,
+    authors,
+    coverUrl,
+    url,
+    city: listing.user.profile?.city?.name || null,
+  };
+}
 
 export default function ListingDetailFetcher({
   id,
@@ -150,7 +218,7 @@ function ListingDetailContent({ listing }: { listing: Listing }) {
         <div className="mt-16 pt-8 border-t border-gray-100">
           <HorizontalGrid
             title={`Autres annonces de ${listing.user.profile?.nickname || listing.user.name}`}
-            listings={otherListings as any}
+            listings={otherListings.map(toSlimListing)}
           />
         </div>
       )}

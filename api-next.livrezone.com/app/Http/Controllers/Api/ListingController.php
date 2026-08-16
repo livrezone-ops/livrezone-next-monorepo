@@ -18,9 +18,19 @@ class ListingController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Listing::query()
-            ->with(['book', 'category', 'user.profile.city'])
-            ->where('status', 'published');
+        $query = Listing::query()->where('status', 'published');
+
+        if ($request->get('compact') == '1') {
+            $query->select('id', 'title', 'price', 'discount_price', 'book_condition', 'cover_path', 'cover_source_url', 'isbn_13', 'user_id', 'book_id')
+                ->with([
+                    'book:id,authors,isbn_13,cover_path,cover_source_url', // Requis pour l'accesseur cover_url
+                    'user:id',
+                    'user.profile:id,user_id,nickname,city_id',
+                    'user.profile.city:id,name'
+                ]);
+        } else {
+            $query->with(['book', 'category', 'user.profile.city']);
+        }
 
         // 1. Filtrer par Catégories : codes (category=A,B ou categories=A,B)
         //    ou IDs historiques (c=1,2,3), avec inclusion des enfants + affinage.
@@ -146,19 +156,26 @@ class ListingController extends Controller
             return $listing;
         });
 
+        $payload = $listings->toArray();
+
         // Bornes de prix réelles (prix de vente) pour le slider dynamique.
         // Scoped au même périmètre que la recherche (ex: user_id pour une bibliothèque).
-        $boundsQuery = Listing::where('status', 'published');
-        if ($request->filled('user_id')) {
-            $boundsQuery->where('user_id', $request->get('user_id'));
-        }
-        $bounds = $boundsQuery
-            ->selectRaw('MIN(COALESCE(discount_price, price)) as min_price, MAX(COALESCE(discount_price, price)) as max_price')
-            ->first();
+        // Inutile en mode compact (homepage) : évite un scan complet de la table à chaque requête.
+        if ($request->get('compact') == '1') {
+            $payload['price_min'] = 0;
+            $payload['price_max'] = 500;
+        } else {
+            $boundsQuery = Listing::where('status', 'published');
+            if ($request->filled('user_id')) {
+                $boundsQuery->where('user_id', $request->get('user_id'));
+            }
+            $bounds = $boundsQuery
+                ->selectRaw('MIN(COALESCE(discount_price, price)) as min_price, MAX(COALESCE(discount_price, price)) as max_price')
+                ->first();
 
-        $payload = $listings->toArray();
-        $payload['price_min'] = (float) ($bounds->min_price ?? 0);
-        $payload['price_max'] = (float) ($bounds->max_price ?? 500);
+            $payload['price_min'] = (float) ($bounds->min_price ?? 0);
+            $payload['price_max'] = (float) ($bounds->max_price ?? 500);
+        }
 
         return response()->json($payload);
     }

@@ -5,35 +5,21 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import BookCard from "./BookCard";
 
-interface Listing {
+export interface SlimListing {
   id: number;
-  user_id: number;
   title: string;
   price: number;
-  discount_price?: number | null;
+  discount_price: number | null;
   book_condition: string;
-  isbn_13?: string | null;
-  cover_path?: string | null;
-  cover_source_url?: string | null;
-  book?: {
-    isbn_13?: string | null;
-    authors?: string[] | string | null;
-    cover_url?: string | null;
-  } | null;
-  user?: {
-    id: number;
-    profile?: {
-      nickname?: string | null;
-      city?: {
-        name?: string | null;
-      } | null;
-    } | null;
-  } | null;
+  authors: string | null;
+  coverUrl: string | null;
+  url: string;
+  city: string | null;
 }
 
 interface HorizontalGridProps {
   title: string;
-  listings: Listing[];
+  listings: SlimListing[];
   viewAllUrl?: string;
 }
 
@@ -149,22 +135,6 @@ export default function HorizontalGrid({
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {listings.map((listing) => {
-          const authors = listing.book?.authors
-            ? (Array.isArray(listing.book.authors) ? listing.book.authors.join(", ") : listing.book.authors)
-            : null;
-
-          // Eagerly resolve cover URL. Use model's cover_url, then storage path for uploads, then source url, then null.
-          const coverUrl = listing.book?.cover_url 
-            || (listing.cover_path ? `https://api-next.livrezone.com/storage/${listing.cover_path}` : null)
-            || listing.cover_source_url 
-            || null;
-
-          // Generate the dynamic SEO-friendly relative URL matching /nickname/id-isbn-title
-          const nickname = listing.user?.profile?.nickname || `utilisateur-${listing.user_id || ""}`;
-          const isbn = listing.isbn_13 || listing.book?.isbn_13 || "livre";
-          const titleSlug = slugify(listing.title);
-          const listingUrl = `/${nickname}/${listing.id}-${isbn}-${titleSlug}`;
-
           return (
             <div
               key={listing.id}
@@ -172,13 +142,13 @@ export default function HorizontalGrid({
             >
               <BookCard
                 title={listing.title}
-                author={authors}
+                author={listing.authors}
                 price={listing.price}
                 discountPrice={listing.discount_price}
-                cover={coverUrl}
+                cover={listing.coverUrl}
                 condition={listing.book_condition}
-                url={listingUrl}
-                city={listing.user?.profile?.city?.name || null}
+                url={listing.url}
+                city={listing.city}
               />
             </div>
           );

@@ -184,8 +184,9 @@ export default function LivreZoneHero({
                               className={styles.cover}
                               width={300}
                               height={450}
-                              sizes="(max-width: 768px) 30vw, 20vw"
-                              priority={isActive && slideIndex <= 1}
+                              sizes="(max-width: 640px) 140px, (max-width: 1024px) 200px, 300px"
+                              priority={isActive && slideIndex === 0 && bookIndex < 2}
+                              unoptimized
                             />
                           ) : (
                             <span
