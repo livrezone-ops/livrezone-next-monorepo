@@ -48,13 +48,20 @@ interface Listing {
 
 const NON_APPLICABLE = "NON_APPLICABLE";
 
-export default function ListingDetailFetcher({ id }: { id: string }) {
+export default function ListingDetailFetcher({
+  id,
+  initialListing,
+}: {
+  id: string;
+  initialListing?: Listing;
+}) {
   const { data: listing, isLoading, error } = useQuery<Listing>({
     queryKey: ["listing", id],
     queryFn: async () => {
       const { data } = await api.get(`/listings/${id}`);
       return data.data;
     },
+    initialData: initialListing,
     retry: false,
   });
 

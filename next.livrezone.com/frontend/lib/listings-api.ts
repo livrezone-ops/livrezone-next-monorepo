@@ -144,6 +144,20 @@ export async function getPublicListings(query: ListingsQuery): Promise<PublicLis
   }
 }
 
+export async function getPublicListing(id: string): Promise<any | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/listings/${encodeURIComponent(id)}`, {
+      next: { revalidate: 60 },
+      headers: { Accept: "application/json", Host: "api-next.livrezone.com" },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getPublicProfile(
   nickname: string
 ): Promise<PublicProfile | null> {

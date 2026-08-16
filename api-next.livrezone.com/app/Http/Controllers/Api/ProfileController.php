@@ -161,16 +161,7 @@ class ProfileController extends Controller
                 'string',
                 'max:255',
                 Rule::unique('profiles', 'nickname')->ignore($profile?->id),
-                Rule::notIn([
-                    'login',
-                    'register',
-                    'dashboard',
-                    'profile',
-                    'admin',
-                    'api',
-                    'logout',
-                    'password',
-                ]),
+                Rule::notIn(Profile::RESERVED_NICKNAMES),
             ],
             'adresse' => ['nullable', 'string', 'max:500'],
             'logo' => [

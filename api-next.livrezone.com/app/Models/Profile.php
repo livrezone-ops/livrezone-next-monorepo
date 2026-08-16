@@ -9,6 +9,37 @@ class Profile extends Model
 {
     use HasFactory;
 
+    /**
+     * Nicknames réservés : mots clés des routes statiques du frontend et zones sensibles.
+     * Source unique de vérité (validation + hook de sauvegarde).
+     */
+    public const RESERVED_NICKNAMES = [
+        'login',
+        'register',
+        'dashboard',
+        'profile',
+        'admin',
+        'api',
+        'logout',
+        'password',
+        'annonces',
+        'livres',
+        'catalogue',
+        'faq',
+        'livraison',
+        'retours',
+        'vendre',
+        'cgv',
+        'confidentialite',
+        'mentions-legales',
+        'favorites',
+        'cart',
+        'chat',
+        'contact',
+        'aide',
+        'tweets',
+    ];
+
     protected $fillable = [
         'user_id',
         'phone',
@@ -39,11 +70,15 @@ class Profile extends Model
                 $profile->nickname = \Illuminate\Support\Str::slug($profile->nickname);
             }
 
-            // Ensure uniqueness
+            // Ensure uniqueness + éviter les nicknames réservés
+            $reserved = self::RESERVED_NICKNAMES;
             $originalNickname = $profile->nickname;
             $count = 2;
-            
-            while (static::where('nickname', $profile->nickname)->where('id', '!=', $profile->id)->exists()) {
+
+            while (
+                in_array($profile->nickname, $reserved, true) ||
+                static::where('nickname', $profile->nickname)->where('id', '!=', $profile->id)->exists()
+            ) {
                 $profile->nickname = $originalNickname . '-' . $count++;
             }
         });
