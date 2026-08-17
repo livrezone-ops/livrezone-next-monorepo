@@ -8,6 +8,7 @@ use App\Http\Requests\Api\CartMergeRequest;
 use App\Http\Requests\Api\CartStoreRequest;
 use App\Http\Requests\Api\CartUpdateRequest;
 use App\Models\CartItem;
+use App\Models\Listing;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -68,14 +69,18 @@ class CartController extends Controller
 
     /**
      * POST /api/cart
-     * Ajoute un article au panier.
+     * Ajoute un article au panier (quantité bornée par le stock du listing).
      */
     public function store(CartStoreRequest $request): JsonResponse
     {
+        $listingId = $request->integer('listing_id');
+        $maxQty = $this->maxQuantityFor($listingId);
+        $qty = max(1, min($maxQty, $request->integer('quantity', 1)));
+
         $item = CartItem::create([
             'user_id' => $request->user()->id,
-            'listing_id' => $request->integer('listing_id'),
-            'quantity' => $request->integer('quantity', 1),
+            'listing_id' => $listingId,
+            'quantity' => $qty,
         ]);
 
         return response()->json([
@@ -86,17 +91,20 @@ class CartController extends Controller
 
     /**
      * PUT /api/cart
-     * Met à jour la quantité d'un article du panier.
+     * Met à jour la quantité d'un article du panier (bornée par le stock).
      */
     public function update(CartUpdateRequest $request): JsonResponse
     {
+        $listingId = $request->integer('listing_id');
+        $maxQty = $this->maxQuantityFor($listingId);
+
         $item = CartItem::query()
             ->where('user_id', $request->user()->id)
-            ->where('listing_id', $request->integer('listing_id'))
+            ->where('listing_id', $listingId)
             ->firstOrFail();
 
         $item->update([
-            'quantity' => $request->integer('quantity'),
+            'quantity' => max(1, min($maxQty, $request->integer('quantity'))),
         ]);
 
         return response()->json([
@@ -127,16 +135,21 @@ class CartController extends Controller
     /**
      * POST /api/cart/merge
      * Fusionne le panier local (guest < 24h) vers le compte connecté.
-     * Les quantités sont cumulées si l'article existe déjà.
+     * Les quantités sont cumulées si l'article existe déjà, puis bornées par
+     * la quantité disponible du listing (stock), plafonnée à 99.
      */
     public function merge(CartMergeRequest $request): JsonResponse
     {
         $userId = $request->user()->id;
         $merged = 0;
+        $clamped = 0;
 
         foreach ($request->input('items') as $row) {
             $listingId = (int) $row['listing_id'];
             $quantity = (int) ($row['quantity'] ?? 1);
+
+            // Stock disponible sur le listing, plafonné à 99.
+            $maxQty = $this->maxQuantityFor($listingId);
 
             $item = CartItem::query()
                 ->where('user_id', $userId)
@@ -144,12 +157,20 @@ class CartController extends Controller
                 ->first();
 
             if ($item) {
-                $item->increment('quantity', $quantity);
+                $target = min($maxQty, $item->quantity + $quantity);
+                if ($target < $item->quantity + $quantity) {
+                    $clamped++;
+                }
+                $item->update(['quantity' => $target]);
             } else {
+                $target = min($maxQty, $quantity);
+                if ($target < $quantity) {
+                    $clamped++;
+                }
                 CartItem::create([
                     'user_id' => $userId,
                     'listing_id' => $listingId,
-                    'quantity' => $quantity,
+                    'quantity' => $target,
                 ]);
             }
             $merged++;
@@ -159,8 +180,22 @@ class CartController extends Controller
 
         return response()->json([
             'merged' => $merged,
+            'clamped' => $clamped,
             'count' => $count,
             'message' => 'Panier synchronisé.',
         ]);
+    }
+
+    /**
+     * Retourne la quantité maximale autorisée pour un listing :
+     * le stock disponible (colonne quantity), plafonné entre 1 et 99.
+     */
+    private function maxQuantityFor(int $listingId): int
+    {
+        $available = (int) (Listing::query()
+            ->where('id', $listingId)
+            ->value('quantity') ?? 1);
+
+        return max(1, min(99, $available));
     }
 }

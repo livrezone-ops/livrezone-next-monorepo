@@ -4,12 +4,13 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Trash2, ShoppingCart, BookOpen } from "lucide-react";
-import { useCommerce, buildListingUrl, type StoreListing } from "@/lib/commerce-store";
+import { useCommerce, buildListingUrl, isListingAvailable, type StoreListing } from "@/lib/commerce-store";
 
 export default function FavoriteCard({ listing }: { listing: StoreListing }) {
   const { toggleWishlist, addToCart, isInCart } = useCommerce();
   const url = buildListingUrl(listing);
   const thumb = listing.coverThumb || listing.cover || null;
+  const unavailable = !isListingAvailable(listing);
 
   const formatPrice = (val?: number | null) =>
     new Intl.NumberFormat("fr-FR", {
@@ -60,7 +61,11 @@ export default function FavoriteCard({ listing }: { listing: StoreListing }) {
 
         {/* Actions compactes */}
         <div className="mt-2 flex items-center gap-1.5">
-          {isInCart(listing.id) ? (
+          {unavailable ? (
+            <span className="flex-1 h-7 rounded-md text-[10px] font-bold text-gray-400 bg-gray-100 border border-gray-200 flex items-center justify-center">
+              Indisponible
+            </span>
+          ) : isInCart(listing.id) ? (
             <span className="flex-1 h-7 rounded-md text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 flex items-center justify-center">
               Au panier
             </span>

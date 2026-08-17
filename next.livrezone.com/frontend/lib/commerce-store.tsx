@@ -30,6 +30,8 @@ export interface StoreListing {
   sellerPhone?: string | null;
   city?: string | null;
   availableQuantity?: number | null;
+  status?: string | null;
+  available?: boolean;
 }
 
 export interface CartLine {
@@ -87,7 +89,22 @@ function normalizeListing(l: StoreListing): StoreListing {
     sellerPhone: l.sellerPhone ?? null,
     city: l.city ?? null,
     availableQuantity: l.availableQuantity ?? null,
+    status: l.status ?? null,
+    available: l.available ?? isListingAvailable(l),
   };
+}
+
+/**
+ * Un listing est disponible si son statut est « published » et que le stock
+ * restant est strictement positif (ou inconnu).
+ */
+export function isListingAvailable(l: Pick<StoreListing, "status" | "availableQuantity">): boolean {
+  const statusOk = !l.status || l.status === "published";
+  const stockOk =
+    l.availableQuantity === null ||
+    l.availableQuantity === undefined ||
+    l.availableQuantity > 0;
+  return statusOk && stockOk;
 }
 
 /**
@@ -170,6 +187,7 @@ interface RawWishlistItem {
   isbn_13?: string | null;
   user_id?: number | null;
   quantity?: number | null;
+  status?: string | null;
   user?: {
     profile?: {
       nickname?: string | null;
@@ -203,6 +221,7 @@ interface RawCartItem {
     cover_source_url?: string | null;
     isbn_13?: string | null;
     quantity?: number | null;
+    status?: string | null;
     user?: {
       profile?: {
         nickname?: string | null;
@@ -217,22 +236,27 @@ interface RawCartItem {
 async function fetchWishlist(): Promise<StoreListing[]> {
   const { data } = await api.get("/wishlist");
   const list = Array.isArray(data.data) ? (data.data as RawWishlistItem[]) : [];
-  return list.map(
-    (l): StoreListing => ({
-      id: l.id,
-      title: l.title,
-      price: l.price,
-      discountPrice: l.discount_price ?? null,
-      cover: l.cover_url || l.cover_source_url || null,
-      coverThumb: l.cover_thumbnail_url || l.cover_url || null,
-      isbn: l.isbn_13 || l.book?.isbn_13 || null,
-      user_id: l.user_id,
-      sellerNickname: l.user?.profile?.nickname || `utilisateur-${l.user_id}`,
-      sellerPhone: l.user?.profile?.phone ?? null,
-      city: l.user?.profile?.city?.name ?? null,
-      availableQuantity: l.quantity ?? null,
-    })
-  );
+  return list
+    .map(
+      (l): StoreListing => {
+        const base: StoreListing = {
+          id: l.id,
+          title: l.title,
+          price: l.price,
+          discountPrice: l.discount_price ?? null,
+          cover: l.cover_url || l.cover_source_url || null,
+          coverThumb: l.cover_thumbnail_url || l.cover_url || null,
+          isbn: l.isbn_13 || l.book?.isbn_13 || null,
+          user_id: l.user_id,
+          sellerNickname: l.user?.profile?.nickname || `utilisateur-${l.user_id}`,
+          sellerPhone: l.user?.profile?.phone ?? null,
+          city: l.user?.profile?.city?.name ?? null,
+          availableQuantity: l.quantity ?? null,
+          status: l.status ?? null,
+        };
+        return { ...base, available: isListingAvailable(base) };
+      }
+    );
 }
 
 async function fetchCart(): Promise<CartSellerGroup[]> {
@@ -251,25 +275,31 @@ async function fetchCart(): Promise<CartSellerGroup[]> {
           }
         : null,
       items: (g.items ?? []).map(
-        (item): CartLine => ({
-          listingId: item.listing_id,
-          quantity: item.quantity,
-          listing: {
+        (item): CartLine => {
+          const listingData = item.listing;
+          const base: StoreListing = {
             id: item.listing_id,
-            title: item.listing?.title ?? "Sans titre",
-            price: item.listing?.price,
-            discountPrice: item.listing?.discount_price ?? null,
-            cover: item.listing?.cover_url || item.listing?.cover_source_url || null,
-            coverThumb: item.listing?.cover_thumbnail_url || item.listing?.cover_url || null,
-            isbn: item.listing?.isbn_13 || item.listing?.book?.isbn_13 || null,
+            title: listingData?.title ?? "Annonce indisponible",
+            price: listingData?.price,
+            discountPrice: listingData?.discount_price ?? null,
+            cover: listingData?.cover_url || listingData?.cover_source_url || null,
+            coverThumb: listingData?.cover_thumbnail_url || listingData?.cover_url || null,
+            isbn: listingData?.isbn_13 || listingData?.book?.isbn_13 || null,
             sellerNickname:
-              item.listing?.user?.profile?.nickname ||
+              listingData?.user?.profile?.nickname ||
               (g.seller?.nickname ?? null),
-            sellerPhone: item.listing?.user?.profile?.phone ?? null,
-            city: item.listing?.user?.profile?.city?.name ?? null,
-            availableQuantity: item.listing?.quantity ?? null,
-          },
-        })
+            sellerPhone: listingData?.user?.profile?.phone ?? null,
+            city: listingData?.user?.profile?.city?.name ?? null,
+            availableQuantity: listingData?.quantity ?? null,
+            // Listing supprimé / introuvable côté serveur => indisponible.
+            status: listingData ? (listingData.status ?? null) : "deleted",
+          };
+          return {
+            listingId: item.listing_id,
+            quantity: item.quantity,
+            listing: { ...base, available: isListingAvailable(base) },
+          };
+        }
       ),
       itemCount: g.item_count ?? 0,
       subtotal: g.subtotal ?? 0,
@@ -438,6 +468,12 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
   }, [serverCart, isAuthenticated]);
 
   // Fusion guest -> compte à la connexion, puis purge du stockage local.
+  // Comportement en cas d'échec partiel :
+  // - chaque clé (wishlist / cart) est purgée dès que son merge réussit ;
+  // - une clé dont le merge échoue est CONSERVÉE dans le localStorage et sera
+  //   ré-essayée au prochain chargement/connexion (retry automatique) ;
+  // - on ne marque la fusion comme complète que lorsque les deux merges ont
+  //   abouti (ou qu'il n'y avait rien à fusionner).
   useEffect(() => {
     if (!isAuthenticated) return;
     if (!authUser) return;
@@ -452,28 +488,35 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
         .filter((l) => l.quantity > 0)
         .map((l) => ({ listing_id: l.listingId, quantity: l.quantity }));
 
-      if (wishlistIds.length === 0 && cartItems.length === 0) {
-        mergedForUserId.current = authUser.id;
-        return;
-      }
+      let wishlistOk = wishlistIds.length === 0;
+      let cartOk = cartItems.length === 0;
 
-      try {
-        if (wishlistIds.length > 0) {
+      if (wishlistIds.length > 0) {
+        try {
           await api.post("/wishlist/merge", { listing_ids: wishlistIds });
+          wishlistOk = true;
+        } catch {
+          // échec : clé conservée pour retry au prochain chargement
         }
-        if (cartItems.length > 0) {
+      }
+      if (cartItems.length > 0) {
+        try {
           await api.post("/cart/merge", { items: cartItems });
+          cartOk = true;
+        } catch {
+          // échec : clé conservée pour retry au prochain chargement
         }
-      } catch {
-        return; // échec de fusion : on conserve le stockage local
       }
 
-      safeRemove(WS_KEY);
-      safeRemove(CT_KEY);
-      setWishlist([]);
-      setCart([]);
-      mergedForUserId.current = authUser.id;
-      queryClient.invalidateQueries({ queryKey: ["commerce"] });
+      if (wishlistOk) safeRemove(WS_KEY);
+      if (cartOk) safeRemove(CT_KEY);
+
+      if (wishlistOk && cartOk) {
+        setWishlist([]);
+        setCart([]);
+        mergedForUserId.current = authUser.id;
+        queryClient.invalidateQueries({ queryKey: ["commerce"] });
+      }
     };
 
     void doMerge();
@@ -493,7 +536,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
           next = prev.filter((i) => i.id !== listing.id);
           if (isAuthenticated) {
             void api
-              .delete("/wishlist", { data: { listing_id: listing.id } })
+              .delete("/wishlist", { params: { listing_id: listing.id } })
               .catch(() => {});
           }
         } else {
@@ -558,7 +601,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
       setCart((prev) => prev.filter((i) => i.listingId !== listingId));
       if (isAuthenticated) {
         void api
-          .delete("/cart", { data: { listing_id: listingId } })
+          .delete("/cart", { params: { listing_id: listingId } })
           .catch(() => {});
         queryClient.invalidateQueries({ queryKey: ["commerce"] });
       }

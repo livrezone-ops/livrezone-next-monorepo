@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Minus, Plus, Trash2, BookOpen } from "lucide-react";
-import { useCommerce, buildListingUrl, type CartLine } from "@/lib/commerce-store";
+import { useCommerce, buildListingUrl, isListingAvailable, type CartLine } from "@/lib/commerce-store";
 
 const formatPrice = (val: number) =>
   new Intl.NumberFormat("fr-FR", {
@@ -16,11 +16,12 @@ export default function CartCard({ line }: { line: CartLine }) {
   const { updateCartQuantity, removeFromCart } = useCommerce();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  const unavailable = !isListingAvailable(line.listing);
   const available = line.listing.availableQuantity ?? 99;
   const unitPrice = Number(line.listing.discountPrice ?? line.listing.price ?? 0);
   const maxQty = Math.max(1, Math.min(available, 99));
   const atMin = line.quantity <= 1;
-  const atMax = line.quantity >= maxQty;
+  const atMax = line.quantity >= maxQty || unavailable;
   const url = buildListingUrl(line.listing);
   const thumb = line.listing.coverThumb || line.listing.cover || null;
 
@@ -76,38 +77,47 @@ export default function CartCard({ line }: { line: CartLine }) {
 
       {/* Quantité + disponibilité */}
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-          <button
-            onClick={() => updateCartQuantity(line.listingId, line.quantity - 1)}
-            disabled={atMin}
-            className="h-8 w-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-            aria-label="Réduire la quantité"
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-          <span className="w-8 text-center text-[13px] font-bold text-gray-900">
-            {line.quantity}
+        {unavailable ? (
+          <span className="text-[11px] font-bold text-red-500 flex items-center gap-1">
+            <BookOpen className="h-3.5 w-3.5" />
+            Annonce indisponible
           </span>
-          <button
-            onClick={() => updateCartQuantity(line.listingId, line.quantity + 1)}
-            disabled={atMax}
-            className="h-8 w-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-            aria-label="Augmenter la quantité"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        ) : (
+          <>
+            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => updateCartQuantity(line.listingId, line.quantity - 1)}
+                disabled={atMin}
+                className="h-8 w-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                aria-label="Réduire la quantité"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+              <span className="w-8 text-center text-[13px] font-bold text-gray-900">
+                {line.quantity}
+              </span>
+              <button
+                onClick={() => updateCartQuantity(line.listingId, line.quantity + 1)}
+                disabled={atMax}
+                className="h-8 w-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                aria-label="Augmenter la quantité"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
 
-        <span className="text-[11px] text-gray-500">
-          Quantité disponible :{" "}
-          <strong className="text-gray-700">
-            {line.listing.availableQuantity ?? "—"}
-          </strong>
-        </span>
+            <span className="text-[11px] text-gray-500">
+              Quantité disponible :{" "}
+              <strong className="text-gray-700">
+                {line.listing.availableQuantity ?? "—"}
+              </strong>
+            </span>
 
-        <span className="ml-auto text-[13px] font-black text-gray-900">
-          {formatPrice(unitPrice * line.quantity)} MAD
-        </span>
+            <span className="ml-auto text-[13px] font-black text-gray-900">
+              {formatPrice(unitPrice * line.quantity)} MAD
+            </span>
+          </>
+        )}
       </div>
 
       {/* Modal de confirmation de suppression */}

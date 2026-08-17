@@ -56,13 +56,15 @@ Tous sous `auth:sanctum` dans `routes/api.php`.
 |---|---|---|
 | GET | `/api/wishlist` | Liste des favoris (avec listings + cover + user) |
 | POST | `/api/wishlist` | Ajouter un favori (`listing_id`) — unique |
-| DELETE | `/api/wishlist` | Retirer un favori (`listing_id` en body ou query) |
+| DELETE | `/api/wishlist?listing_id={id}` | Retirer un favori (**query param**) |
 | POST | `/api/wishlist/merge` | Fusion guest → compte (`listing_ids[]`) |
 | GET | `/api/cart` | Panier groupé par vendeur + sous-totaux |
-| POST | `/api/cart` | Ajouter un article (`listing_id`, `quantity` optionnel) |
-| PUT | `/api/cart` | Màj quantité (`listing_id`, `quantity`) |
-| DELETE | `/api/cart` | Retirer un article (`listing_id`) |
-| POST | `/api/cart/merge` | Fusion guest → compte (`items[{listing_id,quantity}]`) — quantités cumulées |
+| POST | `/api/cart` | Ajouter un article (`listing_id`, `quantity` optionnel) — quantité bornée au stock |
+| PUT | `/api/cart` | Màj quantité (`listing_id`, `quantity`) — bornée au stock |
+| DELETE | `/api/cart?listing_id={id}` | Retirer un article (**query param**) |
+| POST | `/api/cart/merge` | Fusion guest → compte (`items[{listing_id,quantity}]`) — quantités cumulées **bornées au stock** |
+
+> **Format DELETE unifié** : `listing_id` est fourni **exclusivement en query string** (`DELETE /api/wishlist?listing_id=123`). Les FormRequests `WishlistDestroyRequest` / `CartDestroyRequest` valident ce query param (422 en cas d'absence/invalidité). Le frontend envoie désormais `api.delete(path, { params: { listing_id } })` (plus de body).
 
 ### Fichiers backend
 - Contrôleurs : `app/Http/Controllers/Api/WishlistController.php`, `CartController.php`
@@ -84,6 +86,12 @@ Tous sous `auth:sanctum` dans `routes/api.php`.
 4. **Merge à la connexion** : lit le localStorage, pousse via les endpoints merge, puis `safeRemove` des clés.
 5. **Déconnexion** : purge localStorage + état vidé + `mergedForUserId.current = null`.
 
+### Échec partiel de la fusion (comportement retenu)
+- Chaque clé (`WS_KEY` / `CT_KEY`) est purgée **dès que son merge réussit**.
+- Une clé dont le merge **échoue** est **conservée** dans le localStorage et sera **ré-essayée automatiquement** au prochain chargement/connexion (retry).
+- La fusion n'est considérée complète que lorsque les deux merges ont abouti (ou qu'il n'y avait rien à fusionner).
+- Pas de vidage inconditionnel en cas d'erreur : les données ne sont jamais perdues silencieusement.
+
 ### Actions exposées via `useCommerce()`
 - `wishlist`, `cart`, `wishlistCount`, `cartCount`
 - `cartSellers` (groupé par vendeur avec `itemCount`, `subtotal`, `phone`)
@@ -93,9 +101,10 @@ Tous sous `auth:sanctum` dans `routes/api.php`.
 - `guestModalOpen`, `guestItem`, `guestModalType`, `closeGuestModal`
 - `isAuthenticated`
 - `buildListingUrl(listing)` → URL page détail `/{nickname}/{id}-{isbn}-{slug}`
+- `isListingAvailable(listing)` (exporté) → statut `published` ET stock > 0
 
 ### Types
-- `StoreListing` : id, title, price, discountPrice, cover, coverThumb, isbn, user_id, sellerNickname, sellerPhone, city, availableQuantity
+- `StoreListing` : id, title, price, discountPrice, cover, coverThumb, isbn, user_id, sellerNickname, sellerPhone, city, availableQuantity, status, available
 - `CartLine`, `CartSellerGroup`, `PersistedLine` (forme localStorage avec timestamps)
 
 ---
@@ -128,6 +137,8 @@ Tous sous `auth:sanctum` dans `routes/api.php`.
 8. **Confirmation suppression** : uniquement pour le panier (CartCard), pas pour les favoris.
 9. **Mention paiement** : "Un service de récupération et de livraison sera bientôt disponible par le site" (pas de mention "paiement en ligne").
 10. **Responsive** : lignes du panier sans chevauchement sur mobile (layout empilé).
+11. **Listings indisponibles** : un listing est **indisponible** si `status !== "published"` OU stock `quantity = 0` (ou listing supprimé). Affichage grisé avec badge "Annonce indisponible" / "Indisponible", contrôles de quantité et bouton "Panier" **désactivés**, bouton retirer conservé.
+12. **Clamp de stock (serveur + client)** : la quantité d'un panier est bornée par le stock du listing (`quantity`), plafonné à 99. Appliqué côté serveur (`store`, `update`, `merge`) ET côté client (`addToCart`, `updateCartQuantity`). Le merge cumule `qty_local + qty_serveur` puis borne au stock.
 
 ---
 
@@ -142,10 +153,34 @@ Tous sous `auth:sanctum` dans `routes/api.php`.
 
 ### WAF Caddy bloque DELETE/PUT/PATCH ❗
 - Le WAF Coraza/OWASP CRS (règle `911100` "méthodes autorisées") bloque DELETE sur `api-next.livrezone.com` et `livrezone.com`.
-- **Correctif** : ajouter dans les blocs http+https du domaine Caddy :
-  `SecRuleRemoveById 911100` (dans la directive `coraza_waf`).
-- Fichiers : `/etc/openpanel/caddy/domains/api-next.livrezone.com.conf` et `livrezone.com.conf`.
+- **Correctif SCOPÉ (recommandé)** : ne PAS désactiver `911100` globalement. Créer un fichier d'exemptions ciblées et l'inclure **AVANT** les règles CRS :
+
+  Fichier `/etc/openpanel/caddy/custom_waf_api.conf` :
+  ```
+  SecRule REQUEST_URI "@beginsWith /api/wishlist" "id:900001,phase:1,pass,nolog,ctl:ruleRemoveById=911100"
+  SecRule REQUEST_URI "@beginsWith /api/cart"     "id:900002,phase:1,pass,nolog,ctl:ruleRemoveById=911100"
+  ```
+
+  Dans les domaines (`/etc/openpanel/caddy/domains/api-next.livrezone.com.conf` et `livrezone.com.conf`), remplacer la ligne globale `SecRuleRemoveById 911100` par `Include /etc/openpanel/caddy/custom_waf_api.conf`, placé **immédiatement après** `Include .../crs-setup.conf.example` et **avant** `Include .../rules/*.conf`.
+
+  ⚠️ **Important** : l'Include d'exemption doit être chargé AVANT le CRS, sinon `911100` s'exécute avant le `ctl:ruleRemoveById` et le DELETE reste bloqué (403).
 - Après modification : `docker exec caddy caddy validate --config /etc/caddy/Caddyfile` puis `reload`.
+- **Vérification** : `DELETE /api/wishlist?listing_id=...` doit passer (atteindre Laravel), `DELETE` sur un autre chemin (ex: `/api/dashboard/...`) doit rester bloqué (403).
+
+### Clamp de stock du panier ❗
+- `store`, `update` et `merge` de `CartController` bornent la quantité au stock du listing (`quantity`, plafonné à 99).
+- Le merge cumule `qty_local + qty_serveur` puis borne : si le total dépasse le stock, la quantité est saturée au stock et la réponse inclut `clamped` (nombre d'articles bornés).
+- Test : `tests/Feature/CartMergeClampTest.php` (couvre `qty_local + qty_serveur > availableQuantity`).
+
+### Règle DELETE uniforme (query param)
+- `DELETE /api/wishlist?listing_id={id}` et `DELETE /api/cart?listing_id={id}` : le body n'est **jamais** utilisé.
+- FormRequests : `WishlistDestroyRequest`, `CartDestroyRequest`.
+- Frontend : `api.delete(path, { params: { listing_id } })`.
+
+### Rollback des mises à jour optimistes
+- Les mutations sont **optimistes** (état local mis à jour immédiatement), puis chaque action connectée appelle l'API et `queryClient.invalidateQueries({ queryKey: ["commerce"] })`.
+- En cas d'erreur 422/500 : l'état optimiste reste affiché **jusqu'au refetch déclenché par l'invalidation**, qui re-synchronise depuis le serveur (rollback automatique via l'effet de galerie `setWishlist(serverWishlist)` / `setCart(lines)`).
+- Pas de rollback manuel dans le store : le refetch serveur EST le mécanisme de rollback. Les erreurs sont silencieuses (`.catch(() => {})`) mais l'état converge vers le serveur.
 
 ### Isoler le panier par utilisateur
 - **Connecté** : le panier est lié au `user_id` en base (clé unique `[user_id, listing_id]`).
@@ -157,7 +192,15 @@ Tous sous `auth:sanctum` dans `routes/api.php`.
 
 ---
 
-## 8. MÉTHODOLOGIE D'EXÉCUTION (déjà utilisée)
+## 8. VIGILANCE ARCHITECTURE (pas d'action immédiate)
+
+- Le Context React unique (`CommerceProvider`) englobe wishlist + cart + compteurs + header. Si l'app grossit, les re-renders peuvent devenir en cascade (chaque changement de wishlist/cart re-rend tous les consommateurs).
+- Ne pas corriger maintenant ; surveiller les performances (métriques React, profiler si latence).
+- Si besoin à terme : découper en stores séparés (wishlist / cart / modale), ou utiliser `useSyncExternalStore` pour isoler les abonnés.
+
+---
+
+## 9. MÉTHODOLOGIE D'EXÉCUTION (déjà utilisée)
 
 1. Backend d'abord : contrôleurs, FormRequests, routes.
 2. Tester sur le serveur (artisan indisponible sur la machine Windows) :
@@ -172,7 +215,7 @@ Tous sous `auth:sanctum` dans `routes/api.php`.
 
 ---
 
-## 9. GIT
+## 10. GIT
 
 Le dépôt Git principal se trouve dans `_data` (SMB `\\192.168.1.202\_data`).
 ```

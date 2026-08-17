@@ -15,8 +15,12 @@ class WishlistDestroyRequest extends FormRequest
     }
 
     /**
+     * Retire une annonce des favoris.
+     *
+     * Format unifié : listing_id fourni en query string (DELETE).
+     * Ex. : DELETE /api/wishlist?listing_id=123
+     *
      * Validation stricte -> 422 en cas d'échec.
-     * listing_id peut être fourni en query string (DELETE) ou en JSON body.
      */
     public function rules(): array
     {

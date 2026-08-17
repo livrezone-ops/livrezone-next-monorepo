@@ -16,7 +16,9 @@ class CartDestroyRequest extends FormRequest
 
     /**
      * Retire un article du panier.
-     * listing_id peut être fourni en query string (DELETE) ou en JSON body.
+     *
+     * Format unifié : listing_id fourni en query string (DELETE).
+     * Ex. : DELETE /api/cart?listing_id=123
      *
      * Validation stricte -> 422 en cas d'échec.
      */
