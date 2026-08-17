@@ -15,6 +15,9 @@ export interface SlimListing {
   coverUrl: string | null;
   url: string;
   city: string | null;
+  isbn?: string | null;
+  user_id?: number | null;
+  sellerNickname?: string | null;
 }
 
 interface HorizontalGridProps {
@@ -149,6 +152,17 @@ export default function HorizontalGrid({
                 condition={listing.book_condition}
                 url={listing.url}
                 city={listing.city}
+                listingId={listing.id}
+                listing={{
+                  isbn: listing.isbn ?? null,
+                  user_id: listing.user_id ?? null,
+                  sellerNickname:
+                    listing.sellerNickname ??
+                    (listing.user_id
+                      ? `utilisateur-${listing.user_id}`
+                      : null),
+                  city: listing.city,
+                }}
               />
             </div>
           );

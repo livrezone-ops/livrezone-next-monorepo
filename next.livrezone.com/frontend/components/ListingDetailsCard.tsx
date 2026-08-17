@@ -5,9 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { 
   Heart, ShoppingCart, Share2, Phone, MessageSquare, 
-  Truck, MapPin, Star, BookOpen, Link as LinkIcon, 
+  Truck, MapPin, Star, BookOpen, 
   MessageCircle, Copy, X, Store, CheckCircle
 } from "lucide-react";
+import { useCommerce } from "@/lib/commerce-store";
 
 interface Listing {
   id: number;
@@ -63,6 +64,10 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
 
+  const { isInWishlist, isInCart, toggleWishlist, addToCart } = useCommerce();
+  const isFav = isInWishlist(listing.id);
+  const isInCartBool = isInCart(listing.id);
+
   const price = listing.discount_price ?? listing.price;
   const isDiscounted = listing.discount_price !== undefined && listing.discount_price !== null && listing.discount_price < listing.price;
   
@@ -104,7 +109,7 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
     try {
       const date = new Date(dateStr);
       return date.toLocaleDateString("fr-FR");
-    } catch (e) {
+    } catch {
       return dateStr;
     }
   };
@@ -117,6 +122,34 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
 
   const sellerNickname = listing.user.profile?.nickname || `utilisateur-${listing.user.id}`;
   const sellerPath = `/${sellerNickname}`;
+
+  const handleToggleFav = () => {
+    toggleWishlist({
+      id: listing.id,
+      title: listing.title,
+      price: listing.price,
+      discountPrice: listing.discount_price ?? null,
+      cover: coverUrl ?? null,
+      isbn: listing.book?.isbn_13 ?? null,
+      user_id: listing.user.id,
+      sellerNickname,
+      city: listing.user.profile?.city?.name ?? null,
+    });
+  };
+
+  const handleAddToCart = () => {
+    addToCart({
+      id: listing.id,
+      title: listing.title,
+      price: listing.price,
+      discountPrice: listing.discount_price ?? null,
+      cover: coverUrl ?? null,
+      isbn: listing.book?.isbn_13 ?? null,
+      user_id: listing.user.id,
+      sellerNickname,
+      city: listing.user.profile?.city?.name ?? null,
+    });
+  };
 
   return (
     <div className="max-w-6xl mx-auto font-sans text-gray-800">
@@ -227,14 +260,30 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
 
           {/* Actions (Favorites / Add to Cart / Share) */}
           <div className="flex flex-wrap items-center gap-6 mb-6 text-sm text-gray-600 font-bold relative">
-            <button className="flex items-center gap-2 hover:text-[#6D28D9] transition-colors cursor-pointer">
-              <Heart className="w-5 h-5" />
-              Ajouter aux favoris
+            <button
+              onClick={handleToggleFav}
+              className={`flex items-center gap-2 transition-colors cursor-pointer ${
+                isFav ? "text-red-500" : "hover:text-[#6D28D9]"
+              }`}
+              aria-pressed={isFav}
+            >
+              <Heart className={`w-5 h-5 ${isFav ? "fill-red-500 text-red-500" : ""}`} />
+              {isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
             </button>
-            <button className="flex items-center gap-2 hover:text-[#6D28D9] transition-colors cursor-pointer">
-              <ShoppingCart className="w-5 h-5" />
-              Ajouter au panier
-            </button>
+            {isInCartBool ? (
+              <span className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full text-sm font-bold">
+                <CheckCircle className="w-5 h-5" />
+                Déjà au panier
+              </span>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                className="flex items-center gap-2 transition-colors cursor-pointer hover:text-[#F97316]"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                Ajouter au panier
+              </button>
+            )}
             
             <div className="relative">
               <button 
@@ -363,7 +412,7 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
                 : "border-transparent text-gray-500 hover:text-gray-900"
             }`}
           >
-            Plus d'infos
+            Plus d&apos;infos
           </button>
         </div>
 

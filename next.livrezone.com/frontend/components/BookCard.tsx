@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Heart, ShoppingCart, MapPin, BookOpen } from "lucide-react";
+import { useCommerce, type StoreListing } from "@/lib/commerce-store";
 
 interface BookCardProps {
   title: string;
@@ -14,6 +15,8 @@ interface BookCardProps {
   condition?: "neuf" | "occas" | string | null;
   url: string;
   city?: string | null;
+  listingId?: number;
+  listing?: Partial<StoreListing>;
 }
 
 export default function BookCard({
@@ -25,7 +28,10 @@ export default function BookCard({
   condition = null,
   url = "#",
   city = null,
+  listingId,
+  listing,
 }: BookCardProps) {
+  const { isInWishlist, isInCart, toggleWishlist, addToCart } = useCommerce();
   
   // Format prices
   const formatPrice = (val: number) => {
@@ -36,6 +42,32 @@ export default function BookCard({
   };
 
   const hasDiscount = discountPrice !== null && discountPrice < price;
+
+  // Listing construit pour les actions wishlist/panier (requiert un listingId).
+  const targetListing: StoreListing | null = listingId
+    ? {
+        id: listingId,
+        title,
+        price,
+        discountPrice: hasDiscount ? discountPrice : null,
+        cover: cover ?? null,
+        city: city ?? null,
+        ...(listing ?? {}),
+      }
+    : null;
+
+  const isFav = listingId ? isInWishlist(listingId) : false;
+  const isInCartBool = listingId ? isInCart(listingId) : false;
+
+  const handleToggleFav = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (targetListing) toggleWishlist(targetListing);
+  };
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (targetListing) addToCart(targetListing);
+  };
 
   return (
     <article className="flex flex-col items-start bg-transparent font-sans group relative w-full">
@@ -78,20 +110,30 @@ export default function BookCard({
                     group-hover:translate-y-0 group-hover:opacity-100">
           
           {/* Wishlist Button */}
-          <button 
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center border-r border-gray-100 bg-white text-gray-800 transition-colors hover:bg-gray-50 hover:text-red-500 cursor-pointer" 
-            title="Ajouter aux favoris"
+          <button
+            onClick={handleToggleFav}
+            className={`flex h-10 w-10 flex-shrink-0 items-center justify-center border-r border-gray-100 transition-colors cursor-pointer ${
+              isFav ? "bg-red-50 text-red-500" : "bg-white text-gray-800 hover:bg-gray-50 hover:text-red-500"
+            }`}
+            title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
+            aria-pressed={isFav}
           >
-            <Heart className="h-4.5 w-4.5" />
+            <Heart className={`h-4.5 w-4.5 ${isFav ? "fill-red-500" : ""}`} />
           </button>
-          
+
           {/* Add to Cart Button */}
-          <button 
-            className="flex h-10 flex-grow items-center justify-center gap-2 bg-[#F97316]/90 hover:bg-[#F97316] backdrop-blur-md text-xs font-semibold text-white transition-colors cursor-pointer" 
-            title="Ajouter au panier"
+          <button
+            onClick={handleAddToCart}
+            disabled={isInCartBool}
+            className={`flex h-10 flex-grow items-center justify-center gap-2 text-xs font-semibold transition-colors ${
+              isInCartBool
+                ? "bg-emerald-100 text-emerald-700 cursor-not-allowed"
+                : "bg-[#F97316]/90 hover:bg-[#F97316] backdrop-blur-md text-white cursor-pointer"
+            }`}
+            title={isInCartBool ? "Déjà dans le panier" : "Ajouter au panier"}
           >
             <ShoppingCart className="h-4 w-4" />
-            Panier
+            {isInCartBool ? "Déjà au panier" : "Panier"}
           </button>
         </div>
       </div>

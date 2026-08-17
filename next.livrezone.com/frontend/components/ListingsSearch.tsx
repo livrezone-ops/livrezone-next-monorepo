@@ -248,6 +248,14 @@ export default function ListingsSearch({
                   condition={l.book_condition}
                   url={buildListingPath(l)}
                   city={l.user?.profile?.city?.name || null}
+                  listingId={l.id}
+                  listing={{
+                    isbn: l.isbn_13 || l.book?.isbn_13 || null,
+                    user_id: l.user_id,
+                    sellerNickname:
+                      l.user?.profile?.nickname || `utilisateur-${l.user_id}`,
+                    city: l.user?.profile?.city?.name || null,
+                  }}
                 />
               ))}
             </div>

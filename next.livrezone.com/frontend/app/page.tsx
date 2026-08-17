@@ -89,6 +89,9 @@ export type SlimListing = {
   coverUrl: string | null;
   url: string;
   city: string | null;
+  isbn?: string | null;
+  user_id?: number | null;
+  sellerNickname?: string | null;
 };
 
 // Réduit la taille de l'objet pour le RSC Payload et gère le thumbnail 320
@@ -122,6 +125,9 @@ function toSlimListing(listing: Listing): SlimListing {
     coverUrl,
     url,
     city: listing.user?.profile?.city?.name || null,
+    isbn: listing.isbn_13 || listing.book?.isbn_13 || null,
+    user_id: listing.user_id ?? null,
+    sellerNickname: nickname,
   };
 }
 
@@ -307,6 +313,11 @@ export default async function Home() {
   const heroListings: HeroListing[] = heroData.map(toHeroListing).slice(0, 15);
   const heroMessages = loadHeroMessages();
 
+  const heroCoversPerColumn = Number(process.env.HERO_COVERS_NUMBER_PER_SECTION) || 2;
+  const heroCoversScrollSeconds = Number(process.env.HERO_COVERS_SCROLL_SECONDS) || 2;
+  const heroHorizontalScrollMs =
+    (Number(process.env.HERO_HORIZONTAL_SCROLL_SECONDS) || 3) * 1000;
+
   return (
     <div className="flex flex-col">
       {/* ===== H1 UNIQUE (visible, pleine largeur) ===== */}
@@ -318,6 +329,9 @@ export default async function Home() {
       <LivreZoneHero
         messages={heroMessages}
         listings={heroListings}
+        coversPerColumn={heroCoversPerColumn}
+        coversScrollSeconds={heroCoversScrollSeconds}
+        autoPlayDelay={heroHorizontalScrollMs}
       />
 
       {/* ===== Catégories rapides ===== */}

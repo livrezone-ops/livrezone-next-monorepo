@@ -23,6 +23,10 @@ type LivreZoneHeroProps = {
   messages: HeroMessage[];
   listings: HeroListing[];
   autoPlayDelay?: number;
+  // Nombre de couvertures par colonne du mur
+  coversPerColumn?: number;
+  // Vitesse de défilement : durée en secondes pour faire passer une couverture
+  coversScrollSeconds?: number;
 };
 
 // Message de secours si aucun message valide
@@ -40,6 +44,8 @@ export default function LivreZoneHero({
   messages,
   listings,
   autoPlayDelay = 7000,
+  coversPerColumn = 2,
+  coversScrollSeconds = 2,
 }: LivreZoneHeroProps) {
   const slides = useMemo(
     () => (messages.length > 0 ? messages : [fallbackMessage]),
@@ -50,17 +56,34 @@ export default function LivreZoneHero({
   const [isPaused, setIsPaused] = useState(false);
   const touchStartX = useRef<number | null>(null);
 
-  // Chaque slide utilise un offset différent pour les couvertures
+  // Nombre de colonnes du mur selon la largeur d'écran
+  const [columnsCount, setColumnsCount] = useState(5);
+
+  useEffect(() => {
+    function updateColumns() {
+      const width = window.innerWidth;
+      if (width <= 720) setColumnsCount(2);
+      else if (width <= 1050) setColumnsCount(3);
+      else setColumnsCount(5);
+    }
+    updateColumns();
+    window.addEventListener("resize", updateColumns);
+    return () => window.removeEventListener("resize", updateColumns);
+  }, []);
+
+  // Durée d'une boucle complète = durée pour faire passer toutes les couvertures d'une colonne
+  const loopDuration = Math.max(1, coversPerColumn) * Math.max(0.1, coversScrollSeconds);
+
+  // Chaque slide utilise un offset différent pour les couvertures,
+  // et limite le total à columnsCount × coversPerColumn (moins de couvertures).
   const visibleBooks = useMemo(() => {
     return slides.map((_, slideIndex) => {
       if (listings.length === 0) return [];
       const offset = (slideIndex * 7) % listings.length;
-      return [...listings.slice(offset), ...listings.slice(0, offset)].slice(
-        0,
-        15,
-      );
+      const pool = [...listings.slice(offset), ...listings.slice(0, offset)];
+      return pool.slice(0, columnsCount * coversPerColumn);
     });
-  }, [listings, slides]);
+  }, [listings, slides, columnsCount, coversPerColumn]);
 
   const goToSlide = useCallback((index: number) => {
     setActiveSlide(((index % slides.length) + slides.length) % slides.length);
@@ -116,9 +139,12 @@ export default function LivreZoneHero({
       >
         {slides.map((msg, slideIndex) => {
           const books = visibleBooks[slideIndex];
-          // 5 colonnes pour le mur
-          const columns: HeroListing[][] = Array.from({ length: 5 }, () => []);
-          books.forEach((book, i) => columns[i % 5].push(book));
+          // Répartit les couvertures en colonnes, chaque colonne ayant coversPerColumn couvertures
+          const columns: HeroListing[][] = Array.from(
+            { length: columnsCount },
+            () => [],
+          );
+          books.forEach((book, i) => columns[i % columnsCount].push(book));
 
           const isActive = activeSlide === slideIndex;
 
@@ -154,18 +180,28 @@ export default function LivreZoneHero({
                 </div>
               </div>
 
-              {/* Zone droite : mur de couvertures */}
+              {/* Zone droite : mur de couvertures défilantes */}
               {books.length > 0 ? (
-                <div className={styles.wall} aria-label="Sélection de livres">
+                <div
+                  className={styles.wall}
+                  style={{ "--cols": columnsCount } as React.CSSProperties}
+                  aria-label="Sélection de livres"
+                >
                   {columns.map((col, colIndex) => (
                     <div
                       key={colIndex}
                       className={styles.bookColumn}
                       data-direction={colIndex % 2 === 0 ? "up" : "down"}
+                      style={
+                        {
+                          "--scroll-duration": `${loopDuration}s`,
+                        } as React.CSSProperties
+                      }
                     >
-                      {col.map((book, bookIndex) => (
+                      {/* Contenu dupliqué pour une boucle sans rupture */}
+                      {[...col, ...col].map((book, bookIndex) => (
                         <Link
-                          key={book.id}
+                          key={`${book.id}-${bookIndex}`}
                           href={book.href}
                           className={styles.book}
                           aria-label={`Voir l'annonce : ${book.title}`}

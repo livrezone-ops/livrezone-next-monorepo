@@ -8,6 +8,8 @@ import {
   Settings, LogOut, MessageSquare, BookOpen, Inbox
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useCommerce } from "@/lib/commerce-store";
+import SaveCartModal from "@/components/SaveCartModal";
 import { CATEGORIES } from "@/lib/reference-data";
 
 const NAV_LABELS: Record<string, string> = {
@@ -25,6 +27,7 @@ export default function Header() {
   const [lang, setLang] = useState("FR");
 
   const { user, isAuthenticated: isLoggedIn, logout } = useAuth();
+  const { wishlistCount, cartCount } = useCommerce();
 
   const getAvatarUrl = () => {
     if (!user?.profile?.logo) return null;
@@ -32,9 +35,6 @@ export default function Header() {
     return `https://api-next.livrezone.com${user.profile.logo}`;
   };
 
-  // Simulated counts
-  const [cartCount, setCartCount] = useState(0);
-  const [wishlistCount, setWishlistCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
@@ -372,6 +372,8 @@ export default function Header() {
           </ul>
         </div>
       </nav>
+
+      <SaveCartModal />
     </header>
   );
 }

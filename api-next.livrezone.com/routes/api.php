@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\ListingManagerController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\ReferenceDataController;
+use App\Http\Controllers\Api\WishlistController;
+use App\Http\Controllers\Api\CartController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user()->load('profile');
@@ -55,3 +57,20 @@ Route::get('/books', [\App\Http\Controllers\Api\BookController::class, 'publicSe
 // Reference Data for Forms
 Route::get('/reference-data', [ReferenceDataController::class, 'index']);
 Route::get('/books/search', [BookController::class, 'searchByIsbn']);
+
+// Wishlist (Favorites) - Authenticated
+Route::middleware('auth:sanctum')->prefix('wishlist')->group(function () {
+    Route::get('/', [WishlistController::class, 'index']);
+    Route::post('/', [WishlistController::class, 'store']);
+    Route::delete('/', [WishlistController::class, 'destroy']);
+    Route::post('/merge', [WishlistController::class, 'merge']);
+});
+
+// Cart - Authenticated
+Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
+    Route::get('/', [CartController::class, 'index']);
+    Route::post('/', [CartController::class, 'store']);
+    Route::put('/', [CartController::class, 'update']);
+    Route::delete('/', [CartController::class, 'destroy']);
+    Route::post('/merge', [CartController::class, 'merge']);
+});
