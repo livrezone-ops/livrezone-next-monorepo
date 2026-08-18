@@ -82,5 +82,8 @@ Route::middleware('auth:sanctum')->prefix('chat')->group(function () {
     Route::post('/threads', [ChatController::class, 'store']);
     Route::get('/threads/{thread}', [ChatController::class, 'show']);
     Route::post('/threads/{thread}/messages', [ChatController::class, 'sendMessage']);
+    Route::post('/threads/{thread}/messages/{message}/update', [ChatController::class, 'updateMessage']);
+    Route::post('/threads/{thread}/messages/{message}/delete', [ChatController::class, 'destroyMessage']);
+    Route::post('/threads/{thread}/delete', [ChatController::class, 'destroy']);
     Route::post('/threads/{thread}/read', [ChatController::class, 'markRead']);
 });

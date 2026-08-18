@@ -13,10 +13,14 @@ class ChatThread extends Model
         'user_one_id',
         'user_two_id',
         'last_message_at',
+        'deleted_for_user_one_at',
+        'deleted_for_user_two_at',
     ];
 
     protected $casts = [
         'last_message_at' => 'datetime',
+        'deleted_for_user_one_at' => 'datetime',
+        'deleted_for_user_two_at' => 'datetime',
     ];
 
     public function userOne()
@@ -63,5 +67,41 @@ class ChatThread extends Model
             ->where('sender_id', '!=', $userId)
             ->where('is_read', false)
             ->count();
+    }
+
+    /**
+     * Le fil est-il masqué pour cet utilisateur (suppression douce) ?
+     */
+    public function isDeletedFor(int $userId): bool
+    {
+        return $userId === $this->user_one_id
+            ? $this->deleted_for_user_one_at !== null
+            : $this->deleted_for_user_two_at !== null;
+    }
+
+    /**
+     * Masque le fil pour un utilisateur (suppression douce).
+     */
+    public function markDeletedFor(int $userId): void
+    {
+        if ($userId === $this->user_one_id) {
+            $this->update(['deleted_for_user_one_at' => now()]);
+        } elseif ($userId === $this->user_two_id) {
+            $this->update(['deleted_for_user_two_at' => now()]);
+        }
+    }
+
+    /**
+     * Réaffiche le fil pour un utilisateur.
+     */
+    public function resetDeletedFor(int $userId): void
+    {
+        if ($userId === $this->user_one_id) {
+            if ($this->deleted_for_user_one_at !== null) {
+                $this->update(['deleted_for_user_one_at' => null]);
+            }
+        } elseif ($userId === $this->user_two_id && $this->deleted_for_user_two_at !== null) {
+            $this->update(['deleted_for_user_two_at' => null]);
+        }
     }
 }

@@ -96,6 +96,29 @@ export async function sendMessage(
   return data.data;
 }
 
+export async function deleteMessage(
+  threadId: number,
+  messageId: number
+): Promise<void> {
+  await api.post(`/chat/threads/${threadId}/messages/${messageId}/delete`);
+}
+
+export async function deleteThread(threadId: number): Promise<void> {
+  await api.post(`/chat/threads/${threadId}/delete`);
+}
+
+export async function updateMessage(
+  threadId: number,
+  messageId: number,
+  message: string
+): Promise<ChatMessage> {
+  const { data } = await api.post<{ data: ChatMessage }>(
+    `/chat/threads/${threadId}/messages/${messageId}/update`,
+    { message }
+  );
+  return data.data;
+}
+
 export async function markThreadAsRead(threadId: number): Promise<void> {
   await api.post(`/chat/threads/${threadId}/read`);
 }

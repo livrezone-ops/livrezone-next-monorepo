@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\MessageDeleted;
 use App\Events\MessageSent;
+use App\Events\MessageUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\ChatMessageStoreRequest;
 use App\Http\Requests\Api\ChatThreadStoreRequest;
@@ -28,7 +30,9 @@ class ChatController extends Controller
             ->where('user_one_id', $userId)
             ->orWhere('user_two_id', $userId)
             ->orderByDesc('last_message_at')
-            ->get();
+            ->get()
+            ->filter(fn (ChatThread $thread) => ! $thread->isDeletedFor($userId))
+            ->values();
 
         $data = $threads->map(function (ChatThread $thread) use ($userId) {
             $other = $thread->user_one_id === $userId ? $thread->userTwo : $thread->userOne;
@@ -71,6 +75,8 @@ class ChatController extends Controller
             $request->integer('user_id')
         );
 
+        $thread->resetDeletedFor($request->user()->id);
+
         return response()->json([
             'data' => [
                 'id' => $thread->id,
@@ -95,6 +101,8 @@ class ChatController extends Controller
         if (! $this->isParticipant($thread, $request->user()->id)) {
             return response()->json(['message' => 'Accès refusé.'], 403);
         }
+
+        $thread->resetDeletedFor($request->user()->id);
 
         $thread->load('userOne.profile', 'userTwo.profile');
 
@@ -141,6 +149,7 @@ class ChatController extends Controller
         ]);
 
         $thread->update(['last_message_at' => now()]);
+        $thread->resetDeletedFor($request->user()->id);
 
         try {
             broadcast(new MessageSent($message))->toOthers();
@@ -156,6 +165,95 @@ class ChatController extends Controller
             'data' => $message,
             'message' => 'Message envoyé.',
         ], 201);
+    }
+
+    /**
+     * PUT /api/chat/threads/{thread}/messages/{message}
+     * Modifie un message existant (uniquement par son auteur).
+     */
+    public function updateMessage(ChatMessageStoreRequest $request, ChatThread $thread, ChatMessage $message): JsonResponse
+    {
+        if (! $this->isParticipant($thread, $request->user()->id)) {
+            return response()->json(['message' => 'Accès refusé.'], 403);
+        }
+
+        if ($message->chat_thread_id !== $thread->id) {
+            return response()->json(['message' => 'Message introuvable.'], 404);
+        }
+
+        if ($message->sender_id !== $request->user()->id) {
+            return response()->json(['message' => 'Vous ne pouvez modifier que vos propres messages.'], 403);
+        }
+
+        $message->update([
+            'message' => $request->string('message')->trim()->toString(),
+        ]);
+
+        try {
+            broadcast(new MessageUpdated($message))->toOthers();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Broadcast chat update impossible', [
+                'thread_id' => $thread->id,
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return response()->json([
+            'data' => $message,
+            'message' => 'Message modifié.',
+        ]);
+    }
+
+    /**
+     * DELETE /api/chat/threads/{thread}/messages/{message}
+     * Supprime un message existant (uniquement par son auteur).
+     */
+    public function destroyMessage(Request $request, ChatThread $thread, ChatMessage $message): JsonResponse
+    {
+        if (! $this->isParticipant($thread, $request->user()->id)) {
+            return response()->json(['message' => 'Accès refusé.'], 403);
+        }
+
+        if ($message->chat_thread_id !== $thread->id) {
+            return response()->json(['message' => 'Message introuvable.'], 404);
+        }
+
+        if ($message->sender_id !== $request->user()->id) {
+            return response()->json(['message' => 'Vous ne pouvez supprimer que vos propres messages.'], 403);
+        }
+
+        $messageId = $message->id;
+
+        $message->delete();
+
+        try {
+            broadcast(new MessageDeleted($thread->id, $messageId))->toOthers();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Broadcast chat delete impossible', [
+                'thread_id' => $thread->id,
+                'message_id' => $messageId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return response()->json(['message' => 'Message supprimé.']);
+    }
+
+    /**
+     * POST /api/chat/threads/{thread}/delete
+     * Masque la conversation pour l'utilisateur (suppression douce) :
+     * elle reste visible chez l'autre participant.
+     */
+    public function destroy(Request $request, ChatThread $thread): JsonResponse
+    {
+        if (! $this->isParticipant($thread, $request->user()->id)) {
+            return response()->json(['message' => 'Accès refusé.'], 403);
+        }
+
+        $thread->markDeletedFor($request->user()->id);
+
+        return response()->json(['message' => 'Conversation supprimée.']);
     }
 
     /**

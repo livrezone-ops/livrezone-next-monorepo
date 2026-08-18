@@ -92,6 +92,7 @@ echo.private(`chat.thread.${threadId}`)
 ```
 
 - L'abonnement à un canal privé passe par `/broadcasting/auth` (Sanctum + cookies SPA) : le frontend doit être dans `SANCTUM_STATEFUL_DOMAINS`.
+- **État (2026-08-18) :** `/broadcasting/auth` est désormais enregistré via `Broadcast::routes(['middleware' => ['auth:sanctum']])` en tête de `routes/web.php`, et `config/broadcasting.php` (connexion `reverb`, driver `reverb` de `laravel/reverb` ^1.11) a été créé. `SANCTUM_STATEFUL_DOMAINS` contient déjà `next.livrezone.com`. Après déploiement : `php artisan config:clear`.
 
 ---
 
@@ -198,12 +199,40 @@ Dans `/etc/openpanel/caddy/domains/api-next.livrezone.com.conf`, bloc HTTPS :
 - Le canal est **privé** : l'autorisation est vérifiée dans `routes/channels.php`, ne jamais la mettre en public.
 - `ShouldBroadcastNow` évite d'ajouter une file d'attente au chat (le message doit arriver immédiatement).
 - Ne pas exposer les clés Reverb côté client en dur : passer par `NEXT_PUBLIC_*` (publiques par nature pour WebSocket).
+- Le bouton « Message » de `components/SellerContact.tsx` doit pointer vers la route `/chat?user={id}` (créée dans `app/chat/page.tsx`) et non vers une page inexistante.
 
 ---
 
-## 8. GIT
+## 8. FRONTEND (Next.js)
+
+### Fichiers
+- `lib/chat-api.ts` : types + appels API (`listThreads`, `getOrCreateThread`, `getThreadMessages`, `sendMessage`, `markThreadAsRead`).
+- `lib/chat-realtime.ts` : client Echo (broadcaster `reverb`, typé `Echo<'reverb'>`), `subscribeToThread(threadId, handler: (data: ChatMessage) => void)` ; `getEcho()` renvoie `undefined` si `NEXT_PUBLIC_REVERB_APP_KEY` absent.
+- `components/ChatClient.tsx` : UI messagerie (liste des fils, détail, envoi, realtime, badge non-lus). Pré-sélectionne le fil depuis `?thread` (état initial, sans effet).
+- `components/Header.tsx` : pastille de non-lus (même cache React Query `['chat','threads']` que la messagerie).
+- `app/dashboard/messages/page.tsx` : page messagerie (`Suspense` + `export const dynamic = 'force-dynamic'`).
+- `app/chat/page.tsx` : **route de redirection** « Contacter le vendeur » (voir flux ci-dessous).
+- `lib/api-error.ts` : helpers de typage d'erreur Axios (`getApiErrorMessage`, `getApiErrorStatus`, `getApiFieldErrors`) — supprime les `any`.
+
+### Flux « Contacter le vendeur »
+1. `components/SellerContact.tsx` (bouton « Message ») pointe vers `/chat?user={userId}`.
+2. `app/chat/page.tsx` lit `?user=`, vérifie l'auth (sinon `/login`), appelle `getOrCreateThread(userId)`, puis redirige vers `/dashboard/messages?thread={id}`.
+3. `ChatClient` lit `?thread` et pré-sélectionne le fil (état initial, sans effet).
+4. Fallback : liste rafraîchie toutes les 30 s (`refetchInterval`) si Reverb indisponible.
+
+### Config client (.env.production / .env.local)
+- `NEXT_PUBLIC_REVERB_APP_KEY`, `NEXT_PUBLIC_REVERB_HOST=api-next.livrezone.com`, `NEXT_PUBLIC_REVERB_PORT=443`, `NEXT_PUBLIC_REVERB_SCHEME=https`.
+
+### Qualité (lint / build)
+- `next build` + ESLint passent (0 erreur, 0 warning) : 17 `any` supprimés, erreurs TS corrigées (`ListingDetail` aligné sur `Listing`, `Echo<'reverb'>`, retour `undefined`, type `"error"` Toast, `onDismiss`→`dismiss`), warnings `no-unused-vars` et `no-img-element` (cette dernière désactivée dans `eslint.config.mjs` pour les avatars externes).
+
+---
+
+## 9. GIT
 
 Le dépôt Git principal se trouve dans `_data` (SMB `\\192.168.1.202\_data`).
+
+**Déploiement (2026-08-18) :** après `git pull`, exécuter `php artisan config:clear` (nouveau `config/broadcasting.php`) et vérifier que le serveur Reverb tourne (Docker rootless). Le chat (frontend + backend + `config/broadcasting.php` + `routes/web.php`) est commité et poussé sur `origin/main`.
 ```
 git -C "\\192.168.1.202\_data" add api-next.livrezone.com/...
 git -C "\\192.168.1.202\_data" commit -m "feat(api): service de chat avec Reverb"

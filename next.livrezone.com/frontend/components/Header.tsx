@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
@@ -11,6 +11,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCommerce } from "@/lib/commerce-store";
 import { useQuery } from "@tanstack/react-query";
 import { listThreads } from "@/lib/chat-api";
+import {
+  getChatActive,
+  subscribeChatActive,
+} from "@/lib/chat-active";
 import SaveCartModal from "@/components/SaveCartModal";
 import { CATEGORIES } from "@/lib/reference-data";
 
@@ -43,6 +47,12 @@ export default function Header() {
   });
 
   const unreadMessages = unreadCount ?? 0;
+  // Pastille masquée uniquement quand une conversation de chat est ouverte.
+  const chatActive = useSyncExternalStore(
+    subscribeChatActive,
+    getChatActive,
+    () => false
+  );
 
   const getAvatarUrl = () => {
     if (!user?.profile?.logo) return null;
@@ -188,7 +198,7 @@ export default function Header() {
                       {(user?.profile?.nickname || user?.name) ? (user?.profile?.nickname || user?.name)?.charAt(0).toUpperCase() : "U"}
                     </div>
                   )}
-                  {unreadMessages > 0 && (
+                  {unreadMessages > 0 && !chatActive && (
                     <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-white"></span>
@@ -216,7 +226,7 @@ export default function Header() {
                         <MessageSquare className="h-4 w-4 text-gray-400" />
                         Ma messagerie
                       </span>
-                      {unreadMessages > 0 && (
+                      {unreadMessages > 0 && !chatActive && (
                         <span className="bg-[#6D28D9] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                           {unreadMessages}
                         </span>
