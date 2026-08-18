@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
   Menu, X, Search, Heart, ShoppingCart, User, 
-  Settings, LogOut, MessageSquare, BookOpen, Inbox
+  Settings, LogOut, MessageSquare, BookOpen
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCommerce } from "@/lib/commerce-store";
+import { useQuery } from "@tanstack/react-query";
+import { listThreads } from "@/lib/chat-api";
 import SaveCartModal from "@/components/SaveCartModal";
 import { CATEGORIES } from "@/lib/reference-data";
 
@@ -29,13 +31,24 @@ export default function Header() {
   const { user, isAuthenticated: isLoggedIn, logout } = useAuth();
   const { wishlistCount, cartCount } = useCommerce();
 
+  // Compteur de messages non lus (même cache que la page messagerie).
+  const { data: unreadCount } = useQuery({
+    queryKey: ["chat", "threads"],
+    queryFn: listThreads,
+    select: (d) => d?.total_unread ?? 0,
+    enabled: isLoggedIn,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
+
+  const unreadMessages = unreadCount ?? 0;
+
   const getAvatarUrl = () => {
     if (!user?.profile?.logo) return null;
     if (user.profile.logo.startsWith('http')) return user.profile.logo;
     return `https://api-next.livrezone.com${user.profile.logo}`;
   };
-
-  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
     const handleScroll = () => {

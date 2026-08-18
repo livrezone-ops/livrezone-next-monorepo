@@ -42,7 +42,7 @@ export default function ListingsSearch({
   );
   const [loading, setLoading] = useState(initialListings === undefined);
   const [lastPage, setLastPage] = useState(initialLastPage ?? 1);
-  const [total, setTotal] = useState(initialTotal ?? 0);
+  const [, setTotal] = useState(initialTotal ?? 0);
 
   const hydratedRef = useRef(initialListings !== undefined);
 
@@ -53,6 +53,21 @@ export default function ListingsSearch({
   // Permet de distinguer un changement d'URL externe (header) d'un retour
   // d'écho de notre propre debounce, pour ne jamais écraser la saisie en cours.
   const lastPushedSearch = useRef(searchQ);
+
+  const updateParams = (newParams: Record<string, string | number | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(newParams).forEach(([key, val]) => {
+      if (val === null || val === "") {
+        params.delete(key);
+      } else {
+        params.set(key, val.toString());
+      }
+    });
+    if (!newParams.page) {
+      params.delete("page");
+    }
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   // Synchronise le champ quand l'URL change en dehors de notre debounce
   // (ex : recherche soumise depuis le header).
@@ -75,6 +90,7 @@ export default function ListingsSearch({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (initialListings !== undefined) {
       hydratedRef.current = false;
@@ -126,6 +142,7 @@ export default function ListingsSearch({
       active = false;
     };
   }, [initialListings, initialLastPage, initialTotal, searchParams, userId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Au changement de page/recherche, positionne le scroll en haut de la liste.
   const scrollToListTop = () => {
@@ -133,21 +150,6 @@ export default function ListingsSearch({
     requestAnimationFrame(() => {
       listTopRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
     });
-  };
-
-  const updateParams = (newParams: Record<string, string | number | null>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    Object.entries(newParams).forEach(([key, val]) => {
-      if (val === null || val === "") {
-        params.delete(key);
-      } else {
-        params.set(key, val.toString());
-      }
-    });
-    if (!newParams.page) {
-      params.delete("page");
-    }
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {

@@ -1,5 +1,6 @@
 'use client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import api from '../lib/axios';
 
 export interface User {
@@ -14,8 +15,9 @@ export interface User {
 
 export function useAuth() {
     const queryClient = useQueryClient();
+    const router = useRouter();
 
-    const { data: user, isLoading, error } = useQuery<User>({
+    const { data: user, isLoading } = useQuery<User>({
         queryKey: ['user'],
         queryFn: async () => {
             const { data } = await api.get('/user');
@@ -32,7 +34,7 @@ export function useAuth() {
         },
         onSuccess: () => {
             queryClient.setQueryData(['user'], null);
-            window.location.href = '/login';
+            router.push('/login');
         }
     });
 

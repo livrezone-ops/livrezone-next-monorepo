@@ -162,6 +162,7 @@ Consulter selon le contexte :
 - .agents/INFRASTRUCTURE.md
 - .agents/DEPLOYMENT.md
 - .agents/ROADMAP.md
+- .agents/CHAT.md
 - .agents/Next.js + Laravel + Axios rules.txt
 
 En cas de conflit documentaire, appliquer l'ordre suivant :

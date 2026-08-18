@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import FilterSidebar from "@/components/FilterSidebar";
 import ListingsSearch from "@/components/ListingsSearch";
 import {
   getPublicListings,
   getReferenceData,
-  type ListingSummary,
   type CityRef,
   buildListingPath,
 } from "@/lib/listings-api";
@@ -48,7 +46,7 @@ function cityLabels(
     .filter((n): n is string => Boolean(n));
 }
 
-function canonicalHref(f: AnnoncesFilters, cities: CityRef[]): string {
+function canonicalHref(f: AnnoncesFilters): string {
   const order: Array<[string, string | undefined]> = [
     ["search", f.search || undefined],
     ["category", f.categories.length ? f.categories.join(",") : undefined],
@@ -115,7 +113,7 @@ function buildTitle(f: AnnoncesFilters, cities: CityRef[]): string {
 }
 
 function buildDescription(f: AnnoncesFilters, cities: CityRef[]): string {
-  let what =
+  const what =
     f.conditions.length === 1
       ? f.conditions[0] === "neuf"
         ? "livres neufs"
@@ -152,7 +150,7 @@ export async function generateMetadata({
   const { cities } = await getReferenceData();
   const title = buildTitle(f, cities);
   const description = buildDescription(f, cities);
-  const canonical = canonicalHref(f, cities);
+  const canonical = canonicalHref(f);
 
   return {
     title,
@@ -173,7 +171,7 @@ export async function generateMetadata({
   };
 }
 
-function buildBreadcrumbJsonLd(f: AnnoncesFilters, cities: CityRef[]) {
+function buildBreadcrumbJsonLd(f: AnnoncesFilters) {
   const items = [
     { "@type": "ListItem", position: 1, name: "Accueil", item: `${SITE_URL}/` },
     { "@type": "ListItem", position: 2, name: "Annonces", item: `${SITE_URL}${PATH}` },
@@ -184,7 +182,7 @@ function buildBreadcrumbJsonLd(f: AnnoncesFilters, cities: CityRef[]) {
       "@type": "ListItem",
       position: 3,
       name: active,
-      item: canonicalHref({ ...f, page: 1 }, cities),
+      item: canonicalHref({ ...f, page: 1 }),
     });
   }
   return {
@@ -318,7 +316,7 @@ export default async function AnnoncesPage({ searchParams }: PageProps) {
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildBreadcrumbJsonLd(f, cities)) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildBreadcrumbJsonLd(f)) }}
       />
       {jsonLdItemList && (
         <script

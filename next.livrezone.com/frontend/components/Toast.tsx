@@ -3,7 +3,7 @@
 import React from "react";
 import { CheckCircle2, Info, AlertTriangle, X } from "lucide-react";
 
-export type ToastType = "success" | "info" | "warning";
+export type ToastType = "success" | "info" | "warning" | "error";
 
 export interface ToastData {
   id: number;
@@ -30,6 +30,11 @@ const styles: Record<
     icon: <AlertTriangle className="w-4 h-4" />,
     box: "border-amber-200",
     iconWrap: "bg-amber-50 text-amber-600",
+  },
+  error: {
+    icon: <AlertTriangle className="w-4 h-4" />,
+    box: "border-red-200",
+    iconWrap: "bg-red-50 text-red-600",
   },
 };
 

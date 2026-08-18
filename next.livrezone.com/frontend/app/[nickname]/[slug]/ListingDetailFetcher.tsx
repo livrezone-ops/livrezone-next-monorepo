@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import api from "@/lib/axios";
@@ -123,7 +122,7 @@ export default function ListingDetailFetcher({
   id: string;
   initialListing?: Listing;
 }) {
-  const { data: queryListing, error } = useQuery<Listing>({
+  const { data: queryListing } = useQuery<Listing>({
     queryKey: ["listing", id],
     queryFn: async () => {
       const { data } = await api.get(`/listings/${id}`);

@@ -144,7 +144,43 @@ export async function getPublicListings(query: ListingsQuery): Promise<PublicLis
   }
 }
 
-export async function getPublicListing(id: string): Promise<any | null> {
+export interface ListingDetail {
+  id: number;
+  user_id: number;
+  title: string;
+  description: string;
+  book_condition: string;
+  price: number;
+  discount_price?: number | null;
+  cover_path?: string | null;
+  cover_source_url?: string | null;
+  isbn_13?: string | null;
+  user: {
+    id: number;
+    name: string;
+    profile?: {
+      nickname: string;
+      phone?: string | null;
+      rating_average?: number;
+      rating_count?: number;
+      city?: { name: string } | null;
+    } | null;
+  };
+  book?: {
+    isbn_13: string;
+    publisher?: string | null;
+    publication_date?: string | null;
+    authors?: string[] | null;
+    page_count?: number | null;
+    cover_path?: string | null;
+    cover_url?: string | null;
+  } | null;
+  category?: { name_fr: string; parent?: { name_fr: string } | null } | null;
+  level?: { name_fr: string; code?: string } | null;
+  subject?: { name_fr: string; code?: string } | null;
+}
+
+export async function getPublicListing(id: string): Promise<ListingDetail | null> {
   try {
     const res = await fetch(`${API_BASE}/api/listings/${encodeURIComponent(id)}`, {
       next: { revalidate: 60 },

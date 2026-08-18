@@ -21,7 +21,7 @@ export const ALLOWED_HREFS = [
 ] as const;
 
 export function validateHref(href: string, fallback = "/annonces"): string {
-  return ALLOWED_HREFS.includes(href as any) ? href : fallback;
+  return (ALLOWED_HREFS as readonly string[]).includes(href) ? href : fallback;
 }
 
 // Validation basique d'un message brut

@@ -26,38 +26,6 @@ interface Listing {
   } | null;
 }
 
-const mockListings: Listing[] = [
-  {
-    id: 1,
-    title: "La Boîte à merveilles",
-    price: 35.00,
-    discount_price: 25.00,
-    book_condition: "occas",
-    isbn_13: "9782800100201",
-    status: "published",
-    created_at: "2026-08-11T12:00:00Z",
-    book: {
-      authors: "Ahmed Sefrioui",
-      cover_url: null
-    },
-    category: { name_fr: "Romans" }
-  },
-  {
-    id: 2,
-    title: "Le Dernier Jour d'un condamné",
-    price: 30.00,
-    book_condition: "neuf",
-    isbn_13: "9782253006091",
-    status: "published",
-    created_at: "2026-08-12T14:30:00Z",
-    book: {
-      authors: "Victor Hugo",
-      cover_url: null
-    },
-    category: { name_fr: "Romans" }
-  }
-];
-
 import { cookies } from 'next/headers';
 
 async function getDashboardData(): Promise<Listing[] | null> {
@@ -86,8 +54,7 @@ async function getDashboardData(): Promise<Listing[] | null> {
         return null; // Return null to indicate unauthorized
     }
 
-    const userData = await userRes.json();
-    const userId = userData.id;
+    await userRes.json();
 
     // 2. Fetch dashboard listings for this user (authentifié)
     const res = await fetch(`${baseUrl}/api/dashboard/listings?limit=100&filter=all`, {

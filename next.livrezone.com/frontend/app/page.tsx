@@ -322,7 +322,7 @@ export default async function Home() {
     <div className="flex flex-col">
       {/* ===== H1 UNIQUE (visible, pleine largeur) ===== */}
       <h1 className="w-full bg-[#1a0a40] text-white text-center text-xl md:text-2xl font-bold py-4 px-4">
-        La marketplace marocaine des livres neufs et d'occasion
+        La marketplace marocaine des livres neufs et d&rsquo;occasion
       </h1>
 
       {/* ===== HERO ===== */}

@@ -1,6 +1,10 @@
 <?php
 
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
+
+// Enregistre /broadcasting/auth et /broadcasting/refresh (requis pour les canaux privés Reverb/Sanctum SPA).
+Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
 Route::get('/', function () {
     return view('welcome');

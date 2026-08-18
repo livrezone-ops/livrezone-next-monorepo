@@ -80,7 +80,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface ListingFormProps {
+export interface ListingFormProps {
   initialData?: FormValues & { id?: number, cover_path?: string, cover_source_url?: string, cover_url?: string, cover_thumbnail_url?: string };
   onSubmitSuccess: () => void;
   isEditMode?: boolean;
@@ -507,7 +507,6 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                 {/* Aperçu */}
                 <div className="relative w-full pb-[135%] rounded-lg overflow-hidden bg-slate-50 mb-4 border border-slate-200">
                     {coverPreview ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- preview peut être un data URL (FileReader)
                         <img src={coverPreview}
                              alt="Aperçu"
                              className="absolute inset-0 h-full w-full object-contain p-4" />

@@ -4,11 +4,12 @@ import React, { useState, useRef } from "react";
 import Link from "next/link";
 import { 
   BookOpen, Plus, Search, Grid, List, CheckCircle, 
-  Trash2, Tag, Edit, Check, X, ShieldAlert, Heart, ShoppingBag,
+  Trash2, Edit, Check, ShieldAlert,
   Eye, Archive, RotateCcw, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/axios";
+import { getApiErrorMessage } from "@/lib/api-error";
 import ToastContainer, { ToastData, ToastType } from "@/components/Toast";
 
 const PAGE_SIZE = 12;
@@ -23,6 +24,8 @@ interface Listing {
   status: string;
   created_at: string;
   cover_path?: string | null;
+  cover_url?: string | null;
+  cover_thumbnail_url?: string | null;
   cover_source_url?: string | null;
   book?: {
     cover_url?: string | null;
@@ -43,14 +46,14 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
   // Miniature en priorité (chargement léger, comme l'ancien projet), avec fallback
   // sur la couverture originale via onError si la miniature n'existe pas.
   const primaryCoverUrl = (l: Listing): string | null =>
-    (l as any).cover_thumbnail_url
-    || (l as any).cover_url
+    l.cover_thumbnail_url
+    || l.cover_url
     || l.book?.cover_url
     || l.cover_source_url
     || null;
 
   const fallbackCoverUrl = (l: Listing): string | null =>
-    (l as any).cover_url
+    l.cover_url
     || l.book?.cover_url
     || l.cover_source_url
     || null;
@@ -208,10 +211,9 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
         } : l));
         setEditingId(null);
         pushToast("Annonce mise à jour avec succès");
-      } catch (e: any) {
+      } catch (e) {
         console.error("Erreur lors de la mise à jour:", e);
-        const msg = e.response?.data?.message || e.response?.data?.error || "Une erreur est survenue lors de l'enregistrement.";
-        pushToast(msg, "warning");
+        pushToast(getApiErrorMessage(e, "Une erreur est survenue lors de l'enregistrement."), "warning");
       }
     }
   };
@@ -270,9 +272,9 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
         setFilter("all");
         await loadListings("all");
         pushToast(res.data?.message || "Article republié avec succès");
-      } catch (e: any) {
+      } catch (e) {
         console.error("Erreur lors de la republication:", e);
-        pushToast(e.response?.data?.message || "Impossible de republier l'annonce.", "warning");
+        pushToast(getApiErrorMessage(e, "Impossible de republier l'annonce."), "warning");
       } finally {
         setRepublishingIds((prev) => {
           const next = new Set(prev);
@@ -314,9 +316,9 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
         setSelectedIds([]);
         pushToast("Annonces supprimées");
       }
-    } catch (e: any) {
+    } catch (e) {
       console.error("Erreur lors de l'action:", e);
-      pushToast(e.response?.data?.message || "Une erreur est survenue.", "warning");
+      pushToast(getApiErrorMessage(e, "Une erreur est survenue."), "warning");
     }
     setConfirmModal({ isOpen: false, action: null, id: null });
   };
@@ -537,7 +539,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
               onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
               className="text-xs border border-gray-200 bg-white rounded-lg py-2 pl-2 pr-8 focus:outline-none text-gray-600 shadow-xs cursor-pointer"
             >
-              <option value="created_at">Date d'ajout</option>
+              <option value="created_at">Date d&rsquo;ajout</option>
               <option value="price">Prix</option>
               <option value="title">Titre</option>
             </select>
@@ -551,7 +553,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
               ].map(opt => (
                 <button
                   key={opt.val}
-                  onClick={() => { setFilter(opt.val as any); setSelectedIds([]); setPage(1); }}
+                  onClick={() => { setFilter(opt.val as "online" | "offline" | "all"); setSelectedIds([]); setPage(1); }}
                   className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all text-center flex-1 sm:flex-none cursor-pointer ${
                     filter === opt.val ? "bg-white shadow-xs text-black" : "text-gray-500 hover:text-gray-700"
                   }`}
@@ -917,7 +919,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
               <ShieldAlert className="w-16 h-16 text-gray-300 stroke-1 mb-4" />
               <h3 className="text-lg font-black text-gray-950 mb-1">Aucune annonce trouvée</h3>
               <p className="text-xs text-gray-500 max-w-sm mb-6 leading-relaxed">
-                Il n'y a pas d'annonce correspondant à vos critères de recherche ou de filtre pour le moment.
+                Il n&rsquo;y a pas d&rsquo;annonce correspondant à vos critères de recherche ou de filtre pour le moment.
               </p>
               <Link href="/annonces/create" className="bg-[#6D28D9] text-white font-bold px-6 py-2.5 rounded-xl text-xs hover:bg-violet-800 transition-all">
                 Créer une annonce

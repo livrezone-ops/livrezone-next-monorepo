@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\ReferenceDataController;
 use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\ChatController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user()->load('profile');
@@ -73,4 +74,13 @@ Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
     Route::put('/', [CartController::class, 'update']);
     Route::delete('/', [CartController::class, 'destroy']);
     Route::post('/merge', [CartController::class, 'merge']);
+});
+
+// Chat - Authenticated
+Route::middleware('auth:sanctum')->prefix('chat')->group(function () {
+    Route::get('/threads', [ChatController::class, 'index']);
+    Route::post('/threads', [ChatController::class, 'store']);
+    Route::get('/threads/{thread}', [ChatController::class, 'show']);
+    Route::post('/threads/{thread}/messages', [ChatController::class, 'sendMessage']);
+    Route::post('/threads/{thread}/read', [ChatController::class, 'markRead']);
 });

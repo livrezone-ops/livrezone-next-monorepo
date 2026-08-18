@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Star, X, Loader2 } from "lucide-react";
+import type { AxiosError } from "axios";
 import api from "@/lib/axios";
 
 interface RatingModalProps {
@@ -40,10 +41,14 @@ export default function RatingModal({
       });
       onSuccess(data.rating_average, data.rating_count, score, comment.trim());
       onClose();
-    } catch (err: any) {
+    } catch (err) {
+      const e = err as AxiosError<{
+        message?: string;
+        errors?: { comment?: string[] };
+      }>;
       setError(
-        err.response?.data?.message ||
-          err.response?.data?.errors?.comment?.[0] ||
+        e.response?.data?.message ||
+          e.response?.data?.errors?.comment?.[0] ||
           "Une erreur est survenue. Réessayez."
       );
     } finally {

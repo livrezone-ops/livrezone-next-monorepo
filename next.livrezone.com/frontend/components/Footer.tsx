@@ -54,7 +54,7 @@ export default function Footer() {
             <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-violet-300 mt-1">LivreZone</span>
           </Link>
           <p className="text-[13px] text-violet-200/80 leading-relaxed pr-4">
-            Plateforme marocaine qui met en relation les lecteurs, les particuliers et les librairies. Elle permet de publier et de découvrir des annonces de livres neufs et d'occasion partout au Maroc, tout en donnant une seconde vie aux ouvrages déjà lus.
+            Plateforme marocaine qui met en relation les lecteurs, les particuliers et les librairies. Elle permet de publier et de découvrir des annonces de livres neufs et d&rsquo;occasion partout au Maroc, tout en donnant une seconde vie aux ouvrages déjà lus.
           </p>
           <div className="flex gap-3 mt-2">
             <a

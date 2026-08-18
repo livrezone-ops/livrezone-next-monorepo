@@ -4,6 +4,7 @@ import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/axios';
+import { getApiErrorStatus, getApiFieldErrors, getApiErrorMessage } from '../../lib/api-error';
 
 interface City {
     id: number;
@@ -75,8 +76,8 @@ export default function CompleteProfilePage() {
                         adresse: data.profile.adresse ?? '',
                     });
                 }
-            } catch (error: any) {
-                if (error.response?.status === 401) {
+            } catch (error) {
+                if (getApiErrorStatus(error) === 401) {
                     router.replace('/login');
                     return;
                 }
@@ -151,14 +152,14 @@ const handleChange = (
                 router.replace('/dashboard');
                 router.refresh();
             }
-        } catch (error: any) {
-            if (error.response?.status === 401) {
+        } catch (error) {
+            if (getApiErrorStatus(error) === 401) {
                 router.replace('/login');
                 return;
             }
 
-            if (error.response?.status === 422) {
-                setErrors(error.response.data.errors ?? {});
+            if (getApiErrorStatus(error) === 422) {
+                setErrors(getApiFieldErrors(error));
                 setMessage(
                     'Certains champs sont incorrects. Vérifie le formulaire.',
                 );
@@ -166,8 +167,7 @@ const handleChange = (
             }
 
             setMessage(
-                error.response?.data?.message ??
-                    'Une erreur est survenue pendant l’enregistrement.',
+                getApiErrorMessage(error, 'Une erreur est survenue pendant l’enregistrement.')
             );
         } finally {
             setSubmitting(false);

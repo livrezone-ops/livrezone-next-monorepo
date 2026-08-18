@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
-import ListingForm from "@/components/ListingForm";
+import ListingForm, { type ListingFormProps } from "@/components/ListingForm";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 import api from "@/lib/axios";
@@ -16,7 +16,7 @@ export default function EditListingPage() {
   const { user, isLoading: authLoading } = useAuth();
   const { toasts, pushToast, dismissToast } = useToasts();
   
-  const [initialData, setInitialData] = useState<any>(null);
+  const [initialData, setInitialData] = useState<ListingFormProps["initialData"] | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +41,7 @@ export default function EditListingPage() {
         } else {
           setInitialData(listing);
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error("Erreur de chargement:", err);
         setError("Impossible de charger l'annonce. Elle a peut-être été supprimée.");
       } finally {
@@ -81,7 +81,7 @@ export default function EditListingPage() {
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Modifier l'annonce</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Modifier l&rsquo;annonce</h1>
           <p className="mt-2 text-sm text-gray-600">Mettez à jour les détails de votre article.</p>
         </div>
 
