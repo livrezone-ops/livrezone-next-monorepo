@@ -160,15 +160,15 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
         
         {/* Left Column: Cover Preview */}
         <div className="w-full md:w-5/12 flex-shrink-0">
-          <div className="relative w-full pb-[135%] bg-gradient-to-b from-slate-50/70 to-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden group">
-            {/* Condition Diagonal Corner Ribbon (45°) */}
+          <div className="relative w-full pb-[130%] bg-white border border-gray-200 rounded-lg shadow-xs overflow-hidden">
+            {/* Condition Badge */}
             {listing.book_condition === "neuf" && (
-              <div className="absolute -left-14 top-7 z-10 w-48 -rotate-45 bg-emerald-600 py-2 text-center text-xs sm:text-[13px] font-black uppercase tracking-widest text-white shadow-md select-none pointer-events-none">
+              <div className="absolute left-0 top-0 z-10 bg-emerald-600 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white">
                 Neuf
               </div>
             )}
             {listing.book_condition === "occas" && (
-              <div className="absolute -left-14 top-7 z-10 w-48 -rotate-45 bg-[#6D28D9] py-2 text-center text-xs sm:text-[13px] font-black uppercase tracking-widest text-white shadow-md select-none pointer-events-none">
+              <div className="absolute left-0 top-0 z-10 bg-[#6D28D9] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-white">
                 Occasion
               </div>
             )}
@@ -178,13 +178,13 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
                 src={coverUrl} 
                 alt={`Couverture du livre ${listing.title} - LivreZone Maroc`} 
                 fill
-                className="object-contain p-6 sm:p-8 transition-transform duration-500 ease-out group-hover:scale-105"
+                className="object-contain p-6"
                 unoptimized
               />
             ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 text-slate-400">
-                <BookOpen className="h-16 w-16 mb-2 stroke-1 text-slate-300" />
-                <span className="text-xs font-semibold text-slate-400">Couverture indisponible</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 text-gray-400">
+                <BookOpen className="h-16 w-16 mb-2 stroke-1" />
+                <span className="text-[13px] font-medium">Image indisponible</span>
               </div>
             )}
           </div>
@@ -193,191 +193,172 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
         {/* Right Column: Listing Metadata */}
         <div className="w-full md:w-7/12 flex flex-col">
           {/* Title */}
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-950 tracking-tight leading-[1.2] mb-3">
+          <h1 className="text-2xl sm:text-[32px] leading-tight font-black text-gray-900 mb-2 hover:text-[#6D28D9] transition-colors cursor-pointer">
             {listing.title}
           </h1>
 
-          {/* Author & ISBN Specs */}
-          <div className="flex flex-wrap items-center gap-y-1.5 gap-x-3 text-xs sm:text-sm text-gray-600 mb-4 pb-4 border-b border-gray-100">
-            {authors && (
-              <div>
-                Par <span className="font-bold text-gray-900">{authors}</span>
+          {/* ISBN */}
+          {listing.book?.isbn_13 && (
+            <div className="text-xs text-gray-500 mb-3">
+              ISBN / EAN : <span className="text-gray-900 font-bold">{listing.book.isbn_13}</span>
+            </div>
+          )}
+
+          {/* Author */}
+          {authors && (
+            <div className="text-sm text-gray-600 mb-4 pb-4 border-b border-gray-100">
+              Par (auteur) <span className="text-gray-900 font-bold">{authors}</span>
+            </div>
+          )}
+
+          {/* Price Box */}
+          <div className="mb-4">
+            <div className="flex items-end gap-3">
+              <span className="text-3xl sm:text-[36px] font-black text-gray-950 leading-none">
+                {price} <span className="text-xl font-bold text-gray-700 ml-1">MAD</span>
+              </span>
+              {isDiscounted && (
+                <>
+                  <span className="text-lg text-gray-400 line-through mb-1 font-medium">
+                    {listing.price}
+                  </span>
+                  <span className="ml-2 bg-emerald-100 text-emerald-800 text-[11px] font-extrabold px-2 py-1 rounded-xs mb-1.5 uppercase">
+                    -{discountPct}%
+                  </span>
+                </>
+              )}
+              <div className="ml-auto flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 mb-1">
+                <CheckCircle className="w-4 h-4" />
+                <span className="text-xs font-black uppercase tracking-wide">Disponible</span>
               </div>
-            )}
-            {authors && listing.book?.isbn_13 && (
-              <span className="text-gray-300">•</span>
-            )}
-            {listing.book?.isbn_13 && (
-              <div className="text-gray-500">
-                ISBN : <span className="font-mono font-bold text-gray-800">{listing.book.isbn_13}</span>
+            </div>
+
+            {/* État du livre */}
+            <div className="mt-3">
+              {listing.book_condition === "neuf" ? (
+                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  État : Neuf
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 bg-violet-50 text-violet-700 border border-violet-200 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide">
+                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+                  État : Occasion
+                </span>
+              )}
+            </div>
+
+            {/* Date de publication */}
+            {listing.published_ago && (
+              <div className="mt-2 flex items-center gap-2 text-sm text-gray-500 font-semibold">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span>Publié : <span className="text-gray-700">{listing.published_ago}</span></span>
               </div>
             )}
           </div>
 
-          {/* Price Box */}
-          <div className="my-2 p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-violet-50/30 border border-slate-200/80 shadow-xs">
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl sm:text-4xl font-black text-gray-950 tracking-tight">
-                  {price}
-                </span>
-                <span className="text-lg font-bold text-gray-600">MAD</span>
-                {isDiscounted && (
-                  <>
-                    <span className="text-base text-gray-400 line-through font-medium ml-1">
-                      {listing.price} MAD
-                    </span>
-                    <span className="ml-1 bg-emerald-100 text-emerald-800 text-xs font-black px-2.5 py-0.5 rounded-full uppercase">
-                      -{discountPct}%
-                    </span>
-                  </>
-                )}
+          {/* Delivery & City Block */}
+          <div className="py-4 border-y border-gray-100 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm sm:text-base">
+              {/* Delivery info */}
+              <div className="flex items-start gap-2.5">
+                <Truck className="w-5 h-5 text-gray-500 mt-0.5" />
+                <div>
+                  <span className="font-semibold block text-gray-400 text-xs uppercase tracking-wider">Livraison</span>
+                  <span className="text-black font-semibold">Disponible partout au Maroc</span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/80 text-xs font-bold uppercase tracking-wider">
-                <CheckCircle className="w-3.5 h-3.5" />
-                <span>Disponible</span>
-              </div>
-            </div>
-
-            <div className="mt-3.5 pt-3.5 border-t border-slate-200/60 flex items-center justify-between flex-wrap gap-2 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-gray-500 font-medium">État du livre :</span>
-                {listing.book_condition === "neuf" ? (
-                  <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">Neuf</span>
-                ) : (
-                  <span className="font-bold text-violet-700 bg-violet-50 border border-violet-200/80 px-2.5 py-0.5 rounded-full">Occasion</span>
-                )}
-              </div>
-              {listing.published_ago && (
-                <span className="text-gray-400">
-                  Publié {listing.published_ago}
-                </span>
+              {/* City info */}
+              {listing.user.profile?.city?.name && (
+                <div className="flex items-start gap-2.5">
+                  <MapPin className="w-5 h-5 text-gray-500 mt-0.5" />
+                  <div>
+                    <span className="font-semibold block text-gray-400 text-xs uppercase tracking-wider">Ville</span>
+                    <span className="text-black font-semibold">{listing.user.profile.city.name}</span>
+                  </div>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Delivery & Location Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-4">
-            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-              <div className="w-10 h-10 rounded-lg bg-violet-100/80 text-[#6D28D9] flex items-center justify-center shrink-0">
-                <Truck className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Livraison</div>
-                <div className="text-xs sm:text-sm font-bold text-gray-900">Partout au Maroc</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-              <div className="w-10 h-10 rounded-lg bg-amber-100/80 text-[#F97316] flex items-center justify-center shrink-0">
-                <MapPin className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Ville du vendeur</div>
-                <div className="text-xs sm:text-sm font-bold text-gray-900">{listing.user.profile?.city?.name || "Maroc"}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Actions (Favoris / Panier / Partager) toujours sur la même ligne */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 my-3 text-xs font-bold w-full">
+          {/* Actions (Favorites / Add to Cart / Share) */}
+          <div className="flex flex-wrap items-center gap-6 mb-3 text-sm text-gray-600 font-bold relative">
             <button
               onClick={handleToggleFav}
-              className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl border transition-all cursor-pointer truncate ${
-                isFav 
-                  ? "bg-red-50 border-red-200 text-red-600 shadow-xs" 
-                  : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300"
+              className={`flex items-center gap-2 transition-colors cursor-pointer ${
+                isFav ? "text-red-500" : "hover:text-[#6D28D9]"
               }`}
               aria-pressed={isFav}
-              title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
             >
-              <Heart className={`w-4 h-4 shrink-0 ${isFav ? "fill-red-500 text-red-500" : ""}`} />
-              <span className="truncate">Favoris</span>
+              <Heart className={`w-5 h-5 ${isFav ? "fill-red-500 text-red-500" : ""}`} />
+              {isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
             </button>
-
             {isInCartBool ? (
-              <span 
-                className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold truncate"
-                title="Déjà dans votre panier"
-              >
-                <CheckCircle className="w-4 h-4 shrink-0" />
-                <span className="truncate">Au panier</span>
+              <span className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full text-sm font-bold">
+                <CheckCircle className="w-5 h-5" />
+                Déjà au panier
               </span>
             ) : (
               <button
                 onClick={handleAddToCart}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-[#F97316]/5 hover:border-[#F97316] hover:text-[#F97316] transition-all cursor-pointer truncate"
-                title="Ajouter ce livre à votre panier"
+                className="flex items-center gap-2 transition-colors cursor-pointer hover:text-[#F97316]"
               >
-                <ShoppingCart className="w-4 h-4 shrink-0" />
-                <span className="truncate">Panier</span>
+                <ShoppingCart className="w-5 h-5" />
+                Ajouter au panier
               </button>
             )}
             
-            <div className="relative w-full">
+            <div className="relative">
               <button 
                 onClick={() => setShareOpen(!shareOpen)}
-                className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all cursor-pointer focus:outline-none truncate"
-                title="Partager cette annonce"
+                className="flex items-center gap-2 hover:text-[#6D28D9] transition-colors cursor-pointer focus:outline-none"
               >
-                <Share2 className="w-4 h-4 shrink-0" />
-                <span className="truncate">Partager</span>
+                <Share2 className="w-5 h-5" />
+                Partager
               </button>
               {shareOpen && (
-                <div className="absolute right-0 sm:left-0 top-full mt-2 w-48 bg-white border border-gray-100 shadow-xl rounded-xl z-20 py-1.5 text-xs text-black animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-gray-100 shadow-xl rounded-lg z-20 py-1 text-xs text-black animate-in fade-in slide-in-from-top-2 duration-150">
                   <button 
                     onClick={handleFacebookShare}
-                    className="flex w-full text-left px-4 py-2.5 hover:bg-gray-50 text-[#1877F2] font-semibold items-center gap-2 cursor-pointer"
+                    className="flex w-full text-left px-4 py-2.5 hover:bg-gray-50 text-[#1877F2] font-semibold items-center gap-2"
                   >
                     <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c4.56-.93 8-4.96 8-9.75z"/></svg> Facebook
                   </button>
                   <button 
                     onClick={handleWhatsAppShare}
-                    className="flex w-full text-left px-4 py-2.5 hover:bg-gray-50 text-[#25D366] font-semibold items-center gap-2 cursor-pointer"
+                    className="flex w-full text-left px-4 py-2.5 hover:bg-gray-50 text-[#25D366] font-semibold items-center gap-2"
                   >
-                    <MessageCircle className="w-4 h-4" /> WhatsApp
+                    <MessageCircle className="h-4 w-4" /> WhatsApp
                   </button>
                   <button 
                     onClick={handleCopyLink}
-                    className="flex w-full text-left px-4 py-2.5 hover:bg-gray-50 text-gray-700 font-semibold items-center gap-2 border-t border-gray-50 mt-1 pt-2 cursor-pointer"
+                    className="flex w-full text-left px-4 py-2.5 hover:bg-gray-50 text-gray-700 font-semibold items-center gap-2 border-t border-gray-50 mt-1 pt-2"
                   >
-                    <Copy className="w-4 h-4" /> Copier le lien
+                    <Copy className="h-4 w-4" /> Copier le lien
                   </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Seller / Contact Card */}
-          <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-slate-50 border border-slate-200/90 shadow-sm mt-4">
-            {/* Seller Header */}
-            <div className="flex items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-12 h-12 rounded-full bg-[#1a0a40] text-white flex items-center justify-center font-black text-lg shadow-xs shrink-0 uppercase">
-                  {(listing.user.profile?.nickname || listing.user.name).charAt(0)}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Vendeur</div>
-                  <Link 
-                    href={sellerPath} 
-                    className="text-base sm:text-lg font-black text-gray-900 hover:text-[#6D28D9] transition-colors truncate block"
-                  >
-                    {listing.user.profile?.nickname || listing.user.name}
-                  </Link>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-lg flex items-center gap-1">
-                  <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                  <span className="font-bold text-gray-900 text-xs leading-none">
+          {/* Seller / Contact Box */}
+          <div className="pt-8 mt-5 border-t border-gray-100">
+            <div className="flex items-end flex-wrap gap-2 mb-4">
+              <span className="font-semibold text-gray-400 text-xs uppercase tracking-wider">Vendeur</span>
+              <Link href={sellerPath} className="text-[#1a0a40] font-black text-2xl leading-none hover:text-[#6D28D9] transition-colors">
+                {listing.user.profile?.nickname || listing.user.name}
+              </Link>
+              <div className="ml-auto flex items-center gap-2">
+                <div className="bg-white rounded-lg border border-gray-100 px-2.5 py-1 flex items-center gap-1">
+                  <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                  <span className="font-bold text-gray-800 text-sm leading-none">
                     {listing.user.profile?.rating_count && listing.user.profile.rating_count > 0
                       ? Number(listing.user.profile.rating_average ?? 0).toFixed(1)
-                      : "Nouveau"}
+                      : "-"}
                   </span>
                   {listing.user.profile?.rating_count && listing.user.profile.rating_count > 0 && (
-                    <span className="text-gray-400 text-[10px] font-medium">
+                    <span className="text-gray-400 text-[11px] font-medium">
                       ({listing.user.profile.rating_count})
                     </span>
                   )}
@@ -385,45 +366,48 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
               </div>
             </div>
 
-            {/* Contact Actions */}
-            <div className="space-y-2.5">
-              {/* WhatsApp Primary Button */}
+            <span className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">Contacter le vendeur</span>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* WhatsApp Call */}
               <a 
-                href={cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent("Bonjour, je suis intéressé par votre annonce sur LivreZone : " + listing.title)}%0A${encodeURIComponent(shareUrl)}` : "#"} 
+                href={cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent("Bonjour, je suis intéressé")}%0A${encodeURIComponent(shareUrl)}` : "#"} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="w-full h-12 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2.5 transition-all cursor-pointer active:scale-[0.99]"
+                className="group h-11 rounded-lg hover:opacity-95 text-xs font-bold transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                style={{ backgroundColor: "#1a0a40", color: "#4ade80" }}
               >
-                <MessageCircle className="w-5 h-5 fill-current" />
-                <span>Contacter sur WhatsApp</span>
+                <MessageCircle className="w-4 h-4 text-[#4ade80]" />
+                WhatsApp
               </a>
 
-              {/* Phone & Chat Secondary Grid */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <button 
-                  onClick={() => setShowPhoneModal(true)}
-                  className="h-11 rounded-xl bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 hover:border-gray-400 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
-                >
-                  <Phone className="w-4 h-4 text-gray-600" />
-                  <span>Téléphone</span>
-                </button>
+              {/* Direct Phone Call */}
+              <button 
+                onClick={() => setShowPhoneModal(true)}
+                className="h-11 rounded-lg bg-white border border-[#1a0a40] text-[#1a0a40] hover:bg-violet-50 text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              >
+                <Phone className="w-4 h-4" />
+                Téléphone
+              </button>
 
-                <Link 
-                  href={`/chat?user=${listing.user.id}`}
-                  className="h-11 rounded-xl bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 hover:border-gray-400 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
-                >
-                  <MessageSquare className="w-4 h-4 text-gray-600" />
-                  <span>Message</span>
-                </Link>
-              </div>
+              {/* Chat Message */}
+              <Link 
+                href={`/chat?user=${listing.user.id}`}
+                className="h-11 rounded-lg bg-white border border-[#1a0a40] text-[#1a0a40] hover:bg-violet-50 text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Message
+              </Link>
+            </div>
 
-              {/* Visit Shop Link */}
+            {/* Visit Seller Page */}
+            <div className="mt-6">
               <Link
                 href={sellerPath}
-                className="mt-3 flex items-center justify-center w-full py-2.5 text-xs font-bold text-[#6D28D9] hover:text-violet-900 transition-colors"
+                className="group flex items-center justify-center w-full h-11 border border-gray-200 text-gray-700 bg-gray-50 hover:bg-violet-50 hover:border-[#6D28D9] hover:text-[#6D28D9] focus:outline-none focus:ring-1 focus:ring-[#6D28D9] font-bold text-xs transition-all duration-200 rounded-lg"
               >
-                <Store className="w-4 h-4 mr-1.5" />
-                <span>Voir toutes les annonces de ce vendeur &rarr;</span>
+                <Store className="w-5 h-5 mr-2 text-gray-400 group-hover:text-[#6D28D9] transition-colors" />
+                Visiter la page du vendeur
               </Link>
             </div>
           </div>
@@ -432,11 +416,11 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
       </div>
 
       {/* Tabs Panel */}
-      <div className="border-t border-gray-200 pt-2 mt-12">
-        <div className="flex border-b border-gray-100 gap-2">
+      <div className="border-t border-gray-200 pt-2 mt-8">
+        <div className="flex border-b border-gray-100">
           <button 
             onClick={() => setActiveTab("description")}
-            className={`px-6 py-3.5 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+            className={`px-6 py-4 text-sm font-bold border-b-2 transition-colors cursor-pointer ${
               activeTab === "description" 
                 ? "border-[#6D28D9] text-[#6D28D9]" 
                 : "border-transparent text-gray-500 hover:text-gray-900"
@@ -446,23 +430,23 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
           </button>
           <button 
             onClick={() => setActiveTab("details")}
-            className={`px-6 py-3.5 text-sm font-bold border-b-2 transition-all cursor-pointer ${
+            className={`px-6 py-4 text-sm font-bold border-b-2 transition-colors cursor-pointer ${
               activeTab === "details" 
                 ? "border-[#6D28D9] text-[#6D28D9]" 
                 : "border-transparent text-gray-500 hover:text-gray-900"
             }`}
           >
-            Caractéristiques du livre
+            Plus d&apos;infos
           </button>
         </div>
 
         <div className="py-8">
           {activeTab === "description" ? (
-            <div className="text-sm text-gray-700 leading-relaxed max-w-4xl whitespace-pre-line bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+            <div className="text-sm text-gray-700 leading-relaxed max-w-4xl whitespace-pre-line">
               {listing.description || <p className="italic text-gray-400">Aucune description fournie par le vendeur.</p>}
             </div>
           ) : (
-            <div className="max-w-xl bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+            <div className="max-w-xl">
               <table className="w-full text-left text-sm border-collapse">
                 <tbody>
                   <tr className="border-b border-gray-100 last:border-0">

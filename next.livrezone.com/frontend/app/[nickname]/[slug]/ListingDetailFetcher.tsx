@@ -206,6 +206,7 @@ function ListingDetailContent({ listing }: { listing: Listing }) {
         <div className="mt-16 pt-8 border-t border-gray-100">
           <HorizontalGrid
             title={`Autres annonces de ${listing.user.profile?.nickname || listing.user.name}`}
+            viewAllUrl={sellerPath}
             listings={otherListings.map(toSlimListing)}
           />
         </div>
