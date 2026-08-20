@@ -141,7 +141,11 @@ class ListingController extends Controller
         } elseif ($sort === 'price_desc') {
             $query->orderByRaw('COALESCE(discount_price, price) DESC');
         } else {
-            $query->latest('published_at')->latest('created_at');
+            // Tri par date de publication décroissante.
+            // COALESCE gère les annonces sans published_at (import), et l'id
+            // sert de tie-breaker stable pour éviter un ordre arbitraire
+            // quand plusieurs published_at sont identiques.
+            $query->orderByRaw('COALESCE(published_at, created_at) DESC')->latest('id');
         }
 
         // Pagination
