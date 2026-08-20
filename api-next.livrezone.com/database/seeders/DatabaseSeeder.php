@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             SubjectLevelTableSeeder::class,
             CategorySubjectTableSeeder::class,
             CategoryLevelTableSeeder::class,
+            HeroMessagesTableSeeder::class,
         ]);
     }
 }

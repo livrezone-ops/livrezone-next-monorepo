@@ -131,8 +131,45 @@ function toSlimListing(listing: Listing): SlimListing {
   };
 }
 
-// Charge et valide les messages du hero (SSR). Retourne 3 messages maximum sans doublon.
-function loadHeroMessages(): HeroMessage[] {
+// Charge les messages du hero depuis l'API Laravel (source de vérité),
+// avec repli sur le fichier local si l'API est indisponible.
+async function loadHeroMessages(): Promise<HeroMessage[]> {
+  const fallback = (): HeroMessage[] => loadHeroMessagesFromFile();
+
+  try {
+    const baseUrl = (process.env.INTERNAL_API_URL
+      || process.env.NEXT_PUBLIC_API_URL
+      || "https://api-next.livrezone.com").replace(/\/api\/?$/, '');
+
+    const res = await fetch(`${baseUrl}/api/hero-messages`, {
+      next: { revalidate: 300 },
+      headers: { 'Accept': 'application/json', 'Host': 'api-next.livrezone.com' }
+    });
+    if (!res.ok) return fallback();
+
+    const json = await res.json() as { messages?: unknown[] };
+    if (!Array.isArray(json.messages) || json.messages.length === 0) return fallback();
+
+    const valid = json.messages.filter(isValidMessage).map((m) => ({
+      ...m,
+      primaryAction: {
+        ...m.primaryAction,
+        href: validateHref(m.primaryAction.href),
+      },
+      secondaryAction: m.secondaryAction
+        ? { ...m.secondaryAction, href: validateHref(m.secondaryAction.href) }
+        : undefined,
+    }));
+
+    return valid.length > 0 ? valid : fallback();
+  } catch (e) {
+    console.error("[SSR] loadHeroMessages error:", String(e));
+    return fallback();
+  }
+}
+
+// Charge et valide les messages du hero depuis le fichier local (repli).
+function loadHeroMessagesFromFile(): HeroMessage[] {
   const fallback: HeroMessage = {
     id: 0,
     language: "fr",
@@ -171,13 +208,13 @@ function loadHeroMessages(): HeroMessage[] {
 }
 
 export const metadata: Metadata = {
-  title: "LivreZone | Marketplace de livres neufs et d'occasion au Maroc",
+  title: "LivreZone | Livres neufs et d'occasion au Maroc",
   description:
-    "Découvrez sur LivreZone des annonces de livres neufs et d'occasion proposées par des librairies et des particuliers. Trouvez ou vendez vos livres partout au Maroc.",
+    "Achetez et vendez vos livres neufs et d'occasion au Maroc. Des milliers d'annonces de librairies et particuliers partout dans le Royaume.",
   openGraph: {
-    title: "LivreZone | Marketplace de livres neufs et d'occasion au Maroc",
+    title: "LivreZone | Livres neufs et d'occasion au Maroc",
     description:
-      "Découvrez sur LivreZone des annonces de livres neufs et d'occasion proposées par des librairies et des particuliers. Trouvez ou vendez vos livres partout au Maroc.",
+      "Achetez et vendez vos livres neufs et d'occasion au Maroc. Des milliers d'annonces de librairies et particuliers partout dans le Royaume.",
     type: "website",
     locale: "fr_MA",
     siteName: "LivreZone",
@@ -311,7 +348,7 @@ export default async function Home() {
   // Fetch only hero listings (latest overall) to unblock the initial render quickly
   const heroData = await getListings();
   const heroListings: HeroListing[] = heroData.map(toHeroListing).slice(0, 15);
-  const heroMessages = loadHeroMessages();
+  const heroMessages = await loadHeroMessages();
 
   const heroCoversPerColumn = Number(process.env.HERO_COVERS_NUMBER_PER_SECTION) || 2;
   const heroCoversScrollSeconds = Number(process.env.HERO_COVERS_SCROLL_SECONDS) || 2;
@@ -322,7 +359,7 @@ export default async function Home() {
     <div className="flex flex-col">
       {/* ===== H1 UNIQUE (visible, pleine largeur) ===== */}
       <h1 className="w-full bg-[#1a0a40] text-white text-center text-xl md:text-2xl font-bold py-4 px-4">
-        La marketplace marocaine des livres neufs et d&rsquo;occasion
+        LivreZone : Marketplace de livres neufs et d&rsquo;occasion au Maroc
       </h1>
 
       {/* ===== HERO ===== */}

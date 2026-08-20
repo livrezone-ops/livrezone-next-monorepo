@@ -322,6 +322,58 @@ Privilégier :
 
 ---
 
+# Accès SSH au serveur
+
+Utilisateur SSH :
+
+```
+ouahib@192.168.1.202
+```
+
+L'authentification se fait par clé SSH (pas de mot de passe).
+
+Exemple de connexion :
+
+```bash
+ssh ouahib@192.168.1.202
+```
+
+Le `sudo` est disponible pour ouahib (mot de passe requis en mode interactif).
+
+Le contexte Docker rootless `livrezone` est accessible depuis ouahib via :
+
+```bash
+sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker <commande>
+```
+
+---
+
+# Déploiement Frontend (script lz)
+
+Le script `lz` est disponible globalement sur le serveur (`/usr/local/bin/lz`).
+
+Il s'exécute depuis n'importe quel dossier.
+
+Il effectue dans l'ordre :
+
+1. `npm run build` dans le container `code-server` (workspace Next.js)
+2. `artisan optimize:clear` dans `php-fpm-8.5` (cache Laravel)
+3. `docker build` de l'image `livrezone-next`
+4. Suppression et redémarrage du container `livrezone-next`
+5. Vérification et affichage des logs
+
+Utilisation :
+
+```bash
+ssh ouahib@192.168.1.202
+lz
+```
+
+Ne jamais lancer `npm run build` ou `docker build` manuellement pour le frontend.
+Toujours utiliser `lz`.
+
+---
+
 # Consignes terminal
 
 Quand tu guides dans un terminal :

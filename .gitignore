@@ -21,6 +21,8 @@
 /api-next.livrezone.com/vendor/
 /api-next.livrezone.com/node_modules/
 /api-next.livrezone.com/.env
+/api-next.livrezone.com/.env.bak
+/api-next.livrezone.com/config/reverb.php.bak
 /api-next.livrezone.com/storage/logs/*
 /api-next.livrezone.com/storage/framework/cache/*
 /api-next.livrezone.com/storage/framework/sessions/*

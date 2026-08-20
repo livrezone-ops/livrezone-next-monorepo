@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\ReferenceDataController;
 use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ChatController;
+use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\HeroController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user()->load('profile');
@@ -76,7 +78,21 @@ Route::middleware('auth:sanctum')->prefix('cart')->group(function () {
     Route::post('/merge', [CartController::class, 'merge']);
 });
 
-// Chat - Authenticated
+// Public Hero messages (homepage)
+Route::get('/hero-messages', [HeroController::class, 'index']);
+
+// Admin - Users & Listings management
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+    Route::get('/users', [AdminController::class, 'users']);
+    Route::post('/users/{user}/status', [AdminController::class, 'updateUserStatus']);
+
+    Route::get('/listings', [AdminController::class, 'listings']);
+    Route::post('/listings/bulk-status', [AdminController::class, 'bulkListingStatus']);
+    Route::post('/listings/{listing}/status', [AdminController::class, 'updateListingStatus']);
+
+    Route::get('/hero-messages', [AdminController::class, 'hero']);
+    Route::put('/hero-messages', [AdminController::class, 'storeHero']);
+});
 Route::middleware('auth:sanctum')->prefix('chat')->group(function () {
     Route::get('/threads', [ChatController::class, 'index']);
     Route::post('/threads', [ChatController::class, 'store']);

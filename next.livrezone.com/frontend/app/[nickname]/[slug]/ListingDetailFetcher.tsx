@@ -10,6 +10,8 @@ import HorizontalGrid from "@/components/HorizontalGrid";
 interface Listing {
   id: number;
   user_id: number;
+  status?: string;
+  published_ago?: string | null;
   title: string;
   description: string;
   book_condition: string;
@@ -210,6 +212,19 @@ function ListingDetailContent({ listing }: { listing: Listing }) {
           {listing.title}
         </span>
       </nav>
+
+      {/* Bannière statut non-publié (visible créateur / admin uniquement) */}
+      {listing.status && listing.status !== "published" && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span className="mt-0.5 text-lg leading-none">⚠️</span>
+          <div>
+            <span className="font-bold">Annonce non publiée — </span>
+            {listing.status === "pending_admin"
+              ? "Cette annonce est en attente de validation par un administrateur. Elle n'est pas visible du public."
+              : `Statut : ${listing.status}. Cette annonce n'est pas visible du public.`}
+          </div>
+        </div>
+      )}
 
       <ListingDetailsCard listing={listing} />
 

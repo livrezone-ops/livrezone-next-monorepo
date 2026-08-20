@@ -186,11 +186,11 @@ class ListingController extends Controller
     public function show($id)
     {
         $listing = Listing::with([
-            'user.profile.city', 
-            'category.parent', 
-            'level', 
-            'subject', 
-            'book', 
+            'user.profile.city',
+            'category.parent',
+            'level',
+            'subject',
+            'book',
             'language'
         ])->find($id);
 
@@ -206,8 +206,18 @@ class ListingController extends Controller
             $listing->book->setAppends(['cover_url']);
         }
 
+        // Calcul de l'ancienneté de publication (logique centralisée ici, pas dans le frontend)
+        $publishedAgo = null;
+        if ($listing->published_at) {
+            $days = (int) $listing->published_at->startOfDay()->diffInDays(now()->startOfDay());
+            $publishedAgo = $days === 0 ? "Aujourd'hui" : "Il y a {$days} jour" . ($days > 1 ? 's' : '');
+        }
+
+        $data = $listing->toArray();
+        $data['published_ago'] = $publishedAgo;
+
         return response()->json([
-            'data' => $listing
+            'data' => $data
         ]);
     }
 

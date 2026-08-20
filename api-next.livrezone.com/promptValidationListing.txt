@@ -1,0 +1,117 @@
+Tu interviens comme développeur senior sur le projet LivreZone.
+
+Avant toute analyse, lis intégralement et respecte :
+
+- .agents/AGENTS.md
+- .agents/RULES.md
+- .agents/WORKFLOW.md
+- .agents/DATABASE.md
+- .agents/AUTH.md
+
+Consulte également toute documentation spécialisée pertinente.
+
+Ne commence pas par écrire du code.
+
+Ta première mission est d’inspecter le projet afin de déterminer comment organiser techniquement les fonctions nécessaires à la validation automatique des listings.
+
+## Contexte fonctionnel
+
+Lorsqu’un utilisateur crée un listing, il saisit l’ISBN d’un livre.
+
+Si cet ISBN existe dans la source de référence `books`, l’application récupère notamment :
+
+- le titre ;
+- la description ;
+- la couverture.
+
+Le listing contient donc potentiellement :
+
+- un titre issu de `books` ou modifié par l’utilisateur ;
+- une description issue de `books` ou modifiée par l’utilisateur ;
+- une couverture issue de `books` ou remplacée par l’utilisateur.
+
+La règle métier cible est la suivante :
+
+### Cas 1 : les trois champs sont inchangés
+
+Si le titre, la description et la couverture sont identiques aux données de référence de `books`, le listing peut être validé automatiquement par un compte technique `IA_admin`.
+
+Cette validation doit être déterministe et ne doit pas appeler un fournisseur IA.
+
+### Cas 2 : la couverture est inchangée
+
+Si la couverture est bien celle provenant de `books`, mais que le titre ou la description a été modifié :
+
+- identifier exactement les champs modifiés ;
+- soumettre uniquement les champs modifiés à une fonction de modération textuelle ;
+- rechercher les contenus manifestement interdits, insultants, irrespectueux, trompeurs ou sans rapport avec le livre ;
+- valider automatiquement uniquement si l’analyse est sûre ;
+- sinon conserver le listing en attente de validation administrative.
+
+Le fait que la couverture soit inchangée constitue un signal de confiance élevé, mais ne doit pas suffire à masquer un texte problématique.
+
+### Cas 3 : la couverture a été modifiée
+
+Si la couverture a été remplacée par l’utilisateur :
+
+- elle devra être analysée par un fournisseur externe ;
+- le fournisseur envisagé est Gemini ;
+- Gemini devra pouvoir effectuer une analyse visuelle et extraire le texte visible sur l’image ;
+- le texte extrait devra également être soumis aux règles de modération ;
+- l’analyse devra vérifier, dans la mesure du possible, la cohérence entre la couverture, le titre du livre et les données de référence ;
+- en cas d’incertitude ou d’erreur, le listing doit rester en attente.
+
+Attention : ne réduis pas cette fonction à un simple OCR.
+
+La fonction Gemini devra idéalement retourner :
+
+- le texte visible sur l’image ;
+- un résultat de conformité visuelle ;
+- les éventuels indicateurs de contenu problématique ;
+- une estimation de cohérence avec le livre ;
+- un score de confiance ;
+- les raisons de la décision.
+
+### Cas 4 : ISBN absent ou non trouvé
+
+Pour la première version, le listing doit rester en attente d’une validation administrative.
+
+## Objectif de ton analyse
+
+Je veux que tu détermines comment définir et où placer les fonctions nécessaires dans le projet Laravel existant.
+
+Tu dois inspecter le code réel avant de proposer une architecture.
+
+Ne suppose pas que les modèles, colonnes, statuts, services, jobs ou permissions existent.
+
+## Éléments à rechercher dans le projet
+
+Inspecte de manière ciblée :
+
+1. Le modèle réel représentant les listings.
+2. Le modèle ou la table `books`.
+3. La relation entre un listing, un livre et son ISBN.
+4. Le processus actuel de création d’un listing.
+5. Le processus actuel de validation administrative.
+6. Les statuts réels d’un listing.
+7. Les colonnes existantes relatives à la validation.
+8. Les contrôleurs, services, actions, observers, events, listeners ou jobs liés aux listings.
+9. Les policies et permissions concernant la validation.
+10. Le stockage réel des couvertures.
+11. La manière dont une couverture de référence est copiée ou liée au listing.
+12. Les clients HTTP ou intégrations avec des fournisseurs externes déjà disponibles.
+13. Les éventuels services d’IA déjà présents.
+14. La configuration des queues Laravel.
+15. Les tests existants autour des listings.
+16. Le fonctionnement historique dans `/workspace/dev.livrezone.com`, uniquement en lecture.
+
+## Fonctions métier à étudier
+
+Sans imposer ces noms si l’architecture existante prévoit de meilleures conventions, détermine s’il faut créer les responsabilités suivantes.
+
+### 1. Récupération de la référence
+
+Responsabilité conceptuelle :
+
+```php
+findReferenceBookForListing(...)

@@ -5,16 +5,23 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://next.livrezone.com"),
+  alternates: {
+    canonical: "/",
+  },
   title: {
-    default: "LivreZone | Marketplace de livres neufs et d'occasion au Maroc",
-    template: "%s",
+    default: "LivreZone | Livres neufs et d'occasion au Maroc",
+    template: "%s | LivreZone",
   },
   description:
-    "Découvrez sur LivreZone des annonces de livres neufs et d'occasion proposées par des librairies et des particuliers. Trouvez ou vendez vos livres partout au Maroc.",
+    "Achetez et vendez vos livres neufs et d'occasion au Maroc. Des milliers d'annonces de librairies et particuliers partout dans le Royaume.",
   openGraph: {
     type: "website",
     locale: "fr_MA",
     siteName: "LivreZone",
+    title: "LivreZone | Livres neufs et d'occasion au Maroc",
+    description:
+      "Achetez et vendez vos livres neufs et d'occasion au Maroc. Des milliers d'annonces de librairies et particuliers partout dans le Royaume.",
   },
   robots: {
     index: true,

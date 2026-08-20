@@ -17,6 +17,7 @@ interface Listing {
   book_condition: string;
   price: number;
   discount_price?: number | null;
+  published_ago?: string | null;
   cover_path?: string | null;
   cover_source_url?: string | null;
   user: {
@@ -196,6 +197,13 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
             {listing.title}
           </h1>
 
+          {/* ISBN */}
+          {listing.book?.isbn_13 && (
+            <div className="text-xs text-gray-500 mb-3">
+              ISBN / EAN : <span className="text-gray-900 font-bold">{listing.book.isbn_13}</span>
+            </div>
+          )}
+
           {/* Author */}
           {authors && (
             <div className="text-sm text-gray-600 mb-4 pb-4 border-b border-gray-100">
@@ -203,15 +211,8 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
             </div>
           )}
 
-          {/* ISBN */}
-          {listing.book?.isbn_13 && (
-            <div className="text-xs text-gray-500 mb-6">
-              ISBN / EAN : <span className="text-gray-900 font-bold">{listing.book.isbn_13}</span>
-            </div>
-          )}
-
           {/* Price Box */}
-          <div className="mb-8">
+          <div className="mb-4">
             <div className="flex items-end gap-3">
               <span className="text-3xl sm:text-[36px] font-black text-gray-950 leading-none">
                 {price} <span className="text-xl font-bold text-gray-700 ml-1">MAD</span>
@@ -231,10 +232,33 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
                 <span className="text-xs font-black uppercase tracking-wide">Disponible</span>
               </div>
             </div>
+
+            {/* État du livre */}
+            <div className="mt-3">
+              {listing.book_condition === "neuf" ? (
+                <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  État : Neuf
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 bg-violet-50 text-violet-700 border border-violet-200 text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide">
+                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+                  État : Occasion
+                </span>
+              )}
+            </div>
+
+            {/* Date de publication */}
+            {listing.published_ago && (
+              <div className="mt-2 flex items-center gap-2 text-sm text-gray-500 font-semibold">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span>Publié : <span className="text-gray-700">{listing.published_ago}</span></span>
+              </div>
+            )}
           </div>
 
           {/* Delivery & City Block */}
-          <div className="py-4 border-y border-gray-100 mb-8">
+          <div className="py-4 border-y border-gray-100 mb-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm sm:text-base">
               {/* Delivery info */}
               <div className="flex items-start gap-2.5">
@@ -259,7 +283,7 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
           </div>
 
           {/* Actions (Favorites / Add to Cart / Share) */}
-          <div className="flex flex-wrap items-center gap-6 mb-6 text-sm text-gray-600 font-bold relative">
+          <div className="flex flex-wrap items-center gap-6 mb-3 text-sm text-gray-600 font-bold relative">
             <button
               onClick={handleToggleFav}
               className={`flex items-center gap-2 transition-colors cursor-pointer ${

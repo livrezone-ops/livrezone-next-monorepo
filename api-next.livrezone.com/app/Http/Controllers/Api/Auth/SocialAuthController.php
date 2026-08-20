@@ -43,6 +43,10 @@ class SocialAuthController extends Controller
             ->first();
 
         if ($user) {
+            if (!$user->is_active) {
+                return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/login?error=account_disabled');
+            }
+
             $this->ensureProfileExists($user, $socialUser);
             Auth::login($user);
             return redirect()->intended(env('FRONTEND_URL', 'http://localhost:3000') . ($user->profile_completed ? '/dashboard' : '/profile/complete'));

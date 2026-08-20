@@ -17,6 +17,8 @@ interface PageProps {
 interface Listing {
   id: number;
   user_id: number;
+  status?: string;
+  published_ago?: string | null;
   title: string;
   description: string;
   book_condition: string;
