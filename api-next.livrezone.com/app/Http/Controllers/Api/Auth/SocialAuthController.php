@@ -48,6 +48,7 @@ class SocialAuthController extends Controller
             }
 
             $this->ensureProfileExists($user, $socialUser);
+            $user->update(['last_login_at' => now()]);
             Auth::login($user);
             return redirect()->intended(env('FRONTEND_URL', 'http://localhost:3000') . ($user->profile_completed ? '/dashboard' : '/profile/complete'));
         }
@@ -68,6 +69,8 @@ class SocialAuthController extends Controller
         ]);
 
         $this->ensureProfileExists($user, $socialUser);
+
+        $user->update(['last_login_at' => now()]);
 
         Auth::login($user);
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
   Menu, X, Search, Heart, ShoppingCart, User, 
-  Settings, LogOut, MessageSquare, BookOpen
+  Settings, LogOut, MessageSquare, BookOpen, ShieldCheck
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCommerce } from "@/lib/commerce-store";
@@ -240,6 +240,16 @@ export default function Header() {
                       <BookOpen className="h-4 w-4 text-gray-400" />
                       Mon espace
                     </Link>
+                    {user?.is_admin && (
+                      <Link 
+                        href="/admin" 
+                        onClick={() => setUserMenuOpen(false)}
+                        className="px-4 py-2.5 hover:bg-gray-50 hover:text-[#6D28D9] transition-colors flex items-center gap-2"
+                      >
+                        <ShieldCheck className="h-4 w-4 text-gray-400" />
+                        Administration
+                      </Link>
+                    )}
                     <Link 
                       href="/favorites" 
                       onClick={() => setUserMenuOpen(false)}

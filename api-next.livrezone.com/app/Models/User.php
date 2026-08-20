@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name','email','password','provider','provider_id','avatar','profile_completed','is_admin','is_active'])]
+#[Fillable(['name','email','password','provider','provider_id','avatar','profile_completed','is_admin','is_active','last_login_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -25,12 +25,21 @@ class User extends Authenticatable
             'profile_completed' => 'boolean',
             'is_admin' => 'boolean',
             'is_active' => 'boolean',
+            'last_login_at' => 'datetime',
         ];
     }
 
     public function profile()
     {
         return $this->hasOne(Profile::class);
+    }
+
+    // Un utilisateur est considéré « en ligne » si sa dernière connexion
+    // remonte à moins de ONLINE_WINDOW_SECONDS (5 minutes par défaut).
+    public function isOnline(int $windowSeconds = 300): bool
+    {
+        return $this->last_login_at !== null
+            && $this->last_login_at->gte(now()->subSeconds($windowSeconds));
     }
 
     public function listings()

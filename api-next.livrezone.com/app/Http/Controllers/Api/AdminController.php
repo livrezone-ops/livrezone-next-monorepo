@@ -14,7 +14,7 @@ class AdminController extends Controller
 {
     // Un utilisateur est considéré « connecté » si sa dernière activité
     // de session remonte à moins de cette durée (en secondes).
-    protected const ONLINE_WINDOW_SECONDS = 900; // 15 minutes
+    protected const ONLINE_WINDOW_SECONDS = 300; // 5 minutes
 
     // ------------------------------------------------------------------
     // Utilisateurs
@@ -41,6 +41,17 @@ class AdminController extends Controller
             $query->where('is_active', false);
         }
 
+        // Filtre connexion (en ligne / hors ligne) basé sur la dernière connexion,
+        // même fenêtre que le compteur en ligne (ONLINE_WINDOW_SECONDS).
+        if ($connection === 'online') {
+            $query->where('last_login_at', '>=', now()->subSeconds(static::ONLINE_WINDOW_SECONDS));
+        } elseif ($connection === 'offline') {
+            $query->where(function ($q) {
+                $q->whereNull('last_login_at')
+                    ->orWhere('last_login_at', '<', now()->subSeconds(static::ONLINE_WINDOW_SECONDS));
+            });
+        }
+
         if ($request->filled('search')) {
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
@@ -59,14 +70,17 @@ class AdminController extends Controller
         $limit = $request->integer('limit', 20);
         $users = $query->paginate($limit);
 
-        // Agrégation des sessions par utilisateur pour les stats de connexion.
-        $sessionStats = $this->sessionStatsForUsers($users->pluck('id')->all());
+        // Comptage groupé des annonces par utilisateur (évite le N+1).
+        $userIds = $users->getCollection()->pluck('id')->all();
+        $listingsCounts = Listing::query()
+            ->whereIn('user_id', $userIds)
+            ->groupBy('user_id')
+            ->selectRaw('user_id, COUNT(*) as cnt')
+            ->pluck('cnt', 'user_id');
 
-        $items = $users->getCollection()->map(function (User $user) use ($sessionStats) {
-            $stats = $sessionStats[$user->id] ?? ['last_activity' => null, 'last_ip' => null, 'sessions' => 0];
-            $online = $stats['last_activity'] !== null
-                && (time() - $stats['last_activity']) <= static::ONLINE_WINDOW_SECONDS;
-
+        // Transformation : on transmet ici le statut « en ligne » via User::isOnline()
+        // (et non plus un calcul inline) pour rester cohérent avec /api/user.
+        $items = $users->getCollection()->map(function (User $user) use ($listingsCounts) {
             return [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -74,19 +88,20 @@ class AdminController extends Controller
                 'is_admin' => $user->is_admin,
                 'is_active' => $user->is_active,
                 'profile' => $user->profile,
-                'listings_count' => Listing::where('user_id', $user->id)->count(),
+                'listings_count' => (int) ($listingsCounts[$user->id] ?? 0),
+                'last_login_at' => $user->last_login_at,
                 'connection' => [
-                    'online' => $online,
-                    'last_activity' => $stats['last_activity'],
-                    'last_ip' => $stats['last_ip'],
-                    'active_sessions' => $stats['sessions'],
+                    'online' => $user->isOnline(),
+                    'last_activity' => $user->last_login_at?->timestamp,
+                    'last_ip' => null,
+                    'active_sessions' => 0,
                 ],
                 'created_at' => $user->created_at,
             ];
         });
 
         return response()->json([
-            'users' => $users->items(),
+            'users' => $items->values()->all(),
             'meta' => [
                 'current_page' => $users->currentPage(),
                 'last_page' => $users->lastPage(),
@@ -304,35 +319,8 @@ class AdminController extends Controller
         };
     }
 
-    protected function sessionStatsForUsers($userIds): array
-    {
-        if ($userIds->isEmpty()) {
-            return [];
-        }
-
-        $rows = DB::table('sessions')
-            ->whereIn('user_id', $userIds)
-            ->selectRaw('user_id, MAX(last_activity) as last_activity, COUNT(*) as sessions, MAX(last_activity) as max_activity')
-            ->groupBy('user_id')
-            ->get();
-
-        $result = [];
-        foreach ($rows as $row) {
-            $result[$row->user_id] = [
-                'last_activity' => (int) $row->last_activity,
-                'last_ip' => null,
-                'sessions' => (int) $row->sessions,
-            ];
-        }
-        return $result;
-    }
-
     protected function onlineUserCount(): int
     {
-        $cutoff = time() - static::ONLINE_WINDOW_SECONDS;
-        return DB::table('sessions')
-            ->where('last_activity', '>=', $cutoff)
-            ->distinct()
-            ->count('user_id');
+        return User::where('last_login_at', '>=', now()->subSeconds(static::ONLINE_WINDOW_SECONDS))->count();
     }
 }

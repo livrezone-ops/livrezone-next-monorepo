@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
+  Plus,
 } from "lucide-react";
 import api from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -37,6 +38,7 @@ interface AdminUser {
     logo?: string | null;
   } | null;
   listings_count: number;
+  last_login_at?: string | null;
   connection: {
     online: boolean;
     last_activity: number | null;
@@ -76,6 +78,8 @@ interface HeroMessage {
 
 interface AdminClientProps {
   user: { name: string; email: string; is_admin: boolean };
+  initialTab?: "users" | "listings" | "hero";
+  initialListingsFilter?: string;
 }
 
 // ------------------------------------------------------------------
@@ -102,8 +106,12 @@ function getAvatarUrl(p?: AdminUser["profile"]): string | null {
   return `https://api-next.livrezone.com${p.logo}`;
 }
 
-export default function AdminClient({ user }: AdminClientProps) {
-  const [activeTab, setActiveTab] = useState<"users" | "listings" | "hero">("users");
+export default function AdminClient({
+  user,
+  initialTab = "users",
+  initialListingsFilter = "all",
+}: AdminClientProps) {
+  const [activeTab, setActiveTab] = useState<"users" | "listings" | "hero">(initialTab);
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const toastIdRef = useRef(0);
 
@@ -152,7 +160,7 @@ export default function AdminClient({ user }: AdminClientProps) {
       </div>
 
       {activeTab === "users" && <UsersTab pushToast={pushToast} />}
-      {activeTab === "listings" && <ListingsTab pushToast={pushToast} />}
+      {activeTab === "listings" && <ListingsTab pushToast={pushToast} initialFilter={initialListingsFilter} />}
       {activeTab === "hero" && <HeroTab pushToast={pushToast} />}
 
       <ToastContainer toasts={toasts} dismiss={dismissToast} />
@@ -293,6 +301,7 @@ function UsersTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void
                 <th className="px-4 py-3">Utilisateur</th>
                 <th className="px-4 py-3">Statut</th>
                 <th className="px-4 py-3">Connexion</th>
+                <th className="px-4 py-3">Dernière connexion</th>
                 <th className="px-4 py-3 text-center">Annonces</th>
                 <th className="px-4 py-3">Inscrit</th>
                 <th className="px-4 py-3 text-right pr-4">Actions</th>
@@ -336,9 +345,9 @@ function UsersTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void
                         <span className={`w-2 h-2 rounded-full ${u.connection?.online ? "bg-emerald-400" : "bg-gray-300"}`}></span>
                         <span className="text-[11px] font-bold text-gray-700">{u.connection?.online ? "En ligne" : "Hors ligne"}</span>
                       </div>
-                      <span className="text-[10px] text-gray-400 block">
-                        Dern. activité : {formatTimestamp(u.connection?.last_activity ?? null)}
-                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {formatDate(u.last_login_at)}
                     </td>
                     <td className="px-4 py-3 text-center">{u.listings_count}</td>
                     <td className="px-4 py-3 text-gray-400">{formatDate(u.created_at)}</td>
@@ -382,10 +391,10 @@ function UsersTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void
 // Onglet Annonces
 // ==================================================================
 
-function ListingsTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void }) {
+function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: string, t?: ToastType) => void; initialFilter?: string }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState(initialFilter);
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
@@ -653,55 +662,91 @@ function ListingsTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => v
 // ==================================================================
 
 function HeroTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void }) {
+  const [messages, setMessages] = useState<HeroMessage[] | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["admin", "hero"],
+    queryKey: ["admin", "hero-file"],
     queryFn: async () => {
-      const { data } = await api.get("/admin/hero-messages");
-      return data;
+      const res = await fetch("/api/hero-messages", { headers: { Accept: "application/json" } });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.json();
     },
   });
-
-  const messages: HeroMessage[] = data?.messages ?? [];
-  const [text, setText] = useState("");
-  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!loaded && !isLoading) {
-      setText(JSON.stringify(messages, null, 2));
+      const msgs = (data?.messages as HeroMessage[] | undefined) ?? [];
+      setMessages(msgs.length > 0 ? msgs : [newBlankMessage(1)]);
       setLoaded(true);
     }
-  }, [loaded, isLoading, messages]);
+  }, [loaded, isLoading, data]);
 
-  const parseResult = (() => {
-    try {
-      const parsed = JSON.parse(text);
-      if (!Array.isArray(parsed)) return { ok: false, error: "Le JSON doit être un tableau." } as const;
-      return { ok: true, value: parsed as HeroMessage[] } as const;
-    } catch (e) {
-      return { ok: false, error: (e as Error).message } as const;
-    }
-  })();
+  const updateField = <K extends keyof HeroMessage>(index: number, key: K, value: HeroMessage[K]) => {
+    setMessages((prev) => {
+      if (!prev) return prev;
+      const next = [...prev];
+      next[index] = { ...next[index], [key]: value };
+      return next;
+    });
+  };
+
+  const updateNested = (
+    index: number,
+    kind: "primaryAction" | "secondaryAction",
+    field: "label" | "href",
+    value: string
+  ) => {
+    setMessages((prev) => {
+      if (!prev) return prev;
+      const next = [...prev];
+      const msg = { ...next[index] };
+      const action = msg[kind] ? { ...msg[kind] } : { label: "", href: "" };
+      (action as Record<string, string>)[field] = value;
+      (msg as Record<string, unknown>)[kind] = action;
+      next[index] = msg as HeroMessage;
+      return next;
+    });
+  };
+
+  const addMessage = () => {
+    setMessages((prev) => {
+      if (!prev) return prev;
+      const maxId = prev.reduce((m, x) => Math.max(m, x.id ?? 0), 0);
+      return [...prev, newBlankMessage(maxId + 1)];
+    });
+  };
+
+  const removeMessage = (index: number) => {
+    setMessages((prev) => {
+      if (!prev) return prev;
+      const next = [...prev];
+      next.splice(index, 1);
+      return next.length > 0 ? next : [newBlankMessage(1)];
+    });
+  };
 
   const saveMutation = useMutation({
-    mutationFn: async (messages: HeroMessage[]) => {
-      const { data } = await api.put("/admin/hero-messages", { messages });
-      return data;
+    mutationFn: async (list: HeroMessage[]) => {
+      const res = await fetch("/api/hero-messages", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ messages: list }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "HTTP " + res.status);
+      return json;
     },
-    onSuccess: (res) => {
-      pushToast(res?.message || "Messages du hero enregistrés.");
-      setLoaded(false);
-    },
+    onSuccess: (res) => pushToast(res?.message || "Messages du hero enregistrés."),
   });
 
   const handleSave = () => {
-    if (!parseResult.ok) {
-      pushToast("JSON invalide : " + parseResult.error, "warning");
-      return;
-    }
-    saveMutation.mutate(parseResult.value);
+    if (!messages || messages.length === 0) return;
+    saveMutation.mutate(messages);
   };
 
-  const rows = Math.max(12, text.split("\n").length);
+  const list = messages ?? [];
+  const anyInvalid = list.some((m) => !m.title.trim() || !m.description.trim());
 
   return (
     <div className="space-y-6">
@@ -709,17 +754,25 @@ function HeroTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void 
         <div>
           <h2 className="text-lg font-black text-gray-950">Messages du hero</h2>
           <p className="text-xs text-gray-500 mt-1">
-            Modifiez le JSON affiché sur la page d&rsquo;accueil. Le tableau est
-            sélectionné aléatoirement (3 messages maximum).
+            Enregistré dans <code className="text-[10px]">data/hero-messages.json</code>. Jusqu&rsquo;à 3
+            messages sont sélectionnés aléatoirement sur la page d&rsquo;accueil.
           </p>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={!parseResult.ok || saveMutation.isPending}
-          className="flex items-center gap-1.5 bg-[#6D28D9] text-white font-bold px-4 py-2 rounded-lg text-xs hover:bg-violet-800 transition-all shadow-xs disabled:opacity-50"
-        >
-          <Save className="w-3.5 h-3.5" /> Enregistrer
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={addMessage}
+            className="flex items-center gap-1.5 border border-gray-200 bg-white text-gray-700 font-bold px-3 py-2 rounded-lg text-xs hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" /> Ajouter
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={anyInvalid || saveMutation.isPending}
+            className="flex items-center gap-1.5 bg-[#6D28D9] text-white font-bold px-4 py-2 rounded-lg text-xs hover:bg-violet-800 transition-all shadow-xs disabled:opacity-50"
+          >
+            <Save className="w-3.5 h-3.5" /> Enregistrer
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -727,25 +780,117 @@ function HeroTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void 
       ) : isError ? (
         <div className="py-10 text-center text-sm text-rose-500">Impossible de charger les messages.</div>
       ) : (
-        <>
-          <div className={`rounded-xl border p-4 shadow-xs ${parseResult.ok ? "border-gray-200" : "border-rose-300 bg-rose-50/30"}`}>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              spellCheck={false}
-              rows={rows}
-              className="w-full text-xs font-mono leading-relaxed bg-transparent p-0 focus:outline-none resize-y min-h-72"
-            />
-          </div>
-          <div className={`text-xs ${parseResult.ok ? "text-emerald-600" : "text-rose-500"} font-bold`}>
-            {parseResult.ok
-              ? `${parseResult.value.length} message(s) valide(s)`
-              : "JSON invalide : " + parseResult.error}
-          </div>
-        </>
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xs">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead className="bg-gray-50 border-b border-gray-150 text-gray-500 uppercase text-[10px] font-bold">
+              <tr>
+                <th className="px-3 py-2 w-16">Langue</th>
+                <th className="px-3 py-2">Titre</th>
+                <th className="px-3 py-2">Description</th>
+                <th className="px-3 py-2">Action principale</th>
+                <th className="px-3 py-2">Action secondaire</th>
+                <th className="px-3 py-2 text-right pr-3 w-10">Suppr.</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {list.map((m, i) => (
+                <tr key={m.id ?? i} className="align-top">
+                  <td className="px-3 py-2">
+                    <select
+                      value={m.language}
+                      onChange={(e) => updateField(i, "language", e.target.value as HeroMessage["language"])}
+                      className="text-[11px] border border-gray-200 bg-white rounded-lg py-1.5 px-2 text-gray-600 shadow-xs cursor-pointer w-full"
+                    >
+                      <option value="fr">FR</option>
+                      <option value="ar">AR</option>
+                    </select>
+                    <select
+                      value={m.direction}
+                      onChange={(e) => updateField(i, "direction", e.target.value as HeroMessage["direction"])}
+                      className="text-[11px] border border-gray-200 bg-white rounded-lg py-1.5 px-2 text-gray-600 shadow-xs cursor-pointer w-full mt-1"
+                    >
+                      <option value="ltr">LTR</option>
+                      <option value="rtl">RTL</option>
+                    </select>
+                  </td>
+                  <td className="px-3 py-2">
+                    <textarea
+                      value={m.title}
+                      onChange={(e) => updateField(i, "title", e.target.value)}
+                      rows={2}
+                      className="w-full text-[11px] border border-gray-200 bg-white rounded-lg py-1.5 px-2 resize-y"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <textarea
+                      value={m.description}
+                      onChange={(e) => updateField(i, "description", e.target.value)}
+                      rows={3}
+                      className="w-full text-[11px] border border-gray-200 bg-white rounded-lg py-1.5 px-2 resize-y"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      value={m.primaryAction?.label ?? ""}
+                      onChange={(e) => updateNested(i, "primaryAction", "label", e.target.value)}
+                      placeholder="Libellé"
+                      className="w-full text-[11px] border border-gray-200 bg-white rounded-lg py-1.5 px-2"
+                    />
+                    <input
+                      value={m.primaryAction?.href ?? ""}
+                      onChange={(e) => updateNested(i, "primaryAction", "href", e.target.value)}
+                      placeholder="Lien"
+                      className="w-full text-[11px] border border-gray-200 bg-white rounded-lg py-1.5 px-2 mt-1"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      value={m.secondaryAction?.label ?? ""}
+                      onChange={(e) => updateNested(i, "secondaryAction", "label", e.target.value)}
+                      placeholder="Libellé"
+                      className="w-full text-[11px] border border-gray-200 bg-white rounded-lg py-1.5 px-2"
+                    />
+                    <input
+                      value={m.secondaryAction?.href ?? ""}
+                      onChange={(e) => updateNested(i, "secondaryAction", "href", e.target.value)}
+                      placeholder="Lien"
+                      className="w-full text-[11px] border border-gray-200 bg-white rounded-lg py-1.5 px-2 mt-1"
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-right pr-4">
+                    <button
+                      onClick={() => removeMessage(i)}
+                      className="p-1.5 text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
+                      title="Supprimer le message"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {anyInvalid && (
+        <div className="text-xs text-rose-500 font-bold">
+          Titre et description sont obligatoires pour chaque message.
+        </div>
       )}
     </div>
   );
+}
+
+function newBlankMessage(id: number): HeroMessage {
+  return {
+    id,
+    language: "fr",
+    direction: "ltr",
+    title: "",
+    description: "",
+    primaryAction: { label: "", href: "/annonces" },
+  };
 }
 
 // ==================================================================

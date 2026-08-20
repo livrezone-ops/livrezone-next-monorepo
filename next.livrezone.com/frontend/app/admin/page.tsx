@@ -40,7 +40,11 @@ async function getAuthUser(): Promise<AuthUser | null> {
   }
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const user = await getAuthUser();
 
   if (user === null) {
@@ -70,9 +74,24 @@ export default async function AdminPage() {
     );
   }
 
+  const sp = await searchParams;
+  const tabParam = typeof sp.tab === "string" ? sp.tab : undefined;
+  const validTabs = ["listings", "users", "hero"] as const;
+  const initialTab = tabParam && (validTabs as readonly string[]).includes(tabParam)
+    ? (tabParam as (typeof validTabs)[number])
+    : "listings";
+  const filterParam = typeof sp.filter === "string" ? sp.filter : undefined;
+  const validFilters = ["all", "online", "offline", "pending", "archived", "deleted"];
+  const initialListingsFilter =
+    filterParam && validFilters.includes(filterParam) ? filterParam : "pending";
+
   return (
     <div className="w-[90%] max-w-7xl mx-auto py-8">
-      <AdminClient user={user} />
+      <AdminClient
+        user={user}
+        initialTab={initialTab}
+        initialListingsFilter={initialListingsFilter}
+      />
     </div>
   );
 }

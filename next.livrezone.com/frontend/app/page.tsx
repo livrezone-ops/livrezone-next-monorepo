@@ -131,41 +131,9 @@ function toSlimListing(listing: Listing): SlimListing {
   };
 }
 
-// Charge les messages du hero depuis l'API Laravel (source de vérité),
-// avec repli sur le fichier local si l'API est indisponible.
+// Charge les messages du hero depuis le fichier JSON local (source de vérité).
 async function loadHeroMessages(): Promise<HeroMessage[]> {
-  const fallback = (): HeroMessage[] => loadHeroMessagesFromFile();
-
-  try {
-    const baseUrl = (process.env.INTERNAL_API_URL
-      || process.env.NEXT_PUBLIC_API_URL
-      || "https://api-next.livrezone.com").replace(/\/api\/?$/, '');
-
-    const res = await fetch(`${baseUrl}/api/hero-messages`, {
-      next: { revalidate: 300 },
-      headers: { 'Accept': 'application/json', 'Host': 'api-next.livrezone.com' }
-    });
-    if (!res.ok) return fallback();
-
-    const json = await res.json() as { messages?: unknown[] };
-    if (!Array.isArray(json.messages) || json.messages.length === 0) return fallback();
-
-    const valid = json.messages.filter(isValidMessage).map((m) => ({
-      ...m,
-      primaryAction: {
-        ...m.primaryAction,
-        href: validateHref(m.primaryAction.href),
-      },
-      secondaryAction: m.secondaryAction
-        ? { ...m.secondaryAction, href: validateHref(m.secondaryAction.href) }
-        : undefined,
-    }));
-
-    return valid.length > 0 ? valid : fallback();
-  } catch (e) {
-    console.error("[SSR] loadHeroMessages error:", String(e));
-    return fallback();
-  }
+  return loadHeroMessagesFromFile();
 }
 
 // Charge et valide les messages du hero depuis le fichier local (repli).

@@ -15,7 +15,9 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\HeroController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user()->load('profile');
+    $user = $request->user()->load('profile');
+    $user->is_online = $user->isOnline();
+    return $user;
 });
 
 Route::prefix('auth')->group(function () {
