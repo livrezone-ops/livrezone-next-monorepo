@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 
 // Types pour les données de référence
 interface CategoryNode {
@@ -63,6 +63,7 @@ const formSchema = z.object({
   book_condition: z.enum(["neuf", "occas"], { message: "Sélectionnez un état" }),
   price: z.number({ message: "Le prix est requis" }).min(0, "Le prix doit être positif"),
   discount_price: z.number().min(0, "Le prix réduit doit être positif").optional().nullable(),
+  quantity: z.number({ message: "La quantité est requise" }).int().min(1, "La quantité minimale est 1"),
   category_id: z.number({ message: "Sélectionnez une catégorie" }).min(1),
   level_id: z.number().optional().nullable(),
   subject_id: z.number().optional().nullable(),
@@ -96,6 +97,7 @@ const buildListingDefaultValues = (data?: ListingFormProps["initialData"]): Part
   book_condition: data?.book_condition || "occas",
   price: data?.price ?? undefined,
   discount_price: data?.discount_price ?? null,
+  quantity: data?.quantity ?? 1,
   category_id: data?.category_id || undefined,
   level_id: data?.level_id ?? null,
   subject_id: data?.subject_id ?? null,
@@ -213,6 +215,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
   useEffect(() => {
     if (!refData) return;
     const initial = buildListingDefaultValues(initialData);
+    setIsbnInput(initial.isbn_13 || "");
     const r = getCategoryRules(refData.categories, initial.category_id);
     if (r.category) {
       if (!r.levelApplicable) {
@@ -284,15 +287,18 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
 
   // Fonction de recherche ISBN
   const searchIsbn = async () => {
-    if (!isbnInput.trim()) return;
+    const term = isbnInput.trim() || form.getValues("isbn_13")?.trim();
+    if (!term) return;
     setIsSearchingIsbn(true);
     setIsbnSearchError(null);
     try {
-      const res = await api.get(`/books/search?isbn=${isbnInput}`);
+      const res = await api.get(`/books/search?isbn=${term}`);
       const book = res.data.book;
       if (book) {
         form.setValue("title", book.title);
-        form.setValue("isbn_13", book.isbn_13 || book.isbn_10);
+        const foundIsbn = book.isbn_13 || book.isbn_10 || term;
+        form.setValue("isbn_13", foundIsbn);
+        setIsbnInput(foundIsbn);
         if (Array.isArray(book.authors) && book.authors.length) {
           form.setValue("author", book.authors.join(", "));
         }
@@ -303,7 +309,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
         }
         const catId = book.default_category_id || book.category_id;
         if (catId) {
-          form.setValue("category_id", catId, { shouldDirty: true });
+          handleCategoryChange(catId);
         }
         if (book.language_id) form.setValue("language_id", book.language_id);
         if (book.default_level_id || book.level_id) form.setValue("level_id", book.default_level_id || book.level_id);
@@ -323,6 +329,12 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
     } finally {
       setIsSearchingIsbn(false);
     }
+  };
+
+  const handleIsbnInputChange = (val: string) => {
+    setIsbnInput(val);
+    form.setValue("isbn_13", val);
+    if (isbnSearchError) setIsbnSearchError(null);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -390,9 +402,6 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
         }
       });
 
-      // La quantité est toujours fixée à 1 (non modifiable par l'utilisateur)
-      formData.append("quantity", "1");
-
       // La catégorie parente pour la validation de la sous-catégorie côté serveur
       if (typeof parentCategoryId === "number") {
         formData.append("parent_category_id", parentCategoryId.toString());
@@ -442,60 +451,6 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
 
   return (
     <div className="mx-auto max-w-5xl">
-      {/* Zone Drag & Drop IA */}
-      <div className="mb-8 bg-white border-2 border-dashed border-[#6D28D9]/40 hover:border-[#6D28D9] bg-violet-50/20 rounded-2xl p-8 flex flex-col items-center justify-center text-center transition-all duration-200 cursor-pointer group relative overflow-hidden shadow-sm">
-        <input type="file" multiple accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Glisser des photos" />
-        <div className="w-14 h-14 bg-white rounded-xl shadow-sm border border-violet-100 flex items-center justify-center text-3xl mb-4 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">
-            🤖
-        </div>
-        <h2 className="font-black text-black text-lg group-hover:text-[#6D28D9] transition-colors">Scanner des livres avec l&apos;IA</h2>
-        <p className="text-[14px] text-gray-500 mt-2 max-w-lg">Glissez-déposez les photos de vos livres ici (ou cliquez pour parcourir). L&apos;Intelligence Artificielle reconnaîtra les informations automatiquement et remplira le formulaire.</p>
-      </div>
-
-      <div className="flex items-center gap-4 mb-8">
-        <div className="h-px bg-gray-200 flex-1"></div>
-        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">OU SAISIE MANUELLE</span>
-        <div className="h-px bg-gray-200 flex-1"></div>
-      </div>
-
-      {/* Bloc recherche ISBN */}
-      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900">
-            {isEditMode ? 'Modifier l\'annonce' : 'Créer une annonce'}
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-            Saisissez l&apos;ISBN du livre pour pré-remplir automatiquement les informations.
-        </p>
-
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="w-full sm:max-w-md">
-                <label className="mb-1 block text-sm font-semibold text-slate-700">ISBN</label>
-                <input
-                    type="text"
-                    value={isbnInput}
-                    onChange={(e) => setIsbnInput(e.target.value)}
-                    placeholder="Ex: 9782294788222"
-                    className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20"
-                />
-            </div>
-
-            <button
-                type="button"
-                onClick={searchIsbn}
-                disabled={isSearchingIsbn}
-                className="h-11 rounded-lg bg-[#F97316] px-5 text-sm font-bold text-white hover:bg-[#ea630a] disabled:opacity-70 flex items-center justify-center min-w-[120px]"
-            >
-                {isSearchingIsbn ? <Loader2 className="w-5 h-5 animate-spin" /> : "Rechercher"}
-            </button>
-        </div>
-
-        {isbnSearchError && (
-            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                {isbnSearchError}
-            </div>
-        )}
-      </div>
-
       {/* Formulaire d'annonce */}
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
@@ -543,6 +498,51 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
         <div className="lg:col-span-8 space-y-5">
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
 
+                {/* Recherche ISBN */}
+                <div className="rounded-lg bg-slate-50/80 border border-slate-200/80 p-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                            Recherche par ISBN
+                        </label>
+                        <span className="text-[11px] text-slate-500">Pré-remplir les informations</span>
+                    </div>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={isbnInput}
+                            onChange={(e) => handleIsbnInputChange(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    searchIsbn();
+                                }
+                            }}
+                            placeholder="Ex: 9782294788222"
+                            className="h-9 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20"
+                        />
+                        <button
+                            type="button"
+                            onClick={searchIsbn}
+                            disabled={isSearchingIsbn || !isbnInput.trim()}
+                            className="h-9 px-3 rounded-lg bg-[#F97316] hover:bg-[#ea630a] text-white text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm shrink-0"
+                        >
+                            {isSearchingIsbn ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <>
+                                    <Search className="w-3.5 h-3.5" />
+                                    <span>Rechercher</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                    {isbnSearchError && (
+                        <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+                            {isbnSearchError}
+                        </div>
+                    )}
+                </div>
+
                 {/* Titre */}
                 <div>
                     <label className="mb-1 block text-sm font-semibold text-slate-700">
@@ -579,8 +579,8 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                     </div>
                 </div>
 
-                {/* État du livre + Langue */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* État du livre + Langue + Quantité */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label className="mb-1 block text-sm font-semibold text-slate-700">
                             État du livre <span className="text-red-500">*</span>
@@ -609,6 +609,15 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                             ))}
                         </select>
                         {form.formState.errors.language_id && <p className="mt-1 text-xs text-red-600">{form.formState.errors.language_id.message}</p>}
+                    </div>
+                    <div>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">
+                            Quantité <span className="text-red-500">*</span>
+                        </label>
+                        <input type="number" min="1" step="1"
+                               {...form.register("quantity", { valueAsNumber: true })}
+                               className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20" />
+                        {form.formState.errors.quantity && <p className="mt-1 text-xs text-red-600">{form.formState.errors.quantity.message}</p>}
                     </div>
                 </div>
 

@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, X, SlidersHorizontal } from "lucide-react";
 import {
   CATEGORIES,
   LANGUAGES,
@@ -318,16 +318,34 @@ export default function FilterSidebar({
     </div>
   );
 
+  const activeCount = useMemo(() => {
+    let count = 0;
+    count += filters.categories.length;
+    count += filters.levels.length;
+    count += filters.languages.length;
+    count += filters.conditions.length;
+    count += filters.cities.length;
+    if (filters.minPrice !== null && filters.minPrice > priceMinLimit) count += 1;
+    if (filters.maxPrice !== null && filters.maxPrice < priceMaxLimit) count += 1;
+    return count;
+  }, [filters, priceMinLimit, priceMaxLimit]);
+
   return (
     <>
-      {/* Bouton toggle mobile (flèche collée) */}
+      {/* Bouton toggle mobile explicite avec icône et libellé */}
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="lg:hidden fixed top-1/2 left-0 z-40 bg-[#1a0a40] text-white p-3 rounded-r-lg shadow-lg -translate-y-1/2 flex items-center justify-center border border-[#6D28D9] hover:bg-[#6D28D9] transition-colors"
+        className="lg:hidden fixed top-1/3 left-0 z-40 bg-[#1a0a40] text-white py-2.5 px-3 rounded-r-xl shadow-2xl border-y border-r border-[#6D28D9]/40 flex items-center gap-2 hover:bg-[#6D28D9] active:scale-95 transition-all cursor-pointer group"
         aria-label="Ouvrir les filtres"
       >
-        <ChevronDown className="h-6 w-6 -rotate-90" />
+        <SlidersHorizontal className="h-4 w-4 text-violet-300 group-hover:text-white transition-colors" />
+        <span className="text-xs font-bold tracking-wide">Filtres</span>
+        {activeCount > 0 && (
+          <span className="min-w-[18px] h-[18px] px-1 bg-[#F97316] text-white text-[10px] font-black rounded-full flex items-center justify-center">
+            {activeCount}
+          </span>
+        )}
       </button>
 
       <aside
@@ -354,7 +372,7 @@ export default function FilterSidebar({
           }}
           className="p-5 lg:p-0"
         >
-          <h2 className="text-[20px] font-bold text-[#1a0a40] mb-6 lg:mt-4">
+          <h2 className="text-[20px] font-bold text-[#1a0a40] mb-4">
             Filtres
           </h2>
 

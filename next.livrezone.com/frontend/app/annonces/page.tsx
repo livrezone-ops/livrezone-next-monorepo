@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
+import { X } from "lucide-react";
 import FilterSidebar from "@/components/FilterSidebar";
 import ListingsSearch from "@/components/ListingsSearch";
 import {
@@ -226,6 +227,17 @@ export default async function AnnoncesPage({ searchParams }: PageProps) {
     ? `${result.total} ${result.total > 1 ? "articles" : "article"}`
     : null;
 
+  const hasActiveFilters = Boolean(
+    f.categories.length > 0 ||
+    f.levels.length > 0 ||
+    f.languages.length > 0 ||
+    f.conditions.length > 0 ||
+    f.cities.length > 0 ||
+    (f.minPrice !== null && f.minPrice > priceMinLimit) ||
+    (f.maxPrice !== null && f.maxPrice < priceMaxLimit) ||
+    Boolean(f.search)
+  );
+
   const jsonLdItemList =
     result.ok && result.data.length > 0
       ? {
@@ -245,12 +257,12 @@ export default async function AnnoncesPage({ searchParams }: PageProps) {
       {/* Breadcrumb */}
       <nav
         aria-label="Fil d'Ariane"
-        className="mb-8 text-xs md:text-sm font-semibold text-gray-500 flex items-center gap-2 flex-wrap tracking-wide uppercase"
+        className="mb-4 text-[13px] md:text-[14px] italic text-gray-500 flex items-center gap-2 flex-wrap"
       >
-        <Link href="/" className="hover:text-black transition-colors">
+        <Link href="/" className="hover:text-black transition-colors not-italic">
           Accueil
         </Link>
-        <span>/</span>
+        <span className="not-italic text-gray-400">/</span>
         <Link
           href="/annonces"
           className={`hover:text-black transition-colors ${
@@ -261,13 +273,44 @@ export default async function AnnoncesPage({ searchParams }: PageProps) {
         </Link>
         {activeCategory && (
           <>
-            <span>/</span>
+            <span className="not-italic text-gray-400">/</span>
             <span className="text-black font-semibold">{activeCategory}</span>
           </>
         )}
       </nav>
 
-      <div className="flex flex-col lg:flex-row gap-8 lg:gap-10">
+      {/* En-tête de page */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between pb-4 mb-6 border-b border-gray-100">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-black mb-1">
+            Annonces
+          </h1>
+          <div className="flex items-center gap-2.5 flex-wrap mt-1">
+            {articleCount && (
+              <span className="text-[13px] text-gray-500 font-medium">
+                {articleCount}
+              </span>
+            )}
+            {hasActiveFilters && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#6D28D9]" />
+                <span className="text-slate-500 italic">(filtré)</span>
+                <span className="text-slate-300">·</span>
+                <Link
+                  href="/annonces"
+                  className="text-[#6D28D9] hover:text-violet-900 font-bold hover:underline inline-flex items-center gap-1 transition-colors"
+                  title="Effacer tous les filtres"
+                >
+                  <span>Effacer les filtres</span>
+                  <X className="w-3 h-3" />
+                </Link>
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-start">
         {/* Sidebar filtres */}
         <Suspense
           fallback={
@@ -284,20 +327,7 @@ export default async function AnnoncesPage({ searchParams }: PageProps) {
         </Suspense>
 
         {/* Contenu principal */}
-        <main className="flex-1 min-w-0">
-          <div className="flex flex-col md:flex-row md:items-end justify-between pb-6 mb-6 border-b border-gray-100">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-black mb-1">
-                Annonces
-              </h1>
-              {articleCount && (
-                <p className="text-[13px] text-gray-500 font-medium">
-                  {articleCount}
-                </p>
-              )}
-            </div>
-          </div>
-
+        <main className="flex-1 min-w-0 w-full">
           <Suspense
             fallback={
               <div className="flex items-center justify-center min-h-[400px]">
