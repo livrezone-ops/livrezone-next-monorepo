@@ -31,6 +31,7 @@ export default function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [lang, setLang] = useState("FR");
+  const [avatarError, setAvatarError] = useState(false);
 
   const { user, isAuthenticated: isLoggedIn, logout } = useAuth();
   const { wishlistCount, cartCount } = useCommerce();
@@ -191,8 +192,8 @@ export default function Header() {
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-1 focus:outline-none group"
                 >
-                  {getAvatarUrl() ? (
-                    <img src={getAvatarUrl() as string} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-gray-100 group-hover:border-[#6D28D9] transition-all object-cover shadow-sm" />
+                  {!avatarError && getAvatarUrl() ? (
+                    <img src={getAvatarUrl() as string} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-gray-100 group-hover:border-[#6D28D9] transition-all object-cover shadow-sm" onError={() => setAvatarError(true)} />
                   ) : (
                     <div className="w-10 h-10 rounded-full border-2 border-gray-100 group-hover:border-[#6D28D9] transition-all object-cover shadow-sm bg-[#6D28D9] text-white flex items-center justify-center font-bold text-sm">
                       {(user?.profile?.nickname || user?.name) ? (user?.profile?.nickname || user?.name)?.charAt(0).toUpperCase() : "U"}
@@ -281,33 +282,13 @@ export default function Header() {
                 )}
               </div>
             ) : (
-              <div className="relative">
-                <button 
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="text-black hover:text-[#6D28D9] transition-colors p-1"
-                  aria-label="Compte utilisateur"
-                >
-                  <User className="h-6 w-6" strokeWidth={1.75} />
-                </button>
-                {userMenuOpen && (
-                  <div className="absolute right-0 mt-3 w-48 bg-white border border-gray-100 shadow-xl rounded-lg overflow-hidden z-50 text-[13px] text-black">
-                    <Link 
-                      href="/login" 
-                      onClick={() => setUserMenuOpen(false)}
-                      className="block px-4 py-3 hover:bg-gray-50 hover:text-[#6D28D9] transition-colors border-b border-gray-100 font-medium text-center"
-                    >
-                      Connexion
-                    </Link>
-                    <Link 
-                      href="/register" 
-                      onClick={() => setUserMenuOpen(false)}
-                      className="block px-4 py-3 hover:bg-gray-50 hover:text-[#6D28D9] transition-colors text-center text-gray-700"
-                    >
-                      Créer un compte
-                    </Link>
-                  </div>
-                )}
-              </div>
+              <Link
+                href="/login"
+                className="text-black hover:text-[#6D28D9] transition-colors p-1"
+                aria-label="Connexion"
+              >
+                <User className="h-6 w-6" strokeWidth={1.75} />
+              </Link>
             )}
           </div>
         </div>

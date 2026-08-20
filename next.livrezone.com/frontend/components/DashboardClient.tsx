@@ -94,6 +94,8 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
     return `https://api-next.livrezone.com${user.profile.logo}`;
   };
 
+  const [avatarError, setAvatarError] = useState(false);
+
   const buildListingUrl = (l: Listing) => {
     const toSlug = (str: string) => {
       return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
@@ -456,8 +458,8 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <div className="relative flex-shrink-0">
               <div className="w-16 h-16 rounded-2xl bg-[#6D28D9] text-white flex items-center justify-center font-black text-2xl shadow-md border-2 border-white overflow-hidden">
-                {getAvatarUrl() ? (
-                  <img src={getAvatarUrl() as string} alt="Avatar" className="w-full h-full object-cover" />
+                {!avatarError && getAvatarUrl() ? (
+                  <img src={getAvatarUrl() as string} alt="Avatar" className="w-full h-full object-cover" onError={() => setAvatarError(true)} />
                 ) : (
                   (user?.profile?.nickname || user?.name) ? (user?.profile?.nickname || user?.name)?.charAt(0).toUpperCase() : "U"
                 )}

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Auth\AuthController;
 
 // Enregistre /broadcasting/auth et /broadcasting/refresh (requis pour les canaux privés Reverb/Sanctum SPA).
 Broadcast::routes(['middleware' => ['auth:sanctum']]);
@@ -9,6 +10,10 @@ Broadcast::routes(['middleware' => ['auth:sanctum']]);
 Route::get('/', function () {
     return view('welcome');
 });
+
+// Lien signé de vérification d'email (depuis l'email de confirmation).
+Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+    ->name('verification.verify');
 
 Route::get('/book-cover-proxy/{path}', function (string $path) {
     $cleanPath = ltrim($path, '/');

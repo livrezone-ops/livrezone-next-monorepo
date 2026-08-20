@@ -50,6 +50,8 @@ class Profile extends Model
         'nickname',
         'adresse',
         'logo',
+        'avatar_mode',
+        'avatar_upload',
         'rating_average',
         'rating_count',
     ];

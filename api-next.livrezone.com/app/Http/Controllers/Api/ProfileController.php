@@ -141,29 +141,43 @@ class ProfileController extends Controller
 
         $profile = $request->user()->profile;
 
+        // "later" garde les valeurs par défaut : on n'exige les champs
+        // qu'à la confirmation définitive ("confirm").
+        $isConfirm = $request->input('action') === 'confirm';
+
         $validated = $request->validate([
             'phone' => ['nullable', 'regex:/^[0-9]{10}$/'],
-            'city_id' => ['required', 'integer', 'exists:cities,id'],
+            'city_id' => [
+                Rule::requiredIf($isConfirm),
+                'nullable',
+                'integer',
+                'exists:cities,id',
+            ],
             'profile_type' => [
-                'required',
+                Rule::requiredIf($isConfirm),
+                'nullable',
                 Rule::in(['étudiant(e)', 'passionné(e)', 'librairie']),
             ],
             'subscription_type' => [
-                'required',
+                Rule::requiredIf($isConfirm),
+                'nullable',
                 Rule::in(['free', 'premium']),
             ],
             'delivery_option' => [
-                'required',
+                Rule::requiredIf($isConfirm),
+                'nullable',
                 Rule::in(['oui', 'non', 'selon destination']),
             ],
             'nickname' => [
-                'required',
+                Rule::requiredIf($isConfirm),
+                'nullable',
                 'string',
                 'max:255',
                 Rule::unique('profiles', 'nickname')->ignore($profile?->id),
                 Rule::notIn(Profile::RESERVED_NICKNAMES),
             ],
             'adresse' => ['nullable', 'string', 'max:500'],
+            'avatar_mode' => ['nullable', Rule::in(['google', 'initials', 'custom'])],
             'logo' => [
                 'nullable',
                 'image',
@@ -173,9 +187,19 @@ class ProfileController extends Controller
             'action' => ['required', Rule::in(['confirm', 'later'])],
         ]);
 
+        $avatarMode = $validated['avatar_mode'] ?? null;
         $logoPath = $profile?->logo;
+        $avatarUpload = $profile?->avatar_upload;
 
-        if ($request->hasFile('logo')) {
+        if ($avatarMode === 'google') {
+            // Avatar récupéré depuis le provider (Google / réseau social).
+            // Jamais utilisé en dehors du mode google explicitement choisi.
+            $logoPath = $request->user()->avatar ?: $logoPath;
+        } elseif ($avatarMode === 'initials') {
+            // Avatar généré à partir du pseudonyme (rendu côté frontend).
+            $logoPath = null;
+        } elseif ($request->hasFile('logo')) {
+            // Upload personnalisé : redimensionné en WebP 160x160.
             $directory = public_path('profile-logos');
 
             if (! is_dir($directory)) {
@@ -186,12 +210,22 @@ class ProfileController extends Controller
             $relativePath = 'profile-logos/'.$filename;
 
             Image::decode($request->file('logo'))
-                ->cover(200, 200)
-                ->encode(new WebpEncoder(quality: 85))
+                ->cover(160, 160)
+                ->encode(new WebpEncoder(quality: 90))
                 ->save(public_path($relativePath));
 
             $logoPath = '/'.$relativePath;
+            // Conserve le dernier logo importé pour pouvoir y revenir.
+            $avatarUpload = $logoPath;
+        } elseif ($avatarMode === 'custom') {
+            // Réactive un logo précédemment importé si l'utilisateur n'en
+            // upload pas un nouveau.
+            if ($avatarUpload) {
+                $logoPath = $avatarUpload;
+            }
         }
+        // Mode custom sans nouveau fichier ni import précédent : on conserve
+        // le logo existant (jamais de repli automatique vers l'avatar Google).
 
         $profileData = [
             'phone' => $validated['phone'] ?? null,
@@ -201,7 +235,9 @@ class ProfileController extends Controller
             'delivery_option' => $validated['delivery_option'],
             'nickname' => $validated['nickname'],
             'adresse' => $validated['adresse'] ?? null,
-            'logo' => $logoPath ?: $request->user()->avatar,
+            'logo' => $logoPath,
+            'avatar_mode' => $avatarMode,
+            'avatar_upload' => $avatarUpload,
         ];
 
         $profile = $request->user()

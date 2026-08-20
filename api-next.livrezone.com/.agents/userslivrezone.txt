@@ -1,0 +1,68 @@
+Plan d'implémentation - Refonte Authentification & Profil Complet LivreZone
+Ce plan détaille la refonte complète du module d'authentification (Frontend Next.js & Backend Laravel) ainsi que l'enrichissement de la page de finalisation de profil.
+
+🎯 Objectifs et Spécifications
+Suppression définitive de Facebook Login : Retrait du provider Facebook de l'API et du frontend (Google uniquement).
+Page d'authentification moderne et sur-mesure (pas de template standard) :
+Design soigné reprenant l'identité visuelle de LivreZone (Palette Violet #6D28D9, typographie soignée, badges, transitions fluides).
+Connexion rapide en 1 clic avec Google.
+Connexion classique par Email & Mot de passe.
+Inscription classique : Nom, Email, Mot de passe, Confirmation de mot de passe.
+Récupération de mot de passe : Mot de passe oublié (envoi du lien par email) + Page de réinitialisation.
+Flux de vérification d'email & création de mot de passe automatique :
+Pour Google : Génération d'un mot de passe sécurisé aléatoire et email vérifié automatiquement.
+Pour Inscription Email : Envoi d'un email de confirmation avec lien sécurisé / signé. Redirection automatique vers /profile/complete après validation de l'email.
+Refonte de la page "Compléter mon profil" (/profile/complete) :
+Pseudonyme : Champ mis en valeur avec la mention explicite "Nom affiché publiquement dans vos publications et votre bibliothèque".
+Sélecteur d'Avatar à 3 choix interactifs :
+Avatar Google (si disponible sur le compte).
+Avatar généré à partir du pseudonyme/initiales (génération dynamique avec preview immédiate).
+Importer un logo / photo personnalisée (reformaté côté serveur en WebP 160x160 de qualité optimale).
+Autres champs préservés et stylisés : Ville, Téléphone, Type de profil (passionné, étudiant, librairie), Option de livraison, Type d'abonnement, Adresse.
+🏗️ Architecture & Fichiers impactés
+Backend API (api-next.livrezone.com)
+Suppression Facebook & Sécurisation Google :
+SocialAuthController.php
+ : Retrait de Facebook, génération de mot de passe fort pour Google.
+Nouveaux contrôleurs Auth Classique & Emails :
+AuthController.php
+ : Endpoints register, login, logout, verify-email, resend-verification, forgot-password, reset-password.
+Notifications / Mails Laravel pour la vérification d'email et réinitialisation de mot de passe avec templates aux couleurs LivreZone.
+Mise à jour de ProfileController :
+ProfileController.php
+ : Gestion des 3 modes d'avatar (google, nickname_generated, custom_upload avec redimensionnement 160x160 WebP via Intervention Image).
+Mise à jour des routes API :
+routes/api.php
+ & 
+routes/web.php
+ pour la vérification signée et les routes auth.
+Frontend Next.js (next.livrezone.com/frontend)
+Refonte de la page /login :
+app/login/page.tsx
+ : Interface moderne avec onglets fluides (Connexion / Inscription / Mot de passe oublié), bouton Google élégant, formulaire email/password avec validation Zod + React Hook Form, gestion des messages d'erreur et confirmation d'envoi d'email.
+Nouvelle page /reset-password :
+app/reset-password/page.tsx
+ : Page dédiée pour saisir le nouveau mot de passe avec le token reçu par email.
+Nouvelle page / composant /verify-email (ou modal/screen de succès) :
+Prise en charge du retour du lien de confirmation d'email.
+Refonte de /profile/complete :
+app/profile/complete/page.tsx
+ :
+Sélecteur visuel interactif d'avatar (Avatar Google, Avatar Initiales générées en direct, Upload personnalisé avec recadrage/prévisualisation).
+Explication claire sur le pseudonyme public.
+Grille soignée pour la ville, le téléphone, le type de profil et la livraison.
+Mise à jour du hook d'authentification :
+hooks/useAuth.ts
+ : Ajout des méthodes loginWithCredentials, registerUser, forgotPassword, resetPassword.
+📋 Plan de Déploiement et Vérification
+Conformément à la règle du projet :
+
+Toute action de modification sera exécutée étape par étape avec validation.
+Le déploiement frontend se fera exclusivement via le script global lz sur le serveur SSH.
+Aucun migrate:fresh ne sera exécuté afin de préserver l'intégrité de la base de données.
+Plan de test
+Tester la création de compte par Google (vérifier mot de passe généré et redirection vers complete profile).
+Tester l'inscription par email (vérifier l'envoi de l'email de confirmation).
+Tester la validation du lien d'email et la redirection vers /profile/complete.
+Tester les 3 options d'avatar (Google, Initiales générées, Upload logo 160x160 WebP).
+Tester le flux "Mot de passe oublié" et réinitialisation.

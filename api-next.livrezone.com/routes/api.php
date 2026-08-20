@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\SocialAuthController;
+use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ListingManagerController;
 use App\Http\Controllers\Api\ProfileController;
@@ -24,7 +25,14 @@ Route::prefix('auth')->group(function () {
     Route::get('/redirect/{provider}', [SocialAuthController::class, 'redirect']);
     Route::get('/callback/{provider}', [SocialAuthController::class, 'callback'])
     ->middleware('web');
-    Route::post('/logout', [SocialAuthController::class, 'logout'])->middleware('auth:sanctum');
+
+    // Auth classique (email + mot de passe)
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+    Route::post('/email/verification-notification', [AuthController::class, 'resendVerification']);
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 });
 
 Route::middleware('auth:sanctum')->prefix('dashboard')->group(function () {
