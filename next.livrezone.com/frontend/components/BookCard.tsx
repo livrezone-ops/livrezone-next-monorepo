@@ -91,7 +91,7 @@ export default function BookCard({
           {cover ? (
             <Image
               src={cover}
-              alt={title}
+              alt={author ? `${title} par ${author} - LivreZone Maroc` : `${title} - LivreZone Maroc`}
               fill
               sizes="(max-width: 640px) 140px, (max-width: 1024px) 200px, 300px"
               className="object-contain p-3 scale-95 transition-transform duration-500 ease-out group-hover:scale-100"

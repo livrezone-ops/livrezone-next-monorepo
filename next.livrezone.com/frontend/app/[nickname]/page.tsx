@@ -3,9 +3,10 @@ import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { MapPin } from "lucide-react";
+import { MapPin, X } from "lucide-react";
 import FilterSidebar from "@/components/FilterSidebar";
 import ListingsSearch from "@/components/ListingsSearch";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import SellerContact from "@/components/SellerContact";
 import SellerAddress from "@/components/SellerAddress";
 import SellerRating from "@/components/SellerRating";
@@ -139,21 +140,20 @@ export default async function LibraryProfilePage({ params, searchParams }: PageP
   const logo = resolveLogo(profile.logo);
   const isPro = profile.profile_type === "librairie" || profile.profile_type === "professional";
 
+  const hasActiveFilters = Boolean(
+    f.categories.length > 0 ||
+    f.levels.length > 0 ||
+    f.languages.length > 0 ||
+    f.conditions.length > 0 ||
+    (f.minPrice !== null && f.minPrice > priceMinLimit) ||
+    (f.maxPrice !== null && f.maxPrice < priceMaxLimit) ||
+    Boolean(f.search)
+  );
+
   return (
     <div className="w-[90%] max-w-7xl mx-auto py-8">
       {/* Breadcrumb */}
-      <nav
-        aria-label="Fil d'Ariane"
-        className="mb-8 text-xs md:text-sm font-semibold text-gray-500 flex items-center gap-2 flex-wrap tracking-wide uppercase"
-      >
-        <Link href="/" className="hover:text-black transition-colors">
-          Accueil
-        </Link>
-        <span>/</span>
-        <span className="text-black font-semibold">
-          Bibliothèque de @{profile.nickname}
-        </span>
-      </nav>
+      <Breadcrumbs items={[{ label: `Bibliothèque de @${profile.nickname}` }]} />
 
       {/* En-tête vendeur */}
       <header className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start bg-slate-50 p-6 sm:p-8 rounded-2xl border border-slate-100 mb-8">
@@ -162,7 +162,7 @@ export default async function LibraryProfilePage({ params, searchParams }: PageP
             <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-2 border-white shadow-sm">
               <Image
                 src={logo}
-                alt={`Logo ${profile.nickname}`}
+                alt={`Logo ${profile.nickname} - Librairie LivreZone Maroc`}
                 fill
                 className="object-cover"
                 unoptimized
@@ -225,6 +225,35 @@ export default async function LibraryProfilePage({ params, searchParams }: PageP
         </div>
       </header>
 
+      {/* En-tête de section Annonces (au-dessus des 2 colonnes pour un alignement horizontal parfait) */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between pb-4 mb-6 border-b border-gray-100">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-black mb-1">
+            Annonces de {profile.nickname}
+          </h2>
+          <div className="flex items-center gap-2.5 flex-wrap mt-1">
+            <span className="text-[13px] text-gray-500 font-medium">
+              {articleCount}
+            </span>
+            {hasActiveFilters && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 border border-slate-200/80 px-2.5 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#6D28D9]" />
+                <span className="text-slate-500 italic">(filtré)</span>
+                <span className="text-slate-300">·</span>
+                <Link
+                  href={`/${profile.nickname}`}
+                  className="text-[#6D28D9] hover:text-violet-900 font-bold hover:underline inline-flex items-center gap-1 transition-colors"
+                  title="Effacer tous les filtres"
+                >
+                  <span>Effacer les filtres</span>
+                  <X className="w-3 h-3" />
+                </Link>
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="flex flex-col lg:flex-row gap-8 lg:gap-10">
         {/* Sidebar filtres */}
         <Suspense
@@ -244,19 +273,6 @@ export default async function LibraryProfilePage({ params, searchParams }: PageP
 
         {/* Contenu principal */}
         <main className="flex-1 min-w-0">
-          <div className="flex flex-col md:flex-row md:items-end justify-between pb-6 mb-6 border-b border-gray-100">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight text-black mb-1">
-                Annonces ({total})
-              </h2>
-              {articleCount && (
-                <p className="text-[13px] text-gray-500 font-medium">
-                  {articleCount}
-                </p>
-              )}
-            </div>
-          </div>
-
           <Suspense
             fallback={
               <div className="flex items-center justify-center min-h-[400px]">

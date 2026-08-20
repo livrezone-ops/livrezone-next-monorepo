@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   title: {
-    default: "LivreZone | Livres neufs et d'occasion au Maroc",
+    default: "LivreZone | Achat & Vente de Livres Neufs et d'Occasion au Maroc",
     template: "%s | LivreZone",
   },
   description:
@@ -18,15 +18,59 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "fr_MA",
+    url: "https://next.livrezone.com",
     siteName: "LivreZone",
-    title: "LivreZone | Livres neufs et d'occasion au Maroc",
+    title: "LivreZone | Achat & Vente de Livres Neufs et d'Occasion au Maroc",
     description:
       "Achetez et vendez vos livres neufs et d'occasion au Maroc. Des milliers d'annonces de librairies et particuliers partout dans le Royaume.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "LivreZone - Marketplace de livres neufs et d'occasion au Maroc",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LivreZone | Achat & Vente de Livres Neufs et d'Occasion au Maroc",
+    description:
+      "Achetez et vendez vos livres neufs et d'occasion au Maroc. Des milliers d'annonces de librairies et particuliers partout dans le Royaume.",
+    images: ["/og-image.png"],
   },
   robots: {
     index: true,
     follow: true,
   },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://next.livrezone.com/#organization",
+      name: "LivreZone",
+      url: "https://next.livrezone.com",
+      logo: "https://next.livrezone.com/og-image.png",
+      description: "Première marketplace de livres neufs et d'occasion au Maroc.",
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://next.livrezone.com/#website",
+      url: "https://next.livrezone.com",
+      name: "LivreZone",
+      publisher: {
+        "@id": "https://next.livrezone.com/#organization",
+      },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: "https://next.livrezone.com/annonces?search={search_term_string}",
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ],
 };
 
 export default function RootLayout({
@@ -40,6 +84,10 @@ export default function RootLayout({
       className="h-full antialiased"
     >
       <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <Providers>
           <Header />
           <main className="flex-grow flex flex-col">

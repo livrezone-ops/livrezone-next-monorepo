@@ -62,8 +62,8 @@ export default function LivreZoneHero({
   useEffect(() => {
     function updateColumns() {
       const width = window.innerWidth;
-      if (width <= 720) setColumnsCount(2);
-      else if (width <= 1050) setColumnsCount(3);
+      if (width <= 1050) setColumnsCount(3);
+      else if (width <= 1280) setColumnsCount(4);
       else setColumnsCount(5);
     }
     updateColumns();

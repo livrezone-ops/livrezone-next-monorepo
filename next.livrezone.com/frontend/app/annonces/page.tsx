@@ -4,6 +4,7 @@ import Link from "next/link";
 import { X } from "lucide-react";
 import FilterSidebar from "@/components/FilterSidebar";
 import ListingsSearch from "@/components/ListingsSearch";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import {
   getPublicListings,
   getReferenceData,
@@ -252,32 +253,15 @@ export default async function AnnoncesPage({ searchParams }: PageProps) {
         }
       : null;
 
+  const breadcrumbItems = [
+    { label: "Annonces", href: activeCategory ? "/annonces" : undefined },
+    ...(activeCategory ? [{ label: activeCategory }] : []),
+  ];
+
   return (
     <div className="w-[90%] max-w-7xl mx-auto py-8">
       {/* Breadcrumb */}
-      <nav
-        aria-label="Fil d'Ariane"
-        className="mb-4 text-[13px] md:text-[14px] italic text-gray-500 flex items-center gap-2 flex-wrap"
-      >
-        <Link href="/" className="hover:text-black transition-colors not-italic">
-          Accueil
-        </Link>
-        <span className="not-italic text-gray-400">/</span>
-        <Link
-          href="/annonces"
-          className={`hover:text-black transition-colors ${
-            activeCategory ? "" : "text-black font-semibold"
-          }`}
-        >
-          Annonces
-        </Link>
-        {activeCategory && (
-          <>
-            <span className="not-italic text-gray-400">/</span>
-            <span className="text-black font-semibold">{activeCategory}</span>
-          </>
-        )}
-      </nav>
+      <Breadcrumbs items={breadcrumbItems} />
 
       {/* En-tête de page */}
       <div className="flex flex-col md:flex-row md:items-end justify-between pb-4 mb-6 border-b border-gray-100">

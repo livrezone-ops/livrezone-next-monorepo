@@ -12,6 +12,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import LivreZoneHero, { type HeroListing } from "@/components/home/LivreZoneHero";
+import LivreZoneHeroMobile from "@/components/home/LivreZoneHero_mobile";
 
 const HorizontalGrid = dynamic(() => import("@/components/HorizontalGrid"));
 import type { HeroMessage } from "@/components/home/types";
@@ -325,19 +326,32 @@ export default async function Home() {
 
   return (
     <div className="flex flex-col">
-      {/* ===== H1 UNIQUE (visible, pleine largeur) ===== */}
-      <h1 className="w-full bg-[#1a0a40] text-white text-center text-xl md:text-2xl font-bold py-4 px-4">
-        LivreZone : Marketplace de livres neufs et d&rsquo;occasion au Maroc
-      </h1>
+      {/* ===== H1 UNIQUE (Élégant, intégré avec nuance dégradée) ===== */}
+      <div className="w-full bg-gradient-to-r from-[#1a0a40] via-[#2e1065] to-[#1a0a40] border-b border-white/10 shadow-xs">
+        <h1 className="w-[90%] max-w-7xl mx-auto text-white/90 text-center text-xs sm:text-sm md:text-base font-semibold py-2.5 px-4 tracking-wide">
+          LivreZone : Marketplace de livres neufs et d&rsquo;occasion au Maroc
+        </h1>
+      </div>
 
-      {/* ===== HERO ===== */}
-      <LivreZoneHero
-        messages={heroMessages}
-        listings={heroListings}
-        coversPerColumn={heroCoversPerColumn}
-        coversScrollSeconds={heroCoversScrollSeconds}
-        autoPlayDelay={heroHorizontalScrollMs}
-      />
+      {/* ===== HERO MOBILE (léger, sans mur animé, avec livres décoratifs 3D) ===== */}
+      <div className="block md:hidden">
+        <LivreZoneHeroMobile
+          messages={heroMessages}
+          listings={heroListings}
+          autoPlayDelay={heroHorizontalScrollMs}
+        />
+      </div>
+
+      {/* ===== HERO DESKTOP / TABLETTE (avec mur de livres animés) ===== */}
+      <div className="hidden md:block">
+        <LivreZoneHero
+          messages={heroMessages}
+          listings={heroListings}
+          coversPerColumn={heroCoversPerColumn}
+          coversScrollSeconds={heroCoversScrollSeconds}
+          autoPlayDelay={heroHorizontalScrollMs}
+        />
+      </div>
 
       {/* ===== Catégories rapides ===== */}
       <nav
@@ -364,27 +378,29 @@ export default async function Home() {
           <SuspendedGrid section={gridSections[1]} />
         </React.Suspense>
 
-        {/* ===== BANNIÈRE ===== */}
-        <section className="my-8 w-full rounded-2xl bg-gradient-to-r from-[#F97316] to-[#ea6a0c] text-white overflow-hidden">
-          <div className="w-full max-w-7xl mx-auto px-6 py-8 md:py-10 flex flex-col md:flex-row items-center justify-between gap-5">
-            <div className="flex items-center gap-4 text-center md:text-left">
-              <RefreshCw className="w-10 h-10 md:w-12 md:h-12 flex-shrink-0" />
-              <div>
-                <h2 className="text-xl md:text-2xl font-extrabold leading-tight">
-                  Trouvez un acheteur pour les livres que vous ne lisez plus et
-                  permettez à de nouveaux lecteurs de les découvrir.
+        {/* ===== BANNIÈRE (Contour orange doublé, intérieur dégradé violet hero, bouton blanc texte orange) ===== */}
+        <section className="my-8 w-full rounded-2xl border-4 border-[#F97316] bg-gradient-to-br from-[#581c87] via-[#6D28D9] to-[#3b0764] text-white overflow-hidden shadow-xl relative">
+          <div className="pointer-events-none absolute -right-10 -bottom-10 w-48 h-48 rounded-full bg-[#F97316]/20 blur-2xl" />
+          <div className="w-full max-w-7xl mx-auto px-6 py-8 md:py-10 flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4 md:gap-5 flex-1">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-[#F97316]/20 border border-[#F97316]/40 flex items-center justify-center text-[#F97316] shrink-0">
+                <RefreshCw className="w-6 h-6 md:w-7 md:h-7" />
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-xl md:text-2xl font-extrabold leading-tight text-white">
+                  Trouvez un acheteur pour les livres que vous ne lisez plus et permettez à de nouveaux lecteurs de les découvrir.
                 </h2>
-                <p className="text-white/90 text-sm md:text-base mt-1">
+                <p className="text-violet-100 text-sm md:text-base font-normal">
                   Mettez en vente vos livres sur LivreZone en quelques minutes.
                 </p>
               </div>
             </div>
             <Link
               href="/annonces/create"
-              className="flex items-center gap-2 bg-white text-[#ea6a0c] font-bold text-sm md:text-base px-6 py-3 rounded-full hover:bg-gray-50 transition-colors flex-shrink-0"
+              className="flex items-center gap-2 bg-white hover:bg-orange-50 text-[#F97316] font-bold text-sm md:text-base px-7 py-3.5 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 shrink-0 cursor-pointer"
             >
-              Vendre un livre
-              <ArrowRight className="w-4 h-4" />
+              <span>Vendre un livre</span>
+              <ArrowRight className="w-4 h-4 text-[#F97316]" />
             </Link>
           </div>
         </section>

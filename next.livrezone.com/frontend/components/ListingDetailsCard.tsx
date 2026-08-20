@@ -176,7 +176,7 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
             {coverUrl ? (
               <Image 
                 src={coverUrl} 
-                alt={listing.title} 
+                alt={`Couverture du livre ${listing.title} - LivreZone Maroc`} 
                 fill
                 className="object-contain p-6"
                 unoptimized

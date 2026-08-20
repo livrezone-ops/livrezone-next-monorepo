@@ -1,0 +1,19 @@
+﻿# LivreZone
+
+> LivreZone est la première marketplace marocaine dédiée à l'achat et la vente de livres neufs et d'occasion.
+
+## Présentation
+LivreZone connecte les passionnés de lecture, les étudiants, les particuliers et les librairies indépendantes à travers tout le Royaume du Maroc (Casablanca, Rabat, Marrakech, Fès, Tanger, Agadir, et toutes les autres villes).
+
+## Sections Principales
+- [Explorer les annonces](https://next.livrezone.com/annonces): Parcourez l'ensemble des livres disponibles à l'achat, filtrables par catégorie, ville, état (neuf, occasion) et prix.
+- [Vendre un livre](https://next.livrezone.com/annonces/create): Déposez une annonce de livre neuf ou d'occasion en quelques secondes avec recherche automatique par ISBN.
+- [Rentrée Scolaire](https://next.livrezone.com/annonces?category=SCOLAIRE): Manuels scolaires, dictionnaires, méthodes d'apprentissage.
+- [Romans & Littérature](https://next.livrezone.com/annonces?category=ROMANS): Littérature française, arabe, internationale, thrillers, science-fiction.
+- [Mangas & BD](https://next.livrezone.com/annonces?category=MANGAS_BD): Bandes dessinées, comics et mangas.
+- [Jeunesse](https://next.livrezone.com/annonces?category=JEUNESSE): Livres illustrés, contes pour enfants et adolescents.
+
+## Fonctionnalités Clés
+- Recherche ISBN automatique pour remplir instantanément les métadonnées des livres.
+- Messagerie interne en temps réel entre acheteurs et vendeurs.
+- Interface bilingue adaptée au contexte marocain (Français et Arabe).

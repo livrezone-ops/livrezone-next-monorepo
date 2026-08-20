@@ -6,6 +6,7 @@ import { ChevronRight } from "lucide-react";
 import api from "@/lib/axios";
 import ListingDetailsCard from "@/components/ListingDetailsCard";
 import HorizontalGrid from "@/components/HorizontalGrid";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 interface Listing {
   id: number;
@@ -173,45 +174,18 @@ function ListingDetailContent({ listing }: { listing: Listing }) {
     listing.user.profile?.nickname || `utilisateur-${listing.user.id}`;
   const sellerPath = `/${nickname}`;
 
+  const breadcrumbItems = [
+    { label: listing.user.profile?.nickname || nickname, href: sellerPath },
+    ...(parentCategory ? [{ label: parentCategory, href: `/annonces?category=${listing.category?.parent?.name_fr}` }] : []),
+    ...(categoryName && categoryName !== parentCategory ? [{ label: categoryName, href: `/annonces?category=${listing.category?.name_fr}` }] : []),
+    ...(listing.level && listing.level.code !== NON_APPLICABLE && listing.level.name_fr ? [{ label: listing.level.name_fr }] : []),
+    ...(listing.subject && listing.subject.code !== NON_APPLICABLE && listing.subject.name_fr ? [{ label: listing.subject.name_fr }] : []),
+    { label: listing.title },
+  ];
+
   return (
     <div className="w-[90%] max-w-7xl mx-auto py-8">
-      <nav className="mb-8 text-xs md:text-sm font-semibold text-gray-500 flex items-center gap-1.5 flex-wrap">
-        <Link href="/" className="hover:text-[#F97316] transition-colors">
-          Accueil
-        </Link>
-        <ChevronRight className="w-4 h-4 text-gray-400" />
-        <Link href={sellerPath} className="hover:text-[#F97316] transition-colors">
-          {listing.user.profile?.nickname || nickname}
-        </Link>
-        <ChevronRight className="w-4 h-4 text-gray-400" />
-        <span className="hover:text-[#F97316] transition-colors cursor-default">
-          {breadcrumbCategory}
-        </span>
-        {listing.level &&
-          listing.level.code !== NON_APPLICABLE &&
-          listing.level.name_fr && (
-            <>
-              <ChevronRight className="w-4 h-4 text-gray-400" />
-              <span className="hover:text-[#F97316] transition-colors cursor-default">
-                {listing.level.name_fr}
-              </span>
-            </>
-          )}
-        {listing.subject &&
-          listing.subject.code !== NON_APPLICABLE &&
-          listing.subject.name_fr && (
-            <>
-              <ChevronRight className="w-4 h-4 text-gray-400" />
-              <span className="hover:text-[#F97316] transition-colors cursor-default">
-                {listing.subject.name_fr}
-              </span>
-            </>
-          )}
-        <ChevronRight className="w-4 h-4 text-gray-400" />
-        <span className="text-gray-900 font-bold max-w-[200px] sm:max-w-none truncate">
-          {listing.title}
-        </span>
-      </nav>
+      <Breadcrumbs items={breadcrumbItems} />
 
       {/* Bannière statut non-publié (visible créateur / admin uniquement) */}
       {listing.status && listing.status !== "published" && (
