@@ -83,6 +83,13 @@ export function useAuth() {
         return data;
     };
 
+    const resendVerification = async (email: string) => {
+        const { data } = await api.post('/auth/email/verification-notification', {
+            email,
+        });
+        return data;
+    };
+
     const resetPassword = async (
         token: string,
         email: string,
@@ -106,6 +113,7 @@ export function useAuth() {
         loginWithCredentials,
         registerUser,
         forgotPassword,
+        resendVerification,
         resetPassword,
         logout: () => logoutMutation.mutate(),
     };

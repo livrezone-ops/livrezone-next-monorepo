@@ -17,6 +17,7 @@ export default function LoginPage() {
         loginWithProvider,
         loginWithCredentials,
         registerUser,
+        resendVerification,
         forgotPassword,
     } = useAuth();
     const router = useRouter();
@@ -25,6 +26,9 @@ export default function LoginPage() {
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [pending, setPending] = useState(false);
+    const [registered, setRegistered] = useState(false);
+    const [registeredEmail, setRegisteredEmail] = useState('');
+    const [resendMsg, setResendMsg] = useState('');
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -58,8 +62,17 @@ export default function LoginPage() {
         setMessage('');
     };
 
+    const isEmailValid = (value: string) =>
+        /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
+
     const handleLogin = async (event: FormEvent) => {
         event.preventDefault();
+
+        if (!isEmailValid(email)) {
+            setError('Adresse email invalide.');
+            return;
+        }
+
         setError('');
         setMessage('');
         setPending(true);
@@ -78,6 +91,17 @@ export default function LoginPage() {
 
     const handleRegister = async (event: FormEvent) => {
         event.preventDefault();
+
+        if (!isEmailValid(email)) {
+            setError('Adresse email invalide.');
+            return;
+        }
+
+        if (name.trim().length < 3) {
+            setError('Le nom doit contenir au moins 3 caractères.');
+            return;
+        }
+
         setError('');
         setMessage('');
         setPending(true);
@@ -85,8 +109,10 @@ export default function LoginPage() {
         try {
             await registerUser(name, email, password, passwordConfirmation);
             setMessage(
-                'Compte créé. Vérifie ta boîte email pour confirmer ton adresse, puis connecte-toi.',
+                'Compte créé. Vérifie ta boîte email (et tes spams) pour confirmer ton adresse, puis connecte-toi.',
             );
+            setRegistered(true);
+            setRegisteredEmail(email);
             setName('');
             setEmail('');
             setPassword('');
@@ -103,6 +129,12 @@ export default function LoginPage() {
 
     const handleForgot = async (event: FormEvent) => {
         event.preventDefault();
+
+        if (!isEmailValid(email)) {
+            setError('Adresse email invalide.');
+            return;
+        }
+
         setError('');
         setMessage('');
         setPending(true);
@@ -110,10 +142,24 @@ export default function LoginPage() {
         try {
             await forgotPassword(email);
             setMessage(
-                'Si un compte existe, un lien de réinitialisation a été envoyé.',
+                'Si un compte existe, un lien de réinitialisation a été envoyé (pense à vérifier tes spams).',
             );
         } catch {
             setError('Une erreur est survenue. Réessaie plus tard.');
+        } finally {
+            setPending(false);
+        }
+    };
+
+    const handleResend = async () => {
+        setResendMsg('');
+        setPending(true);
+
+        try {
+            await resendVerification(registeredEmail);
+            setResendMsg('Email de confirmation renvoyé (vérifie aussi tes spams).');
+        } catch {
+            setResendMsg('Impossible de renvoyer l’email. Réessaie.');
         } finally {
             setPending(false);
         }
@@ -306,6 +352,25 @@ export default function LoginPage() {
                         >
                             {pending ? 'Création...' : "S'inscrire"}
                         </button>
+
+                        {registered && (
+                            <div className="mt-4 rounded-lg bg-violet-50 px-4 py-3 text-center text-sm text-violet-800">
+                                <p>Email non reçu ?</p>
+                                <button
+                                    type="button"
+                                    onClick={handleResend}
+                                    disabled={pending}
+                                    className="mt-2 font-medium text-violet-700 underline disabled:opacity-60"
+                                >
+                                    Renvoyer l'email de confirmation
+                                </button>
+                                {resendMsg && (
+                                    <p className="mt-1 text-violet-700">
+                                        {resendMsg}
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </form>
                 )}
 
