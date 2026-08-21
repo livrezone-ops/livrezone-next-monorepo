@@ -71,19 +71,11 @@ class ListingManagerController extends Controller
             $coverSourceUrl = $bookCoverSourceUrl;
         }
 
-        $status = 'pending_admin';
-
-        if ($book && !$request->hasFile('cover_image')) {
-            $normalizedTitle = mb_strtolower(trim($validated['title']));
-            $normalizedBookTitle = mb_strtolower(trim($book->title));
-            
-            $normalizedDesc = mb_strtolower(trim($validated['description'] ?? ''));
-            $normalizedBookDesc = mb_strtolower(trim($book->description ?? ''));
-
-            if ($normalizedTitle === $normalizedBookTitle && (empty($normalizedDesc) || $normalizedDesc === $normalizedBookDesc)) {
-                $status = 'published';
-            }
-        }
+        $status = app(\App\Services\ListingValidationService::class)->determineStatus(
+            $validated,
+            $book,
+            $request->hasFile('cover_image')
+        );
 
         $payload = [
             'user_id' => $request->user()->id,
@@ -196,18 +188,11 @@ class ListingManagerController extends Controller
         $status = $listing->status;
 
         if ($mainDataChanged) {
-            $status = 'pending_admin';
-            if ($book && !$request->hasFile('cover_image')) {
-                $normalizedTitle = mb_strtolower(trim($validated['title']));
-                $normalizedBookTitle = mb_strtolower(trim($book->title));
-                
-                $normalizedDesc = mb_strtolower(trim($validated['description'] ?? ''));
-                $normalizedBookDesc = mb_strtolower(trim($book->description ?? ''));
-
-                if ($normalizedTitle === $normalizedBookTitle && (empty($normalizedDesc) || $normalizedDesc === $normalizedBookDesc)) {
-                    $status = 'published';
-                }
-            }
+            $status = app(\App\Services\ListingValidationService::class)->determineStatus(
+                $validated,
+                $book,
+                $request->hasFile('cover_image')
+            );
         }
 
         $payload = [

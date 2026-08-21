@@ -130,18 +130,33 @@ class DashboardController extends Controller
             abort(403);
         }
 
+        $validationService = app(\App\Services\ListingValidationService::class);
+        $status = $validationService->determineRepublishStatus($listing);
+
         $newListing = $listing->replicate();
-        $newListing->status = 'pending_admin';
+        $newListing->status = $status;
         $newListing->submitted_at = now();
         $newListing->reviewed_at = null;
         $newListing->reviewed_by = null;
         $newListing->moderation_note = null;
-        $newListing->published_at = null;
+        $newListing->published_at = ($status === 'published') ? now() : null;
         $newListing->deleted_at = null;
         $newListing->save();
 
+        if ($status === 'pending_admin') {
+            try {
+                app(\App\Services\TelegramNotificationService::class)->sendNewListingNotification($newListing);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Erreur envoi Telegram republish: ' . $e->getMessage());
+            }
+        }
+
+        $message = ($status === 'published')
+            ? 'Article republié et mis en ligne avec succès'
+            : 'Article republié avec succès, en attente de validation';
+
         return response()->json([
-            'message' => 'Article republié avec succès',
+            'message' => $message,
             'listing' => $newListing,
         ], 201);
     }
