@@ -149,7 +149,8 @@ class ChatController extends Controller
         ]);
 
         $thread->update(['last_message_at' => now()]);
-        $thread->resetDeletedFor($request->user()->id);
+        $thread->resetDeletedFor($thread->user_one_id);
+        $thread->resetDeletedFor($thread->user_two_id);
 
         try {
             broadcast(new MessageSent($message))->toOthers();
