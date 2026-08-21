@@ -17,6 +17,7 @@ import {
 } from "@/lib/chat-active";
 import SaveCartModal from "@/components/SaveCartModal";
 import { CATEGORIES } from "@/lib/reference-data";
+import Logo from "@/components/Logo";
 
 const NAV_LABELS: Record<string, string> = {
   SCOLAIRE: "Rentrée Scolaire",
@@ -131,10 +132,7 @@ export default function Header() {
         </button>
 
         {/* LOGO */}
-        <Link href="/" className="flex-shrink-0 flex flex-col items-center leading-none group">
-          <span className="text-[32px] font-black text-black tracking-tight leading-none group-hover:text-[#6D28D9] transition-colors">L.</span>
-          <span className="text-[10px] font-bold tracking-[0.18em] uppercase text-gray-700 mt-[-2px] group-hover:text-[#6D28D9] transition-colors">LivreZone</span>
-        </Link>
+        <Logo size="md" href="/" className="flex-shrink-0" />
 
         {/* RECHERCHE DESKTOP */}
         <form onSubmit={handleSearchSubmit} className="flex-1 hidden lg:flex border-2 border-black hover:border-gray-800 focus-within:border-[#6D28D9] rounded-md transition-colors overflow-hidden h-11">

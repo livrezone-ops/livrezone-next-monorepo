@@ -9,6 +9,7 @@ import {
   MessageCircle, Copy, X, Store, CheckCircle
 } from "lucide-react";
 import { useCommerce } from "@/lib/commerce-store";
+import { useToast } from "@/components/Toast";
 
 interface Listing {
   id: number;
@@ -65,6 +66,7 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
 
+  const { success } = useToast();
   const { isInWishlist, isInCart, toggleWishlist, addToCart } = useCommerce();
   const isFav = isInWishlist(listing.id);
   const isInCartBool = isInCart(listing.id);
@@ -90,7 +92,7 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl).then(() => {
-      alert("Lien copié dans le presse-papiers !");
+      success("Lien copié dans le presse-papiers !");
       setShareOpen(false);
     });
   };

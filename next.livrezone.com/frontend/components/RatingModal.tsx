@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Star, X, Loader2 } from "lucide-react";
 import type { AxiosError } from "axios";
 import api from "@/lib/axios";
+import { useToast } from "@/components/Toast";
 
 interface RatingModalProps {
   nickname: string;
@@ -20,6 +21,7 @@ export default function RatingModal({
   initialScore,
   initialComment,
 }: RatingModalProps) {
+  const { success } = useToast();
   const [score, setScore] = useState(initialScore || 0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState(initialComment || "");
@@ -39,6 +41,7 @@ export default function RatingModal({
         score,
         comment: comment.trim() || null,
       });
+      success("Votre avis a bien été enregistré !");
       onSuccess(data.rating_average, data.rating_count, score, comment.trim());
       onClose();
     } catch (err) {

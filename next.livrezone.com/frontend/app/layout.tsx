@@ -1,8 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Providers from "./providers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+
+export const viewport: Viewport = {
+  themeColor: "#6D28D9",
+  colorScheme: "light",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://next.livrezone.com"),
@@ -38,6 +43,10 @@ export const metadata: Metadata = {
     description:
       "Achetez et vendez vos livres neufs et d'occasion au Maroc. Des milliers d'annonces de librairies et particuliers partout dans le Royaume.",
     images: ["/og-image.png"],
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
   },
   robots: {
     index: true,
@@ -81,7 +90,8 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      className="h-full antialiased"
+      className="h-full antialiased light"
+      style={{ colorScheme: "light" }}
     >
       <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
         <script

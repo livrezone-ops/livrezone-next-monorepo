@@ -12,6 +12,7 @@ import React, {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "./axios";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/components/Toast";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -336,6 +337,7 @@ const CommerceContext = createContext<CommerceContextValue | null>(null);
 export function CommerceProvider({ children }: { children: React.ReactNode }) {
   const { user: authUser } = useAuth();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const isAuthenticated = !!authUser;
 
   const [wishlist, setWishlist] = useState<StoreListing[]>([]);
@@ -534,6 +536,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
         let next: StoreListing[];
         if (exists) {
           next = prev.filter((i) => i.id !== listing.id);
+          showToast("Article retiré de vos favoris", "info");
           if (isAuthenticated) {
             void api
               .delete("/wishlist", { params: { listing_id: listing.id } })
@@ -541,6 +544,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           next = [...prev, normalizeListing(listing)];
+          showToast("Article ajouté à vos favoris !", "success");
           if (isAuthenticated) {
             void api
               .post("/wishlist", { listing_id: listing.id })
@@ -557,7 +561,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ["commerce"] });
       }
     },
-    [isAuthenticated, queryClient]
+    [isAuthenticated, queryClient, showToast]
   );
 
   const addToCart = useCallback(
@@ -565,6 +569,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
       // Si l'article est déjà dans le panier, on n'ajoute rien :
       // la quantité se gère exclusivement depuis la page panier.
       if (cart.some((i) => i.listingId === listing.id)) {
+        showToast("Cet article est déjà dans votre panier", "info");
         return false;
       }
 
@@ -579,6 +584,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         { listingId: listing.id, listing: normalizeListing(listing), quantity: qty },
       ]);
+      showToast("Article ajouté à votre panier !", "success");
 
       if (isAuthenticated) {
         void api
@@ -593,12 +599,13 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
 
       return true;
     },
-    [isAuthenticated, queryClient, cart]
+    [isAuthenticated, queryClient, cart, showToast]
   );
 
   const removeFromCart = useCallback(
     (listingId: number) => {
       setCart((prev) => prev.filter((i) => i.listingId !== listingId));
+      showToast("Article retiré du panier", "info");
       if (isAuthenticated) {
         void api
           .delete("/cart", { params: { listing_id: listingId } })
@@ -606,7 +613,7 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ["commerce"] });
       }
     },
-    [isAuthenticated, queryClient]
+    [isAuthenticated, queryClient, showToast]
   );
 
   const updateCartQuantity = useCallback(

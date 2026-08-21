@@ -3,8 +3,11 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { MessageSquare, Send } from "lucide-react";
+import Logo from "@/components/Logo";
+import { useToast } from "@/components/Toast";
 
 const FACEBOOK_URL = "https://www.facebook.com/profile.php?id=100089236065066";
+const INSTAGRAM_URL = "https://www.instagram.com/livrezone/";
 
 const CATALOG_LINKS: Array<{ href: string; label: string }> = [
   { href: "/annonces?category=LITTERATURE", label: "Romans & Littérature" },
@@ -24,12 +27,13 @@ const HELP_LINKS: Array<{ href: string; label: string; highlight?: boolean }> = 
 ];
 
 export default function Footer() {
+  const { success } = useToast();
   const [email, setEmail] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (email) {
-      alert(`Merci de vous être abonné avec : ${email}`);
+      success(`Merci de vous être abonné avec : ${email}`);
       setEmail("");
     }
   };
@@ -45,14 +49,9 @@ export default function Footer() {
       <div className="w-[90%] max-w-7xl mx-auto py-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1fr] gap-12">
         {/* Brand Section */}
         <div className="flex flex-col gap-4">
-          <Link
-            href="/"
-            onClick={scrollToTop}
-            className="flex flex-col self-start group"
-          >
-            <span className="text-3xl font-black text-white leading-none">L.</span>
-            <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-violet-300 mt-1">LivreZone</span>
-          </Link>
+          <div onClick={scrollToTop} className="cursor-pointer self-start">
+            <Logo size="md" theme="dark" href="/" />
+          </div>
           <p className="text-[13px] text-violet-200/80 leading-relaxed pr-4">
             Plateforme marocaine qui met en relation les lecteurs, les particuliers et les librairies. Elle permet de publier et de découvrir des annonces de livres neufs et d&rsquo;occasion partout au Maroc, tout en donnant une seconde vie aux ouvrages déjà lus.
           </p>
@@ -67,7 +66,7 @@ export default function Footer() {
               <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c4.56-.93 8-4.96 8-9.75z"/></svg>
             </a>
             <a
-              href="https://www.instagram.com/livrezone"
+              href={INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="w-11 h-11 rounded-full bg-white/10 hover:bg-[#6D28D9] flex items-center justify-center transition-all hover:scale-105"

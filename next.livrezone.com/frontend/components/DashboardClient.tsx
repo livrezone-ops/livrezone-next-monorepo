@@ -354,7 +354,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
   const handleApplyBulkDiscount = async () => {
     const pct = parseFloat(bulkDiscount);
     if (isNaN(pct) || pct <= 0 || pct >= 100) {
-      alert("Entrez un pourcentage de réduction valide (ex: 20)");
+      pushToast("Entrez un pourcentage de réduction valide (ex: 20)", "warning");
       return;
     }
     

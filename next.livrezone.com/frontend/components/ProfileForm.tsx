@@ -1,10 +1,27 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
+import React, { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
 import { getApiErrorStatus, getApiFieldErrors, getApiErrorMessage } from '../lib/api-error';
+import Logo from '@/components/Logo';
+import ToastContainer, { ToastData, ToastType } from '@/components/Toast';
+import {
+    User as UserIcon,
+    Phone,
+    MapPin,
+    Building,
+    CreditCard,
+    Truck,
+    Home,
+    Camera,
+    UploadCloud,
+    CheckCircle2,
+    AlertTriangle,
+    Loader2,
+    Sparkles,
+} from 'lucide-react';
 
 interface City {
     id: number;
@@ -44,20 +61,43 @@ interface ProfileFormProps {
 }
 
 function getInitials(value: string): string {
-    if (!value) return '?';
-    const parts = value.replace(/-/g, ' ').trim().split(/\s+/);
+    if (!value) return 'LZ';
+    const parts = value.replace(/[-_]/g, ' ').trim().split(/\s+/);
     const first = parts[0]?.[0] ?? '';
     const second = parts[1]?.[0] ?? '';
-    return (first + second).toUpperCase();
+    return (first + second).toUpperCase() || 'LZ';
 }
 
 export default function ProfileForm({
     title = 'Compléter mon profil',
-    subtitle = 'Ces informations permettent de personnaliser ton expérience LivreZone.',
+    subtitle = 'Ces informations permettent de personnaliser votre expérience LivreZone.',
     redirectPath,
 }: ProfileFormProps) {
     const router = useRouter();
     const queryClient = useQueryClient();
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    // Toasts
+    const [toasts, setToasts] = useState<ToastData[]>([]);
+    const toastIdRef = useRef(0);
+
+    const pushToast = (toastMessage: string, type: ToastType = 'success') => {
+        const id = ++toastIdRef.current;
+        setToasts((prev) => [...prev, { id, message: toastMessage, type }]);
+
+        setTimeout(() => {
+            setToasts((prev) =>
+                prev.map((t) => (t.id === id ? { ...t, leaving: true } : t))
+            );
+            setTimeout(() => {
+                setToasts((prev) => prev.filter((t) => t.id !== id));
+            }, 300);
+        }, 4000);
+    };
+
+    const dismissToast = (id: number) => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+    };
 
     const [cities, setCities] = useState<City[]>([]);
     const [logo, setLogo] = useState<File | null>(null);
@@ -66,7 +106,7 @@ export default function ProfileForm({
     const [message, setMessage] = useState('');
     const [errors, setErrors] = useState<ValidationErrors>({});
 
-    const [avatarMode, setAvatarMode] = useState<string>('custom');
+    const [avatarMode, setAvatarMode] = useState<string>('initials');
     const [userAvatar, setUserAvatar] = useState<string | null>(null);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [initialLogo, setInitialLogo] = useState<string | null>(null);
@@ -113,6 +153,10 @@ export default function ProfileForm({
                         setAvatarMode(data.profile.avatar_mode);
                     } else if (data.user?.avatar) {
                         setAvatarMode('google');
+                    } else if (data.profile.logo) {
+                        setAvatarMode('custom');
+                    } else {
+                        setAvatarMode('initials');
                     }
 
                     if (data.profile.avatar_upload) {
@@ -165,6 +209,20 @@ export default function ProfileForm({
         }));
     };
 
+    const handleCustomImageClick = () => {
+        setAvatarMode('custom');
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0] ?? null;
+        if (file) {
+            setLogo(file);
+            setLogoPreview(URL.createObjectURL(file));
+            setAvatarMode('custom');
+        }
+    };
+
     const submitProfile = async (
         event: FormEvent<HTMLFormElement>,
         action: 'confirm' | 'later',
@@ -176,7 +234,6 @@ export default function ProfileForm({
         setErrors({});
 
         const formData = new FormData();
-
         const values = { ...form };
 
         if (action === 'later' && !values.city_id && cities.length) {
@@ -202,16 +259,18 @@ export default function ProfileForm({
                 },
             });
 
-            setMessage(data.message ?? 'Profil enregistré avec succès.');
+            const successMsg = data.message ?? 'Profil enregistré avec succès !';
+            setMessage(successMsg);
+            pushToast(successMsg, 'success');
             queryClient.invalidateQueries({ queryKey: ['user'] });
 
             if (action === 'confirm') {
                 if (redirectPath) {
-                    router.replace(redirectPath);
-                } else {
-                    goBack();
+                    setTimeout(() => {
+                        router.replace(redirectPath);
+                        router.refresh();
+                    }, 1000);
                 }
-                router.refresh();
             } else {
                 goBack();
             }
@@ -222,19 +281,20 @@ export default function ProfileForm({
             }
 
             if (getApiErrorStatus(error) === 422) {
-                setErrors(getApiFieldErrors(error));
-                setMessage(
-                    'Certains champs sont incorrects. Vérifie le formulaire.',
-                );
+                const fieldErrors = getApiFieldErrors(error);
+                setErrors(fieldErrors);
+                const errMsg = 'Certains champs sont incorrects. Vérifiez le formulaire.';
+                setMessage(errMsg);
+                pushToast(errMsg, 'error');
                 return;
             }
 
-            setMessage(
-                getApiErrorMessage(
-                    error,
-                    'Une erreur est survenue pendant l’enregistrement.',
-                ),
+            const errMsg = getApiErrorMessage(
+                error,
+                'Une erreur est survenue pendant l’enregistrement.',
             );
+            setMessage(errMsg);
+            pushToast(errMsg, 'error');
         } finally {
             setSubmitting(false);
         }
@@ -246,368 +306,441 @@ export default function ProfileForm({
         }
 
         return (
-            <p className="mt-1 text-sm text-red-600">{errors[field][0]}</p>
+            <p className="mt-1 text-xs text-rose-600 font-medium">{errors[field][0]}</p>
         );
     };
 
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-gray-50">
-                <p className="text-gray-600">Chargement du profil...</p>
+            <div className="flex min-h-[60vh] items-center justify-center">
+                <div className="flex items-center gap-3 text-slate-600">
+                    <Loader2 className="h-6 w-6 animate-spin text-[#6D28D9]" />
+                    <span className="text-sm font-medium">Chargement du profil...</span>
+                </div>
             </div>
         );
     }
 
     return (
-        <main className="min-h-screen bg-gray-50 px-4 py-10">
-            <div className="mx-auto max-w-2xl rounded-2xl bg-white p-6 shadow-lg sm:p-10">
-                <div className="mb-8 text-center">
-                    <h1 className="text-3xl font-bold text-gray-900">
-                        {title}
-                    </h1>
-                    <p className="mt-2 text-sm text-gray-600">{subtitle}</p>
-                </div>
-
-                {message && (
-                    <div className="mb-6 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                        {message}
-                    </div>
-                )}
-
-                <form
-                    onSubmit={(event) => submitProfile(event, 'confirm')}
-                    className="space-y-6"
-                >
-                    <div>
-                        <label
-                            htmlFor="nickname"
-                            className="mb-2 block text-sm font-medium text-gray-700"
-                        >
-                            Pseudonyme
-                        </label>
-
-                        <input
-                            id="nickname"
-                            name="nickname"
-                            value={form.nickname}
-                            onChange={handleChange}
-                            required
-                            maxLength={255}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
-                            placeholder="Exemple : bibliotheque-ouahib"
-                        />
-
-                        <p className="mt-1 text-xs text-gray-500">
-                            Nom affiché publiquement dans tes publications et ta
-                            bibliothèque.
+        <div className="flex-1 flex flex-col items-center justify-start bg-gradient-to-b from-slate-50 via-slate-50 to-purple-50/20 px-4 pt-5 pb-12 sm:pt-7 sm:pb-16">
+            <ToastContainer toasts={toasts} dismiss={dismissToast} />
+            <div className="w-full max-w-[680px]">
+                
+                {/* Carte principale */}
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 md:p-9 shadow-xl shadow-slate-100/80">
+                    
+                    {/* Header Logo + Titre */}
+                    <div className="mb-6 text-center">
+                        <div className="flex justify-center">
+                            <Logo size="lg" href="/" />
+                        </div>
+                        <h1 className="mt-3 text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+                            {title}
+                        </h1>
+                        <p className="mt-1 text-xs sm:text-sm text-slate-500 font-medium">
+                            {subtitle}
                         </p>
-
-                        {fieldError('nickname')}
                     </div>
 
-                    <div>
-                        <label
-                            htmlFor="phone"
-                            className="mb-2 block text-sm font-medium text-gray-700"
-                        >
-                            Téléphone
-                        </label>
+                    {/* Notification Erreur générale (Style Dashboard) */}
+                    {errors && Object.keys(errors).length > 0 && (
+                        <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50/90 p-3 text-xs sm:text-sm text-rose-700 shadow-2xs">
+                            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                            <div className="flex-1 font-medium">
+                                {message || 'Certains champs sont incorrects. Vérifiez les informations saisies.'}
+                            </div>
+                        </div>
+                    )}
 
-                        <input
-                            id="phone"
-                            name="phone"
-                            type="tel"
-                            inputMode="numeric"
-                            value={form.phone}
-                            onChange={handleChange}
-                            maxLength={10}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
-                            placeholder="0612345678"
-                        />
+                    {/* Notification Succès (Style Dashboard) */}
+                    {message && Object.keys(errors).length === 0 && (
+                        <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-violet-200 bg-violet-50/90 p-3 text-xs sm:text-sm text-violet-800 shadow-2xs">
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-[#6D28D9] mt-0.5" />
+                            <div className="flex-1 font-medium">{message}</div>
+                        </div>
+                    )}
 
-                        {fieldError('phone')}
-                    </div>
+                    <form
+                        onSubmit={(event) => submitProfile(event, 'confirm')}
+                        className="space-y-4 sm:space-y-5"
+                    >
+                        {/* 1. SECTION AVATAR (3 OPTIONS CLIC DIRECT) */}
+                        <div>
+                            <label className="mb-1.5 block text-xs sm:text-sm font-semibold text-slate-700">
+                                Photo de profil & Avatar
+                            </label>
+                            <p className="mb-2.5 text-[11px] sm:text-xs text-slate-500">
+                                Choisissez comment votre avatar apparaît publiquement aux acheteurs et vendeurs.
+                            </p>
 
-                    <div>
-                        <label
-                            htmlFor="city_id"
-                            className="mb-2 block text-sm font-medium text-gray-700"
-                        >
-                            Ville
-                        </label>
+                            <input
+                                ref={fileInputRef}
+                                id="avatar-file-input"
+                                type="file"
+                                accept="image/png,image/jpeg,image/gif,image/webp"
+                                onChange={handleFileChange}
+                                className="hidden"
+                            />
 
-                        <select
-                            id="city_id"
-                            name="city_id"
-                            value={form.city_id}
-                            onChange={handleChange}
-                            required
-                            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
-                        >
-                            <option value="">Choisir une ville</option>
+                            <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
+                                {/* Option A: Google */}
+                                <button
+                                    type="button"
+                                    onClick={() => setAvatarMode('google')}
+                                    disabled={!userAvatar}
+                                    className={`relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3 text-center transition-all ${
+                                        avatarMode === 'google'
+                                            ? 'border-[#6D28D9] bg-violet-50/70 shadow-xs'
+                                            : 'border-slate-200/80 bg-slate-50/50 hover:border-slate-300 hover:bg-white'
+                                    } ${!userAvatar ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                                >
+                                    {avatarMode === 'google' && (
+                                        <div className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#6D28D9] text-white">
+                                            <CheckCircle2 className="h-3 w-3" />
+                                        </div>
+                                    )}
+                                    {userAvatar ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={userAvatar}
+                                            alt="Google"
+                                            className="h-12 w-12 sm:h-14 sm:w-14 rounded-full object-cover border-2 border-white shadow-xs"
+                                        />
+                                    ) : (
+                                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-slate-200 text-slate-400 font-bold text-sm">
+                                            G
+                                        </div>
+                                    )}
+                                    <span className="text-xs font-semibold text-slate-800">
+                                        Google
+                                    </span>
+                                </button>
 
-                            {cities.map((city) => (
-                                <option key={city.id} value={city.id}>
-                                    {city.name}
-                                </option>
-                            ))}
-                        </select>
-
-                        {fieldError('city_id')}
-                    </div>
-
-                    <div>
-                        <label
-                            htmlFor="profile_type"
-                            className="mb-2 block text-sm font-medium text-gray-700"
-                        >
-                            Type de profil
-                        </label>
-
-                        <select
-                            id="profile_type"
-                            name="profile_type"
-                            value={form.profile_type}
-                            onChange={handleChange}
-                            required
-                            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
-                        >
-                            <option value="étudiant(e)">Étudiant(e)</option>
-                            <option value="passionné(e)">Passionné(e)</option>
-                            <option value="librairie">Librairie</option>
-                        </select>
-
-                        {fieldError('profile_type')}
-                    </div>
-
-                    <div>
-                        <label
-                            htmlFor="subscription_type"
-                            className="mb-2 block text-sm font-medium text-gray-700"
-                        >
-                            Abonnement
-                        </label>
-
-                        <select
-                            id="subscription_type"
-                            name="subscription_type"
-                            value={form.subscription_type}
-                            onChange={handleChange}
-                            required
-                            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
-                        >
-                            <option value="free">Gratuit</option>
-                            <option value="premium">Premium</option>
-                        </select>
-
-                        {fieldError('subscription_type')}
-                    </div>
-
-                    <div>
-                        <label
-                            htmlFor="delivery_option"
-                            className="mb-2 block text-sm font-medium text-gray-700"
-                        >
-                            Livraison disponible
-                        </label>
-
-                        <select
-                            id="delivery_option"
-                            name="delivery_option"
-                            value={form.delivery_option}
-                            onChange={handleChange}
-                            required
-                            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
-                        >
-                            <option value="oui">Oui</option>
-                            <option value="non">Non</option>
-                            <option value="selon destination">
-                                Selon la destination
-                            </option>
-                        </select>
-
-                        {fieldError('delivery_option')}
-                    </div>
-
-                    <div>
-                        <label
-                            htmlFor="adresse"
-                            className="mb-2 block text-sm font-medium text-gray-700"
-                        >
-                            Adresse
-                        </label>
-
-                        <textarea
-                            id="adresse"
-                            name="adresse"
-                            value={form.adresse}
-                            onChange={handleChange}
-                            maxLength={500}
-                            rows={3}
-                            className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-gray-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200"
-                            placeholder="Adresse facultative"
-                        />
-
-                        {fieldError('adresse')}
-                    </div>
-
-                    <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
-                            Photo de profil
-                        </label>
-
-                        <p className="mb-3 text-xs text-gray-500">
-                            Choisis comment afficher ton avatar publiquement.
-                        </p>
-
-                        <div className="grid grid-cols-3 gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setAvatarMode('google')}
-                                className={`flex flex-col items-center gap-2 rounded-xl border-2 p-3 text-center text-sm font-medium transition ${
-                                    avatarMode === 'google'
-                                        ? 'border-violet-600 bg-violet-50 text-violet-700'
-                                        : 'border-gray-200 text-gray-500 hover:border-violet-300'
-                                }`}
-                            >
-                                {userAvatar ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                        src={userAvatar}
-                                        alt="Google"
-                                        className="h-14 w-14 rounded-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-400">
-                                        —
+                                {/* Option B: Initiales dynamiques */}
+                                <button
+                                    type="button"
+                                    onClick={() => setAvatarMode('initials')}
+                                    className={`relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3 text-center transition-all cursor-pointer ${
+                                        avatarMode === 'initials'
+                                            ? 'border-[#6D28D9] bg-violet-50/70 shadow-xs'
+                                            : 'border-slate-200/80 bg-slate-50/50 hover:border-slate-300 hover:bg-white'
+                                    }`}
+                                >
+                                    {avatarMode === 'initials' && (
+                                        <div className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#6D28D9] text-white">
+                                            <CheckCircle2 className="h-3 w-3" />
+                                        </div>
+                                    )}
+                                    <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-gradient-to-tr from-[#5B21B6] to-[#7C3AED] text-sm sm:text-base font-black text-white shadow-xs">
+                                        {getInitials(form.nickname || 'LZ')}
                                     </div>
-                                )}
-                                Google
-                            </button>
+                                    <span className="text-xs font-semibold text-slate-800">
+                                        Initiales
+                                    </span>
+                                </button>
 
-                            <button
-                                type="button"
-                                onClick={() => setAvatarMode('initials')}
-                                className={`flex flex-col items-center gap-2 rounded-xl border-2 p-3 text-center text-sm font-medium transition ${
-                                    avatarMode === 'initials'
-                                        ? 'border-violet-600 bg-violet-50 text-violet-700'
-                                        : 'border-gray-200 text-gray-500 hover:border-violet-300'
-                                }`}
-                            >
-                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-lg font-bold text-white">
-                                    {getInitials(form.nickname || 'LZ')}
+                                {/* Option C: Importer Image (Directement cliquable) */}
+                                <div
+                                    onClick={handleCustomImageClick}
+                                    role="button"
+                                    tabIndex={0}
+                                    className={`relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3 text-center transition-all cursor-pointer ${
+                                        avatarMode === 'custom'
+                                            ? 'border-[#6D28D9] bg-violet-50/70 shadow-xs'
+                                            : 'border-slate-200/80 bg-slate-50/50 hover:border-slate-300 hover:bg-white'
+                                    }`}
+                                >
+                                    {avatarMode === 'custom' && (
+                                        <div className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#6D28D9] text-white">
+                                            <CheckCircle2 className="h-3 w-3" />
+                                        </div>
+                                    )}
+                                    {logoPreview ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <div className="relative group/avatar">
+                                            <img
+                                                src={logoPreview}
+                                                alt="Aperçu"
+                                                className="h-12 w-12 sm:h-14 sm:w-14 rounded-full object-cover border-2 border-white shadow-xs"
+                                            />
+                                            <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity text-white">
+                                                <Camera className="h-4 w-4" />
+                                            </div>
+                                        </div>
+                                    ) : initialLogo && !initialLogo.startsWith('http') ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <div className="relative group/avatar">
+                                            <img
+                                                src={`https://api-next.livrezone.com${initialLogo}`}
+                                                alt="Logo actuel"
+                                                className="h-12 w-12 sm:h-14 sm:w-14 rounded-full object-cover border-2 border-white shadow-xs"
+                                            />
+                                            <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity text-white">
+                                                <Camera className="h-4 w-4" />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border border-dashed border-slate-300 bg-white text-slate-500 hover:border-[#6D28D9] hover:text-[#6D28D9] transition-colors">
+                                            <UploadCloud className="h-5 w-5" />
+                                        </div>
+                                    )}
+                                    <span className="text-xs font-semibold text-slate-800">
+                                        {logoPreview || initialLogo ? 'Changer logo' : 'Importer logo'}
+                                    </span>
                                 </div>
-                                Initiales
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => setAvatarMode('custom')}
-                                className={`flex flex-col items-center gap-2 rounded-xl border-2 p-3 text-center text-sm font-medium transition ${
-                                    avatarMode === 'custom'
-                                        ? 'border-violet-600 bg-violet-50 text-violet-700'
-                                        : 'border-gray-200 text-gray-500 hover:border-violet-300'
-                                }`}
-                            >
-                                {logoPreview ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                        src={logoPreview}
-                                        alt="Aperçu"
-                                        className="h-14 w-14 rounded-full object-cover"
-                                    />
-                                ) : initialLogo && !initialLogo.startsWith('http') ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                        src={`https://api-next.livrezone.com${initialLogo}`}
-                                        alt="Logo actuel"
-                                        className="h-14 w-14 rounded-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-2xl text-gray-400">
-                                        +
-                                    </div>
-                                )}
-                                Importer
-                            </button>
+                            </div>
+                            {fieldError('logo')}
                         </div>
 
-                        {avatarMode === 'custom' && (
-                            <div className="mt-3">
-                                <input
-                                    id="logo"
-                                    name="logo"
-                                    type="file"
-                                    accept="image/png,image/jpeg,image/gif,image/webp"
-                                    onChange={(event) => {
-                                        const file =
-                                            event.target.files?.[0] ?? null;
-                                        setLogo(file);
-                                        setLogoPreview(
-                                            file
-                                                ? URL.createObjectURL(file)
-                                                : null,
-                                        );
-                                    }}
-                                    className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700"
-                                />
+                        {/* 2. LIGNE 1 : PSEUDONYME (GAUCHE) & TÉLÉPHONE (DROITE) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div>
+                                <label
+                                    htmlFor="nickname"
+                                    className="mb-1.5 block text-xs sm:text-sm font-semibold text-slate-700"
+                                >
+                                    Pseudonyme
+                                </label>
 
-                                {(logoPreview ||
-                                    (initialLogo &&
-                                        !initialLogo.startsWith('http'))) && (
-                                    <div className="mt-3 flex items-center gap-3 rounded-lg border border-violet-100 bg-violet-50 p-3">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
-                                            src={
-                                                logoPreview ||
-                                                `https://api-next.livrezone.com${initialLogo}`
-                                            }
-                                            alt="Aperçu du logo importé"
-                                            className="h-20 w-20 rounded-full object-cover border-2 border-white shadow"
-                                        />
-                                        <div className="min-w-0 text-sm">
-                                            <p className="font-medium text-violet-800">
-                                                Aperçu de ton logo
-                                            </p>
-                                            <p className="truncate text-xs text-gray-500">
-                                                {logo?.name || 'Logo importé'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
+                                <div className="relative">
+                                    <UserIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                    <input
+                                        id="nickname"
+                                        name="nickname"
+                                        value={form.nickname}
+                                        onChange={handleChange}
+                                        required
+                                        maxLength={255}
+                                        className="h-11 sm:h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#6D28D9] focus:bg-white focus:ring-2 focus:ring-[#6D28D9]/20"
+                                        placeholder="Ex: Fertilane"
+                                    />
+                                </div>
 
-                                <p className="mt-1 text-xs text-gray-500">
-                                    PNG, JPG, GIF ou WebP. Taille maximale : 2
-                                    Mo.
+                                <p className="mt-1 text-[11px] text-slate-500 flex items-center gap-1">
+                                    <Sparkles className="h-3 w-3 text-[#6D28D9] shrink-0" />
+                                    <span>Nom affiché publiquement.</span>
                                 </p>
+
+                                {fieldError('nickname')}
                             </div>
-                        )}
 
-                        {fieldError('logo')}
-                    </div>
+                            <div>
+                                <label
+                                    htmlFor="phone"
+                                    className="mb-1.5 block text-xs sm:text-sm font-semibold text-slate-700"
+                                >
+                                    Téléphone
+                                </label>
 
-                    <div className="flex flex-col gap-3 pt-4 sm:flex-row">
-                        <button
-                            type="submit"
-                            disabled={submitting}
-                            className="flex-1 rounded-lg bg-violet-700 px-6 py-3 font-medium text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {submitting
-                                ? 'Enregistrement...'
-                                : 'Confirmer mon profil'}
-                        </button>
+                                <div className="relative">
+                                    <Phone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                    <input
+                                        id="phone"
+                                        name="phone"
+                                        type="tel"
+                                        inputMode="numeric"
+                                        value={form.phone}
+                                        onChange={handleChange}
+                                        maxLength={10}
+                                        className="h-11 sm:h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#6D28D9] focus:bg-white focus:ring-2 focus:ring-[#6D28D9]/20"
+                                        placeholder="0612345678"
+                                    />
+                                </div>
 
-                        <button
-                            type="button"
-                            disabled={submitting}
-                            onClick={() => goBack()}
-                            className="flex-1 rounded-lg border border-gray-300 bg-white px-6 py-3 font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            Plus tard
-                        </button>
-                    </div>
-                </form>
+                                <p className="mt-1 text-[11px] text-slate-400">
+                                    Format 10 chiffres (ex: 06...)
+                                </p>
+
+                                {fieldError('phone')}
+                            </div>
+                        </div>
+
+                        {/* 3. LIGNE 2 : VILLE (GAUCHE) & OPTION DE LIVRAISON (DROITE) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div>
+                                <label
+                                    htmlFor="city_id"
+                                    className="mb-1.5 block text-xs sm:text-sm font-semibold text-slate-700"
+                                >
+                                    Ville
+                                </label>
+
+                                <div className="relative">
+                                    <MapPin className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                    <select
+                                        id="city_id"
+                                        name="city_id"
+                                        value={form.city_id}
+                                        onChange={handleChange}
+                                        required
+                                        className="h-11 sm:h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-8 text-sm text-slate-900 outline-none transition-all focus:border-[#6D28D9] focus:bg-white focus:ring-2 focus:ring-[#6D28D9]/20 cursor-pointer appearance-none"
+                                    >
+                                        <option value="">Choisir une ville...</option>
+                                        {cities.map((city) => (
+                                            <option key={city.id} value={city.id}>
+                                                {city.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
+                                        ▼
+                                    </div>
+                                </div>
+
+                                {fieldError('city_id')}
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="delivery_option"
+                                    className="mb-1.5 block text-xs sm:text-sm font-semibold text-slate-700"
+                                >
+                                    Option de livraison
+                                </label>
+
+                                <div className="relative">
+                                    <Truck className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                    <select
+                                        id="delivery_option"
+                                        name="delivery_option"
+                                        value={form.delivery_option}
+                                        onChange={handleChange}
+                                        required
+                                        className="h-11 sm:h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-8 text-sm text-slate-900 outline-none transition-all focus:border-[#6D28D9] focus:bg-white focus:ring-2 focus:ring-[#6D28D9]/20 cursor-pointer appearance-none"
+                                    >
+                                        <option value="oui">Oui (Livraison disponible)</option>
+                                        <option value="non">Non (Remise en main propre)</option>
+                                        <option value="selon destination">Selon la destination</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
+                                        ▼
+                                    </div>
+                                </div>
+
+                                {fieldError('delivery_option')}
+                            </div>
+                        </div>
+
+                        {/* 4. LIGNE 3 : TYPE DE PROFIL (GAUCHE) & TYPE D'ABONNEMENT (DROITE) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div>
+                                <label
+                                    htmlFor="profile_type"
+                                    className="mb-1.5 block text-xs sm:text-sm font-semibold text-slate-700"
+                                >
+                                    Type de profil
+                                </label>
+
+                                <div className="relative">
+                                    <Building className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                    <select
+                                        id="profile_type"
+                                        name="profile_type"
+                                        value={form.profile_type}
+                                        onChange={handleChange}
+                                        required
+                                        className="h-11 sm:h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-8 text-sm text-slate-900 outline-none transition-all focus:border-[#6D28D9] focus:bg-white focus:ring-2 focus:ring-[#6D28D9]/20 cursor-pointer appearance-none"
+                                    >
+                                        <option value="passionné(e)">Passionné(e)</option>
+                                        <option value="étudiant(e)">Étudiant(e)</option>
+                                        <option value="librairie">Librairie</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
+                                        ▼
+                                    </div>
+                                </div>
+
+                                {fieldError('profile_type')}
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="subscription_type"
+                                    className="mb-1.5 block text-xs sm:text-sm font-semibold text-slate-700"
+                                >
+                                    Type d'abonnement
+                                </label>
+
+                                <div className="relative">
+                                    <CreditCard className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                    <select
+                                        id="subscription_type"
+                                        name="subscription_type"
+                                        value={form.subscription_type}
+                                        onChange={handleChange}
+                                        required
+                                        className="h-11 sm:h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-8 text-sm text-slate-900 outline-none transition-all focus:border-[#6D28D9] focus:bg-white focus:ring-2 focus:ring-[#6D28D9]/20 cursor-pointer appearance-none"
+                                    >
+                                        <option value="free">Gratuit (Free)</option>
+                                        <option value="premium">Premium</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
+                                        ▼
+                                    </div>
+                                </div>
+
+                                {fieldError('subscription_type')}
+                            </div>
+                        </div>
+
+                        {/* 5. LIGNE 4 : ADRESSE EN 2 LIGNES (PLUS LONG & SPACIEUX) */}
+                        <div>
+                            <label
+                                htmlFor="adresse"
+                                className="mb-1.5 block text-xs sm:text-sm font-semibold text-slate-700"
+                            >
+                                Adresse <span className="text-slate-400 font-normal">(facultative)</span>
+                            </label>
+
+                            <div className="relative">
+                                <Home className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-slate-400" />
+                                <textarea
+                                    id="adresse"
+                                    name="adresse"
+                                    value={form.adresse}
+                                    onChange={handleChange}
+                                    maxLength={500}
+                                    rows={2}
+                                    className="w-full min-h-[72px] resize-none rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 py-2.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#6D28D9] focus:bg-white focus:ring-2 focus:ring-[#6D28D9]/20"
+                                    placeholder="Ex: Quartier, Rue, Bâtiment..."
+                                />
+                            </div>
+
+                            {fieldError('adresse')}
+                        </div>
+
+                        {/* 6. BOUTONS D'ACTION (ESPACÉS DU DERNIER BLOC & TRÈS CONFORTABLES SUR MOBILE) */}
+                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-5 sm:pt-6 border-t border-slate-100">
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                className="w-full sm:flex-1 flex h-12 items-center justify-center gap-2 rounded-xl bg-[#6D28D9] px-6 text-sm font-semibold text-white shadow-xs transition-all hover:bg-[#5b21b6] hover:shadow-md hover:shadow-purple-500/20 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {submitting ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        <span>Enregistrement en cours...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        <span>{redirectPath ? 'Confirmer mon profil' : 'Enregistrer les modifications'}</span>
+                                    </>
+                                )}
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled={submitting}
+                                onClick={() => goBack()}
+                                className="w-full sm:flex-1 flex h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {redirectPath ? 'Compléter plus tard' : 'Annuler'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-        </main>
+        </div>
     );
 }
