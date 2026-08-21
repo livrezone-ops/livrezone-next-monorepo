@@ -41,15 +41,16 @@ class AdminController extends Controller
             $query->where('is_active', false);
         }
 
-        // Filtre connexion (en ligne / hors ligne) basé sur la dernière connexion,
-        // même fenêtre que le compteur en ligne (ONLINE_WINDOW_SECONDS).
+        // Filtre connexion (en ligne / hors ligne) basé sur la dernière activité
+        // (heartbeat), repli sur last_login_at. Même fenêtre que le compteur en ligne.
+        $activityWindow = now()->subSeconds(static::ONLINE_WINDOW_SECONDS);
         if ($connection === 'online') {
-            $query->where('last_login_at', '>=', now()->subSeconds(static::ONLINE_WINDOW_SECONDS));
+            $query->whereRaw('COALESCE(last_activity_at, last_login_at) >= ?', [$activityWindow]);
         } elseif ($connection === 'offline') {
-            $query->where(function ($q) {
-                $q->whereNull('last_login_at')
-                    ->orWhere('last_login_at', '<', now()->subSeconds(static::ONLINE_WINDOW_SECONDS));
-            });
+            $query->whereRaw(
+                'COALESCE(last_activity_at, last_login_at) IS NULL OR COALESCE(last_activity_at, last_login_at) < ?',
+                [$activityWindow]
+            );
         }
 
         if ($request->filled('search')) {
@@ -92,7 +93,7 @@ class AdminController extends Controller
                 'last_login_at' => $user->last_login_at,
                 'connection' => [
                     'online' => $user->isOnline(),
-                    'last_activity' => $user->last_login_at?->timestamp,
+                    'last_activity' => ($user->last_activity_at ?? $user->last_login_at)?->timestamp,
                     'last_ip' => null,
                     'active_sessions' => 0,
                 ],
@@ -321,6 +322,8 @@ class AdminController extends Controller
 
     protected function onlineUserCount(): int
     {
-        return User::where('last_login_at', '>=', now()->subSeconds(static::ONLINE_WINDOW_SECONDS))->count();
+        return User::whereRaw('COALESCE(last_activity_at, last_login_at) >= ?', [
+            now()->subSeconds(static::ONLINE_WINDOW_SECONDS),
+        ])->count();
     }
 }

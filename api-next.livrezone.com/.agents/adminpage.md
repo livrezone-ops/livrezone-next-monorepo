@@ -8,7 +8,7 @@ Développement d'une page d'administration `/admin` pour le frontend Next.js, ad
 
 1. **Hero JSON** → **source de vérité = fichier local** `frontend/data/hero-messages.json`. L'admin lit le fichier, l'édite sous forme de **tableau** (lignes éditables), et l'enregistrement **réécrit le fichier**. La home page lit directement le fichier. La table `hero_messages` et ses endpoints ne sont plus consommés par le frontend (conservés côté API, non utilisés).
 2. **Activation/désactivation des users** → ajout d'une **migration ciblée** (colonne `is_active` sur `users`, défaut `true`).
-3. **Statut "en ligne"** → basé sur la **colonne `last_login_at`** sur `users` (remplie à chaque connexion), et non sur la table `sessions` (peu fiable : `user_id` NULL pour la plupart des sessions). Fenêtre "en ligne" : **5 minutes** (`ONLINE_WINDOW_SECONDS = 300`).
+3. **Statut "en ligne"** → **heartbeat d'activité** : colonne `last_activity_at` sur `users`, mise à jour par le middleware `TrackActivity` (throttle 1/min) sur toute requête API authentifiée Sanctum. Repli sur `last_login_at` si aucune activité enregistrée. Fenêtre "en ligne" : **5 minutes** (`ONLINE_WINDOW_SECONDS = 300`). `last_login_at` reste rempli à la connexion (SocialAuthController) et sert de repli.
 4. **Sécurisation `/admin`** → **403** explicite pour un utilisateur connecté non-admin ; **redirection `/login`** pour un non-connecté.
 5. **Commandes artisan admin** → ajout de `make_admin`, `is_admin`, `revoke_admin` (par id utilisateur, avec confirmation `y/n`).
 6. **Reset mot de passe** → **reporté** (doit refaire le login côté standard email/mot de passe ; Google seul actuellement).
@@ -21,18 +21,20 @@ Développement d'une page d'administration `/admin` pour le frontend Next.js, ad
 - `database/migrations/2026_08_20_000001_add_is_active_to_users_table.php` — colonne `is_active` (bool, défaut `true`, indexée).
 - `database/migrations/2026_08_20_000002_create_hero_messages_table.php` — table `hero_messages` (langue, direction, titre, description, actions, `is_active`, `sort_order`).
 - `database/migrations/2026_08_20_000003_add_last_login_at_to_users_table.php` — colonne `last_login_at` (timestamp nullable) sur `users`.
+- `database/migrations/2026_08_20_000004_add_last_activity_at_to_users_table.php` — colonne `last_activity_at` (timestamp nullable, indexée) sur `users` pour le heartbeat d'activité.
 
 **Modèles**
-- `app/Models/User.php` — ajout de `is_active` dans `$fillable` et `$casts` ; ajout de `last_login_at` (fillable + cast `datetime`) ; nouvelle méthode `isOnline(int $windowSeconds = 300): bool`.
+- `app/Models/User.php` — ajout de `is_active` dans `$fillable` et `$casts` ; ajout de `last_login_at` (fillable + cast `datetime`) et `last_activity_at` (fillable + cast `datetime`) ; méthode `isOnline(int $windowSeconds = 300): bool` basée sur `last_activity_at` (repli `last_login_at`).
 - `app/Models/HeroMessage.php` — nouveau modèle + méthode `toHeroMessageShape()` alignée sur le type `HeroMessage` frontend.
 
 **Middleware**
 - `app/Http/Middleware/EnsureAdmin.php` — 401 si non authentifié, 403 si `!is_admin`.
-- `bootstrap/app.php` — enregistrement de l'alias middleware `'admin' => EnsureAdmin::class`.
+- `app/Http/Middleware/TrackActivity.php` — middleware `api` qui met à jour `last_activity_at = now()` pour l'utilisateur Sanctum authentifié, throttlé à 1/min (limite les écritures).
+- `bootstrap/app.php` — enregistrement de l'alias middleware `'admin' => EnsureAdmin::class` ; ajout de `TrackActivity::class` dans le groupe `api` (append).
 
 **Contrôleurs**
 - `app/Http/Controllers/Api/AdminController.php` — endpoints :
-  - `GET /admin/users` (liste + stats : total, actifs, désactivés, en ligne ; statut "connecté/hors ligne" et filtre **basés sur `last_login_at`**, fenêtre 5 min)
+  - `GET /admin/users` (liste + stats : total, actifs, désactivés, en ligne ; statut "connecté/hors ligne" et filtre **basés sur `last_activity_at`** (heartbeat, repli `last_login_at`), fenêtre 5 min)
     - **Correction** : la réponse renvoie désormais la collection transformée (avec `connection.online`), et non plus les modèles bruts — le champ `connection` était calculé puis **jamais renvoyé** (d'où l'affichage systématique "Hors ligne"). Le statut en ligne est calculé via **`User::isOnline()`** (cohérent avec `/api/user`).
     - **Optimisation** : `listings_count` par utilisateur en N+1 remplacé par un seul `GROUP BY user_id`. Helper mort `sessionStatsForUsers()` supprimé.
   - `POST /admin/users/{user}/status` (`is_active` true/false)

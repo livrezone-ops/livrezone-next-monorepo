@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name','email','password','provider','provider_id','avatar','profile_completed','is_admin','is_active','last_login_at'])]
+#[Fillable(['name','email','password','provider','provider_id','avatar','profile_completed','is_admin','is_active','last_login_at','last_activity_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -26,6 +26,7 @@ class User extends Authenticatable
             'is_admin' => 'boolean',
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
+            'last_activity_at' => 'datetime',
         ];
     }
 
@@ -34,12 +35,16 @@ class User extends Authenticatable
         return $this->hasOne(Profile::class);
     }
 
-    // Un utilisateur est considéré « en ligne » si sa dernière connexion
-    // remonte à moins de ONLINE_WINDOW_SECONDS (5 minutes par défaut).
+    // Un utilisateur est considéré « en ligne » si sa dernière ACTIVITÉ
+    // (heartbeat sur les routes API authentifiées) remonte à moins de
+    // ONLINE_WINDOW_SECONDS (5 minutes par défaut). Repli sur last_login_at
+    // si aucune activité n'a encore été enregistrée.
     public function isOnline(int $windowSeconds = 300): bool
     {
-        return $this->last_login_at !== null
-            && $this->last_login_at->gte(now()->subSeconds($windowSeconds));
+        $reference = $this->last_activity_at ?? $this->last_login_at;
+
+        return $reference !== null
+            && $reference->gte(now()->subSeconds($windowSeconds));
     }
 
     public function listings()
