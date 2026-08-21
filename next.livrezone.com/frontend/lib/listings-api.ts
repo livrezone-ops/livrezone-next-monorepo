@@ -65,6 +65,8 @@ export interface PublicProfile {
   logo?: string | null;
   adresse?: string | null;
   phone?: string | null;
+  has_whatsapp?: boolean | null;
+  delivery_option?: string | null;
   rating_average: number;
   rating_count: number;
   publication_count: number;
@@ -118,7 +120,7 @@ export async function getPublicListings(query: ListingsQuery): Promise<PublicLis
     data: [],
     total: 0,
     lastPage: 1,
-    currentPage: 1,
+    currentPage: query.page || 1,
   };
 
   try {
@@ -133,11 +135,11 @@ export async function getPublicListings(query: ListingsQuery): Promise<PublicLis
     return {
       ok: true,
       data: Array.isArray(json.data) ? json.data : [],
-      total: Number(json.total || 0),
-      lastPage: Number(json.last_page || 1),
-      currentPage: Number(json.current_page || 1),
-      priceMin: json.price_min !== undefined && json.price_min !== null ? Number(json.price_min) : undefined,
-      priceMax: json.price_max !== undefined && json.price_max !== null ? Number(json.price_max) : undefined,
+      total: typeof json.total === "number" ? json.total : 0,
+      lastPage: typeof json.last_page === "number" ? json.last_page : 1,
+      currentPage: typeof json.current_page === "number" ? json.current_page : 1,
+      priceMin: typeof json.price_min === "number" ? json.price_min : undefined,
+      priceMax: typeof json.price_max === "number" ? json.price_max : undefined,
     };
   } catch {
     return empty;
@@ -161,6 +163,8 @@ export interface ListingDetail {
     profile?: {
       nickname: string;
       phone?: string | null;
+      has_whatsapp?: boolean | null;
+      delivery_option?: string | null;
       rating_average?: number;
       rating_count?: number;
       city?: { name: string } | null;

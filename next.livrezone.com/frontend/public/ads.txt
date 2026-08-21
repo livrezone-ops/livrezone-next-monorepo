@@ -1,0 +1,3 @@
+# LivreZone - ads.txt
+# https://next.livrezone.com
+# Aucune régie publicitaire tierce autorisée pour le moment.

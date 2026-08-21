@@ -140,18 +140,30 @@ export default function LivreZoneHeroMobile({
           return (
             <article
               key={msg.id}
-              className="flex-shrink-0 w-full box-border px-6 flex flex-col justify-center"
+              className={`flex-shrink-0 w-full box-border px-6 flex flex-col justify-center ${
+                msg.direction === "rtl" ? "font-arabic" : ""
+              }`}
               lang={msg.language}
               dir={msg.direction}
               aria-hidden={!isActive}
             >
-              {/* Titre (agrandi de 20%, très percutant) */}
-              <h2 className="text-[28px] sm:text-[34px] font-black text-white leading-[1.18] tracking-tight">
+              {/* Titre (agrandi et aéré pour l'arabe) */}
+              <h2
+                className={`${
+                  msg.direction === "rtl"
+                    ? "text-[29px] sm:text-[35px] font-bold leading-[1.3] tracking-normal"
+                    : "text-[28px] sm:text-[34px] font-black leading-[1.18] tracking-tight"
+                } text-white`}
+              >
                 {msg.title}
               </h2>
 
-              {/* Description (agrandie de 20%, très lisible) */}
-              <p className="mt-3.5 mb-6 text-lg sm:text-xl text-white/95 leading-snug font-normal">
+              {/* Description (agrandie et aérée) */}
+              <p
+                className={`mt-3.5 mb-6 text-lg sm:text-xl text-white/95 ${
+                  msg.direction === "rtl" ? "leading-relaxed" : "leading-snug"
+                } font-normal`}
+              >
                 {msg.description}
               </p>
 
@@ -159,7 +171,9 @@ export default function LivreZoneHeroMobile({
               <div className={`flex flex-row items-center gap-3 ${msg.direction === "rtl" ? "justify-end" : "justify-start"}`}>
                 <Link
                   href={msg.primaryAction.href}
-                  className="flex-1 max-w-[50%] flex items-center justify-center gap-1.5 bg-[#F97316] hover:bg-[#ea630a] active:scale-[0.98] text-white text-xs sm:text-sm font-bold py-2.5 px-3.5 rounded-xl shadow-md transition-all text-center truncate"
+                  className={`flex-1 max-w-[50%] flex items-center justify-center gap-1.5 bg-[#F97316] hover:bg-[#ea630a] active:scale-[0.98] text-white ${
+                    msg.direction === "rtl" ? "text-sm sm:text-base font-bold py-2 px-3" : "text-xs sm:text-sm font-bold py-2.5 px-3.5"
+                  } rounded-xl shadow-md transition-all text-center truncate`}
                   tabIndex={isActive ? 0 : -1}
                 >
                   <span className="truncate">{msg.primaryAction.label}</span>
@@ -169,7 +183,9 @@ export default function LivreZoneHeroMobile({
                 {msg.secondaryAction && (
                   <Link
                     href={msg.secondaryAction.href}
-                    className="flex-1 max-w-[50%] flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-[0.98] text-white border border-white/25 text-xs sm:text-sm font-semibold py-2.5 px-3.5 rounded-xl backdrop-blur-xs transition-all text-center truncate"
+                    className={`flex-1 max-w-[50%] flex items-center justify-center bg-white/15 hover:bg-white/25 active:scale-[0.98] text-white border border-white/25 ${
+                      msg.direction === "rtl" ? "text-sm sm:text-base font-semibold py-2 px-3" : "text-xs sm:text-sm font-semibold py-2.5 px-3.5"
+                    } rounded-xl backdrop-blur-xs transition-all text-center truncate`}
                     tabIndex={isActive ? 0 : -1}
                   >
                     <span className="truncate">{msg.secondaryAction.label}</span>

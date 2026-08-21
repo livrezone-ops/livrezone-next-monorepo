@@ -27,6 +27,8 @@ interface Listing {
     profile?: {
       nickname: string;
       phone?: string | null;
+      has_whatsapp?: boolean | null;
+      delivery_option?: string | null;
       rating_average?: number;
       rating_count?: number;
       city?: {
@@ -79,12 +81,22 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
     ? Math.round((1 - (listing.discount_price ?? 0) / listing.price) * 100) 
     : 0;
 
-  // Format phone
+  // Format phone & WhatsApp detection
   const rawPhone = listing.user.profile?.phone || "";
   let cleanPhone = rawPhone.replace(/[^0-9]/g, "");
   if (cleanPhone.startsWith("0")) {
     cleanPhone = "212" + cleanPhone.substring(1);
   }
+  // Détection automatique : les numéros fixes marocains (05...) n'ont pas WhatsApp
+  const isLandline = cleanPhone ? /^(?:05|2125|5\d{8})/.test(cleanPhone) : false;
+  const hasWhatsapp = listing.user.profile?.has_whatsapp !== false && !isLandline && Boolean(cleanPhone);
+
+  const formatDelivery = (opt?: string | null) => {
+    if (!opt || opt === "selon destination") return "Selon destination";
+    if (opt === "oui") return "Assure la livraison";
+    if (opt === "non") return "Pas de livraison";
+    return opt;
+  };
 
   // Predefined share text
   const shareText = `📚 *${listing.title}*\n💰 Prix : ${price} MAD\nDécouvrez ce livre sur LivreZone ici 👇\n`;
@@ -267,7 +279,9 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
               </div>
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Livraison</div>
-                <div className="text-xs sm:text-sm font-bold text-gray-900">Partout au Maroc</div>
+                <div className="text-xs sm:text-sm font-bold text-gray-900">
+                  {formatDelivery(listing.user.profile?.delivery_option)}
+                </div>
               </div>
             </div>
 
@@ -389,16 +403,18 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
 
             {/* Contact Actions */}
             <div className="space-y-2.5">
-              {/* WhatsApp Primary Button */}
-              <a 
-                href={cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent("Bonjour, je suis intéressé par votre annonce sur LivreZone : " + listing.title)}%0A${encodeURIComponent(shareUrl)}` : "#"} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-full h-12 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2.5 transition-all cursor-pointer active:scale-[0.99]"
-              >
-                <MessageCircle className="w-5 h-5 fill-current" />
-                <span>Contacter sur WhatsApp</span>
-              </a>
+              {/* WhatsApp Primary Button (Masqué si numéro fixe ou has_whatsapp === false) */}
+              {hasWhatsapp && (
+                <a 
+                  href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent("Bonjour, je suis intéressé par votre annonce sur LivreZone : " + listing.title)}%0A${encodeURIComponent(shareUrl)}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-full h-12 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-bold shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2.5 transition-all cursor-pointer active:scale-[0.99]"
+                >
+                  <MessageCircle className="w-5 h-5 fill-current" />
+                  <span>Contacter sur WhatsApp</span>
+                </a>
+              )}
 
               {/* Phone & Chat Secondary Grid */}
               <div className="grid grid-cols-2 gap-2.5">

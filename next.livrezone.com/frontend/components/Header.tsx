@@ -331,13 +331,13 @@ export default function Header() {
               </button>
             </div>
             <nav className="flex-1 overflow-y-auto py-4">
-              <ul className="flex flex-col text-[14px] font-bold text-gray-900 uppercase tracking-wide">
+              <ul className="flex flex-col text-[16px] sm:text-[17px] font-bold text-gray-900 tracking-tight">
                 {navLinks.map((link) => (
                   <li key={link.label}>
                     <Link 
                       href={link.href} 
                       onClick={() => setMenuOpen(false)}
-                      className="block px-6 py-3.5 hover:bg-violet-50 hover:text-[#6D28D9] transition-all border-l-4 border-transparent hover:border-[#6D28D9]"
+                      className="block px-6 py-4 hover:bg-violet-50 hover:text-[#6D28D9] transition-all border-l-4 border-transparent hover:border-[#6D28D9]"
                     >
                       {link.label}
                     </Link>
@@ -367,14 +367,14 @@ export default function Header() {
       )}
 
       {/* NAVIGATION DESKTOP BAR */}
-      <nav className="hidden lg:block border-t border-gray-100">
+      <nav className="hidden lg:block border-t border-gray-100 bg-white">
         <div className="w-[90%] max-w-7xl mx-auto">
-          <ul className="flex items-center justify-center gap-8 h-[46px] text-[12px] font-bold text-gray-900 uppercase tracking-wide">
+          <ul className="flex items-center justify-center gap-6 xl:gap-8 h-[56px] text-[15px] xl:text-[16px] font-bold text-gray-900 tracking-tight">
             {navLinks.map((link) => (
               <li key={link.label}>
                 <Link 
                   href={link.href} 
-                  className="hover:text-[#6D28D9] transition-colors relative py-2 group"
+                  className="hover:text-[#6D28D9] transition-colors relative py-3 group whitespace-nowrap"
                 >
                   {link.label}
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#6D28D9] transition-all duration-200 group-hover:w-full"></span>

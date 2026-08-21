@@ -204,7 +204,7 @@ const gridSections = [
   { title: "Livres récemment ajoutés", categories: [], viewAllUrl: "/annonces" },
   { title: "Livres scolaires neufs et d'occasion", categories: ["SCOLAIRE"], viewAllUrl: "/annonces?category=SCOLAIRE" },
   { title: "Romans et littérature", categories: ["ROMANS"], viewAllUrl: "/annonces?category=ROMANS" },
-  { title: "Mangas et bandes dessinées", categories: ["MANGAS", "BD"], viewAllUrl: "/annonces?category=LITTERATURE" },
+  { title: "Mangas et bandes dessinées", categories: ["MANGAS", "BD"], viewAllUrl: "/annonces?category=MANGAS,BD" },
   { title: "Livres pour enfants et jeunesse", categories: ["JEUNESSE"], viewAllUrl: "/annonces?category=JEUNESSE" },
   { title: "Livres universitaires et professionnels", categories: ["UNIVERSITAIRE"], viewAllUrl: "/annonces?category=UNIVERSITAIRE" },
   { title: "Religion", categories: ["RELIGION"], viewAllUrl: "/annonces?category=RELIGION" },
@@ -213,7 +213,7 @@ const gridSections = [
 const heroCategories = [
   { name: "Scolaire", href: "/annonces?category=SCOLAIRE" },
   { name: "Romans", href: "/annonces?category=ROMANS" },
-  { name: "Mangas & BD", href: "/annonces?category=LITTERATURE" },
+  { name: "Mangas & BD", href: "/annonces?category=MANGAS,BD" },
   { name: "Jeunesse", href: "/annonces?category=JEUNESSE" },
   { name: "Religion", href: "/annonces?category=RELIGION" },
 ];
@@ -328,7 +328,7 @@ export default async function Home() {
     <div className="flex flex-col">
       {/* ===== H1 UNIQUE (Élégant, intégré avec nuance dégradée) ===== */}
       <div className="w-full bg-gradient-to-r from-[#1a0a40] via-[#2e1065] to-[#1a0a40] border-b border-white/10 shadow-xs">
-        <h1 className="w-[90%] max-w-7xl mx-auto text-white/90 text-center text-xs sm:text-sm md:text-base font-semibold py-2.5 px-4 tracking-wide">
+        <h1 className="w-[90%] max-w-7xl mx-auto text-white text-center text-base sm:text-lg md:text-xl font-bold py-3.5 px-4 tracking-tight leading-snug">
           LivreZone : Marketplace de livres neufs et d&rsquo;occasion au Maroc
         </h1>
       </div>

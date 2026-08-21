@@ -44,6 +44,8 @@ class ProfileController extends Controller
                 'logo' => $profile->logo,
                 'adresse' => $profile->adresse,
                 'phone' => $profile->phone,
+                'has_whatsapp' => (bool) ($profile->has_whatsapp ?? true),
+                'delivery_option' => $profile->delivery_option ?? 'selon destination',
                 'rating_average' => (float) $profile->rating_average,
                 'rating_count' => (int) $profile->rating_count,
                 'publication_count' => $publicationCount,
@@ -147,6 +149,7 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'phone' => ['nullable', 'regex:/^[0-9]{10}$/'],
+            'has_whatsapp' => ['nullable', 'boolean'],
             'city_id' => [
                 Rule::requiredIf($isConfirm),
                 'nullable',
@@ -224,8 +227,15 @@ class ProfileController extends Controller
                 $logoPath = $avatarUpload;
             }
         }
-        // Mode custom sans nouveau fichier ni import précédent : on conserve
-        // le logo existant (jamais de repli automatique vers l'avatar Google).
+        $hasWhatsapp = null;
+        if ($request->has('has_whatsapp')) {
+            $hasWhatsapp = filter_var($request->input('has_whatsapp'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($hasWhatsapp === null && ($request->input('has_whatsapp') === '1' || $request->input('has_whatsapp') === 1)) {
+                $hasWhatsapp = true;
+            } elseif ($hasWhatsapp === null && ($request->input('has_whatsapp') === '0' || $request->input('has_whatsapp') === 0)) {
+                $hasWhatsapp = false;
+            }
+        }
 
         $profileData = [
             'phone' => $validated['phone'] ?? null,
@@ -239,6 +249,10 @@ class ProfileController extends Controller
             'avatar_mode' => $avatarMode,
             'avatar_upload' => $avatarUpload,
         ];
+
+        if ($hasWhatsapp !== null) {
+            $profileData['has_whatsapp'] = $hasWhatsapp;
+        }
 
         $profile = $request->user()
             ->profile()

@@ -43,6 +43,7 @@ class Profile extends Model
     protected $fillable = [
         'user_id',
         'phone',
+        'has_whatsapp',
         'city_id',
         'profile_type',
         'subscription_type',
@@ -56,11 +57,27 @@ class Profile extends Model
         'rating_count',
     ];
 
+    protected $casts = [
+        'has_whatsapp' => 'boolean',
+    ];
+
     protected static function boot()
     {
         parent::boot();
 
         static::saving(function ($profile) {
+            // Détection automatique WhatsApp selon le type de numéro marocain (fixe vs portable)
+            if (!empty($profile->phone)) {
+                $clean = preg_replace('/[^\d]/', '', $profile->phone);
+                // Si fixe marocain (commence par 05, 2125, ou 5 avec 9 chiffres)
+                if (preg_match('/^(?:05|2125|5\d{8})/', $clean)) {
+                    $profile->has_whatsapp = false;
+                } elseif (!isset($profile->has_whatsapp)) {
+                    // Si portable (06, 07, 2126, 2127) et non défini explicitement
+                    $profile->has_whatsapp = true;
+                }
+            }
+
             if (empty($profile->nickname)) {
                 $user = $profile->user;
                 $baseNickname = $user ? \Illuminate\Support\Str::slug($user->name) : 'utilisateur-' . ($profile->user_id ?? rand(1000, 9999));

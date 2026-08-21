@@ -244,12 +244,29 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
     [refData, selectedCategoryId]
   );
 
+  // Vérifier si la catégorie appartient à la filière Scolaire ou Universitaire
+  const isScolaireOrUniv = useMemo(() => {
+    const root = selectedCategoryPath[0];
+    if (!root) return true;
+    const name = (root.name_fr || root.name || root.slug || "").toLowerCase();
+    return name.includes("scolaire") || name.includes("universitaire");
+  }, [selectedCategoryPath]);
+
+  const globalNaLevel = useMemo(
+    () => refData?.levels?.find((l) => l.code === "NON_APPLICABLE") || rules.naLevel,
+    [refData, rules.naLevel]
+  );
+  const globalNaSubject = useMemo(
+    () => refData?.categories?.flatMap(c => c.subjects || []).find(s => s.code === "NON_APPLICABLE") || rules.naSubject,
+    [refData, rules.naSubject]
+  );
+
   const allowedLevels = rules.levels;
   const allowedSubjects = rules.subjects;
-  const naLevel = rules.naLevel;
-  const naSubject = rules.naSubject;
-  const levelIsNA = !rules.levelApplicable;
-  const subjectIsNA = !rules.subjectApplicable;
+  const naLevel = globalNaLevel || rules.naLevel;
+  const naSubject = globalNaSubject || rules.naSubject;
+  const levelIsNA = !rules.levelApplicable || !isScolaireOrUniv;
+  const subjectIsNA = !rules.subjectApplicable || !isScolaireOrUniv;
   const levelOptions = levelIsNA ? (naLevel ? [naLevel] : []) : allowedLevels;
   const subjectOptions = subjectIsNA ? (naSubject ? [naSubject] : []) : allowedSubjects;
 
@@ -265,13 +282,24 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
 
     if (val !== undefined) {
       const r = getCategoryRules(refData?.categories, val);
-      if (!r.levelApplicable) {
-        nextLevel = r.naLevel?.id ?? null;
+      const catPath = getCategoryPath(refData?.categories, val);
+      const root = catPath[0];
+      const isScolOrUniv = root && (
+        (root.name_fr || root.name || root.slug || "").toLowerCase().includes("scolaire") ||
+        (root.name_fr || root.name || root.slug || "").toLowerCase().includes("universitaire")
+      );
+
+      const resolvedNaLevel = refData?.levels?.find((l) => l.code === "NON_APPLICABLE") || r.naLevel;
+      const resolvedNaSubject = refData?.categories?.flatMap(c => c.subjects || []).find(s => s.code === "NON_APPLICABLE") || r.naSubject;
+
+      if (!r.levelApplicable || !isScolOrUniv) {
+        nextLevel = resolvedNaLevel?.id ?? r.naLevel?.id ?? null;
       } else if (nextLevel && !r.levels.some((l) => l.id === nextLevel)) {
         nextLevel = null;
       }
-      if (!r.subjectApplicable) {
-        nextSubject = r.naSubject?.id ?? null;
+
+      if (!r.subjectApplicable || !isScolOrUniv) {
+        nextSubject = resolvedNaSubject?.id ?? r.naSubject?.id ?? null;
       } else if (nextSubject && !r.subjects.some((s) => s.id === nextSubject)) {
         nextSubject = null;
       }
@@ -312,8 +340,22 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
           handleCategoryChange(catId);
         }
         if (book.language_id) form.setValue("language_id", book.language_id);
-        if (book.default_level_id || book.level_id) form.setValue("level_id", book.default_level_id || book.level_id);
-        if (book.default_subject_id || book.subject_id) form.setValue("subject_id", book.default_subject_id || book.subject_id);
+
+        const path = getCategoryPath(refData?.categories, catId);
+        const root = path[0];
+        const isScolOrUniv = root && (
+          (root.name_fr || root.name || root.slug || "").toLowerCase().includes("scolaire") ||
+          (root.name_fr || root.name || root.slug || "").toLowerCase().includes("universitaire")
+        );
+
+        if (isScolOrUniv) {
+          if (book.default_level_id || book.level_id) {
+            form.setValue("level_id", book.default_level_id || book.level_id);
+          }
+          if (book.default_subject_id || book.subject_id) {
+            form.setValue("subject_id", book.default_subject_id || book.subject_id);
+          }
+        }
 
         if (book.cover_url) {
           setCoverPreview(book.cover_url);
@@ -506,7 +548,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                         </label>
                         <span className="text-[11px] text-slate-500">Pré-remplir les informations</span>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="relative flex items-center w-full">
                         <input
                             type="text"
                             value={isbnInput}
@@ -518,13 +560,13 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                                 }
                             }}
                             placeholder="Ex: 9782294788222"
-                            className="h-9 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20"
+                            className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-3 pr-28 text-xs sm:text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20"
                         />
                         <button
                             type="button"
                             onClick={searchIsbn}
                             disabled={isSearchingIsbn || !isbnInput.trim()}
-                            className="h-9 px-3 rounded-lg bg-[#F97316] hover:bg-[#ea630a] text-white text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-sm shrink-0"
+                            className="absolute right-1 top-1 bottom-1 px-3 rounded-md bg-[#F97316] hover:bg-[#ea630a] text-white text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
                         >
                             {isSearchingIsbn ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -647,7 +689,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                         <p className="mt-1 text-xs text-slate-400">Calcule le prix réduit</p>
                     </div>
                     <div>
-                        <label className="mb-1 block text-sm font-semibold text-slate-700">Prix réduit (MAD)</label>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">Prix réduit</label>
                         <input type="number" step="0.01" min="0"
                                {...form.register("discount_price", { setValueAs: v => (v === "" || v === null || isNaN(v)) ? null : parseFloat(v) })}
                                onChange={(e) => {

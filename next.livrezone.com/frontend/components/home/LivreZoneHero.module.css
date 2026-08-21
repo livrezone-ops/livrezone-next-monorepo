@@ -51,10 +51,31 @@
     linear-gradient(135deg, #6d28d9 0%, #7c3aed 55%, #9333ea 100%);
 }
 
-/* RTL – alignement à droite */
+/* RTL – alignement à droite et typographie Noto Kufi Arabic */
 .slide[dir="rtl"] .content {
   align-items: flex-end;
   text-align: right;
+  font-family: var(--font-noto-kufi-arabic), "Noto Kufi Arabic", sans-serif;
+}
+
+.slide[dir="rtl"] .title {
+  font-size: clamp(2.1rem, 2.9vw, 2.9rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+.slide[dir="rtl"] .description {
+  font-size: clamp(1.05rem, 1.2vw, 1.18rem);
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+
+.slide[dir="rtl"] .primaryButton,
+.slide[dir="rtl"] .secondaryButton {
+  font-family: var(--font-noto-kufi-arabic), "Noto Kufi Arabic", sans-serif;
+  font-size: 0.98rem;
+  letter-spacing: 0;
 }
 
 .title {
@@ -62,8 +83,8 @@
   margin: 0;
   font-size: clamp(1.8rem, 2.6vw, 2.6rem);
   font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
   text-wrap: balance;
 }
 

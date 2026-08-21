@@ -30,6 +30,7 @@ interface City {
 
 interface Profile {
     phone: string | null;
+    has_whatsapp?: boolean | null;
     city_id: number | null;
     profile_type: string;
     subscription_type: string;
@@ -114,6 +115,7 @@ export default function ProfileForm({
     const [form, setForm] = useState({
         nickname: '',
         phone: '',
+        has_whatsapp: true,
         city_id: '',
         profile_type: 'passionné(e)',
         subscription_type: 'free',
@@ -136,6 +138,11 @@ export default function ProfileForm({
                     setForm({
                         nickname: data.profile.nickname ?? '',
                         phone: data.profile.phone ?? '',
+                        has_whatsapp:
+                            data.profile.has_whatsapp !== undefined &&
+                            data.profile.has_whatsapp !== null
+                                ? Boolean(data.profile.has_whatsapp)
+                                : true,
                         city_id: data.profile.city_id
                             ? String(data.profile.city_id)
                             : '',
@@ -209,6 +216,21 @@ export default function ProfileForm({
         }));
     };
 
+    const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        const clean = val.replace(/[^0-9]/g, '');
+        const isLandline = /^(?:05|2125|5\d{8})/.test(clean);
+        setForm((current) => ({
+            ...current,
+            phone: val,
+            has_whatsapp: isLandline ? false : (clean.startsWith('06') || clean.startsWith('07') ? true : current.has_whatsapp),
+        }));
+        setErrors((current) => ({
+            ...current,
+            phone: [],
+        }));
+    };
+
     const handleCustomImageClick = () => {
         setAvatarMode('custom');
         fileInputRef.current?.click();
@@ -241,7 +263,11 @@ export default function ProfileForm({
         }
 
         Object.entries(values).forEach(([key, value]) => {
-            formData.append(key, value);
+            if (key === 'has_whatsapp') {
+                formData.append(key, value ? '1' : '0');
+            } else {
+                formData.append(key, String(value));
+            }
         });
 
         formData.append('action', action);
@@ -540,16 +566,42 @@ export default function ProfileForm({
                                         type="tel"
                                         inputMode="numeric"
                                         value={form.phone}
-                                        onChange={handleChange}
+                                        onChange={handlePhoneChange}
                                         maxLength={10}
                                         className="h-11 sm:h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#6D28D9] focus:bg-white focus:ring-2 focus:ring-[#6D28D9]/20"
                                         placeholder="0612345678"
                                     />
                                 </div>
 
-                                <p className="mt-1 text-[11px] text-slate-400">
-                                    Format 10 chiffres (ex: 06...)
-                                </p>
+                                <div className="mt-2.5 flex items-center justify-between">
+                                    <label className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            name="has_whatsapp"
+                                            checked={form.has_whatsapp}
+                                            onChange={(e) =>
+                                                setForm((curr) => ({
+                                                    ...curr,
+                                                    has_whatsapp: e.target.checked,
+                                                }))
+                                            }
+                                            className="h-4 w-4 rounded border-slate-300 text-[#25D366] focus:ring-[#25D366]/20 accent-[#25D366] cursor-pointer"
+                                        />
+                                        <span className="flex items-center gap-1.5">
+                                            <span
+                                                className={`inline-block w-2 h-2 rounded-full ${
+                                                    form.has_whatsapp
+                                                        ? 'bg-[#25D366]'
+                                                        : 'bg-slate-300'
+                                                }`}
+                                            ></span>
+                                            Joignable sur WhatsApp
+                                        </span>
+                                    </label>
+                                    <span className="text-[10px] text-slate-400">
+                                        Format 10 chiffres (ex: 06...)
+                                    </span>
+                                </div>
 
                                 {fieldError('phone')}
                             </div>
@@ -608,8 +660,8 @@ export default function ProfileForm({
                                         required
                                         className="h-11 sm:h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-8 text-sm text-slate-900 outline-none transition-all focus:border-[#6D28D9] focus:bg-white focus:ring-2 focus:ring-[#6D28D9]/20 cursor-pointer appearance-none"
                                     >
-                                        <option value="oui">Oui (Livraison disponible)</option>
-                                        <option value="non">Non (Remise en main propre)</option>
+                                        <option value="oui">Assure la livraison</option>
+                                        <option value="non">Pas de livraison</option>
                                         <option value="selon destination">Selon la destination</option>
                                     </select>
                                     <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">

@@ -1,8 +1,23 @@
 import type { Metadata, Viewport } from "next";
+import { Noto_Sans, Noto_Kufi_Arabic } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+
+const notoSans = Noto_Sans({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-noto-sans",
+  display: "swap",
+});
+
+const notoKufiArabic = Noto_Kufi_Arabic({
+  subsets: ["arabic"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-noto-kufi-arabic",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   themeColor: "#6D28D9",
@@ -93,7 +108,7 @@ export default function RootLayout({
       className="h-full antialiased light"
       style={{ colorScheme: "light" }}
     >
-      <body className="min-h-full flex flex-col bg-gray-50 text-gray-900">
+      <body className={`${notoSans.variable} ${notoKufiArabic.variable} min-h-full flex flex-col bg-gray-50 text-gray-900`}>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
