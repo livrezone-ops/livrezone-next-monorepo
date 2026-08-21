@@ -494,52 +494,11 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
   return (
     <div className="mx-auto max-w-5xl">
       {/* Formulaire d'annonce */}
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
 
-        {/* Colonne gauche : couverture */}
-        <div className="lg:col-span-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sticky top-4">
-                <h2 className="mb-3 text-sm font-semibold text-slate-700">Couverture</h2>
-
-                {/* Aperçu */}
-                <div className="relative w-full pb-[135%] rounded-lg overflow-hidden bg-slate-50 mb-4 border border-slate-200">
-                    {coverPreview ? (
-                        <img src={coverPreview}
-                             alt="Aperçu"
-                             className="absolute inset-0 h-full w-full object-contain p-4" />
-                    ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
-                            <svg className="w-12 h-12 mb-2 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                            </svg>
-                            <span className="text-xs">Pas de couverture</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* Champ upload */}
-                <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-slate-600">Importer une couverture</span>
-                    <input
-                        type="file"
-                        accept=".jpg,.jpeg,.png,.webp"
-                        onChange={handleImageChange}
-                        className="block w-full text-xs text-slate-500
-                               file:mr-3 file:py-2 file:px-3
-                               file:rounded-lg file:border-0
-                               file:text-xs file:font-semibold
-                               file:bg-violet-50 file:text-violet-700
-                               hover:file:bg-violet-100 cursor-pointer"
-                    />
-                    <p className="mt-1 text-xs text-slate-400">JPG, PNG, WEBP — max 4 Mo. Converti automatiquement en WebP.</p>
-                </label>
-            </div>
-        </div>
-
-        {/* Colonne droite : champs */}
-        <div className="lg:col-span-8 space-y-5">
-            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-
+        {/* 1. BLOC ISBN & TITRE (Sur mobile en 1er, sur desktop en haut à droite) */}
+        <div className="order-1 lg:order-2 lg:col-span-8">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm space-y-4">
                 {/* Recherche ISBN */}
                 <div className="rounded-lg bg-slate-50/80 border border-slate-200/80 p-3">
                     <div className="flex items-center justify-between mb-1.5">
@@ -594,6 +553,56 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                            className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20" />
                     {form.formState.errors.title && <p className="mt-1 text-xs text-red-600">{form.formState.errors.title.message}</p>}
                 </div>
+            </div>
+        </div>
+
+        {/* 2. BLOC COUVERTURE (Sur mobile en 2e compact/horizontal, sur desktop à gauche en sticky) */}
+        <div className="order-2 lg:order-1 lg:col-span-4 lg:row-span-2 lg:self-start">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm lg:sticky lg:top-4">
+                <h2 className="mb-3 text-sm font-semibold text-slate-700">Couverture</h2>
+
+                <div className="flex flex-row lg:flex-col gap-4 items-center sm:items-start">
+                    {/* Aperçu */}
+                    <div className="relative w-28 h-36 sm:w-36 sm:h-48 lg:w-full lg:h-auto lg:pb-[135%] rounded-lg overflow-hidden bg-slate-50 border border-slate-200 shrink-0">
+                        {coverPreview ? (
+                            <img src={coverPreview}
+                                 alt="Aperçu"
+                                 className="absolute inset-0 h-full w-full object-contain p-2 lg:p-4" />
+                        ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 p-2 text-center">
+                                <svg className="w-8 h-8 lg:w-12 lg:h-12 mb-1 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                <span className="text-[10px] lg:text-xs">Pas de couverture</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Champ upload */}
+                    <div className="flex-1 w-full">
+                        <label className="block">
+                            <span className="mb-1 block text-xs font-medium text-slate-600">Importer une couverture</span>
+                            <input
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.webp"
+                                onChange={handleImageChange}
+                                className="block w-full text-xs text-slate-500
+                                       file:mr-3 file:py-2 file:px-3
+                                       file:rounded-lg file:border-0
+                                       file:text-xs file:font-semibold
+                                       file:bg-violet-50 file:text-violet-700
+                                       hover:file:bg-violet-100 cursor-pointer"
+                            />
+                            <p className="mt-1 text-[11px] sm:text-xs text-slate-400">JPG, PNG, WEBP — max 4 Mo. Converti automatiquement en WebP.</p>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* 3. BLOC AUTRES CHAMPS (Description, Auteur, Prix, Catégories, etc.) */}
+        <div className="order-3 lg:order-3 lg:col-span-8 space-y-5">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm space-y-4">
 
                 {/* Description */}
                 <div>

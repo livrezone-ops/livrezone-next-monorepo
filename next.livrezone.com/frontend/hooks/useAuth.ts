@@ -41,9 +41,13 @@ export function useAuth() {
 
     const logoutMutation = useMutation({
         mutationFn: async () => {
-            await api.post('/auth/logout');
+            try {
+                await api.post('/auth/logout');
+            } catch {
+                // Session déjà expirée côté back ou erreur réseau : on poursuit la déconnexion front
+            }
         },
-        onSuccess: () => {
+        onSettled: () => {
             queryClient.setQueryData(['user'], null);
             router.push('/login');
         }

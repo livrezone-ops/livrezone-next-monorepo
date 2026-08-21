@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useSyncExternalStore } from "react";
+import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
@@ -29,10 +29,14 @@ export default function Header() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [lang, setLang] = useState("FR");
   const [avatarError, setAvatarError] = useState(false);
+
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
 
   const { user, isAuthenticated: isLoggedIn, logout } = useAuth();
   const { wishlistCount, cartCount } = useCommerce();
@@ -70,6 +74,34 @@ export default function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Gestion du timer de 5s d'inactivité pour fermer la recherche mobile
+  const resetSearchInactivityTimer = () => {
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+    searchTimerRef.current = setTimeout(() => {
+      setSearchOpen(false);
+    }, 5000);
+  };
+
+  useEffect(() => {
+    if (searchOpen) {
+      resetSearchInactivityTimer();
+      setTimeout(() => {
+        mobileSearchInputRef.current?.focus();
+      }, 60);
+    } else {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    }
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, [searchOpen]);
+
   const navLinks = [
     { label: "Annonces", href: "/annonces" },
     ...CATEGORIES.map((c) => ({
@@ -80,12 +112,10 @@ export default function Header() {
 
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const q = ((fd.get("q") as string) || "").trim();
+    const q = searchQuery.trim();
     if (!q) return;
-    const scope = (fd.get("scope") as string) || "vente";
     const query = encodeURIComponent(q);
-    router.push(scope === "livres" ? `/livres?search=${query}` : `/annonces?search=${query}`);
+    router.push(`/annonces?search=${query}`);
     setSearchOpen(false);
   };
 
@@ -96,75 +126,68 @@ export default function Header() {
       }`}
     >
       {/* TOPBAR */}
-      <div className="bg-[#1a0a40] text-white py-2 text-[11px] font-bold uppercase tracking-wider transition-all duration-200">
-        <div className="w-[90%] max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setLang("FR")} 
-              className={`hover:text-violet-300 transition-colors cursor-pointer ${lang === "FR" ? "text-violet-300" : "opacity-60"}`}
-            >
-              FR
-            </button>
-            <span className="opacity-30">|</span>
-            <button 
-              onClick={() => setLang("AR")} 
-              className={`hover:text-violet-300 transition-colors cursor-pointer ${lang === "AR" ? "text-violet-300" : "opacity-60"}`}
-            >
-              AR
-            </button>
+      <div className="bg-[#1a0a40] text-white py-2.5 sm:py-3 text-xs transition-all duration-200">
+        <div className="w-full px-3 sm:px-6 lg:max-w-7xl lg:mx-auto flex justify-between items-center gap-3">
+          {/* Message de bienvenue */}
+          <div className="text-violet-200 text-xs sm:text-[13px] font-medium truncate">
+            Bienvenue sur <strong className="text-white font-bold">LivreZone</strong>
           </div>
-          <div className="hidden sm:block text-violet-200">
-            Bienvenue sur LivreZone, votre librairie en ligne !
-          </div>
+
+          {/* Bouton Orange Vendre un livre */}
+          <Link
+            href="/annonces/create"
+            className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-[#F97316] hover:bg-[#ea630a] text-white font-bold text-xs normal-case tracking-normal shadow-sm hover:shadow transition-all active:scale-[0.98] shrink-0"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Vendre un livre</span>
+          </Link>
         </div>
       </div>
 
       {/* MAIN HEADER BAR */}
-      <div className="w-[90%] max-w-7xl mx-auto h-[78px] flex items-center justify-between gap-6 relative">
+      <div className="w-full px-3 sm:px-6 lg:max-w-7xl lg:mx-auto h-[68px] sm:h-[78px] flex items-center justify-between gap-2 sm:gap-4 lg:gap-6 relative">
         
         {/* Hamburger Mobile */}
         <button 
           onClick={() => setMenuOpen(!menuOpen)} 
-          className="lg:hidden flex-shrink-0 text-black hover:text-[#6D28D9] transition-colors p-1"
+          className="lg:hidden shrink-0 text-black hover:text-[#6D28D9] transition-colors p-1"
           aria-label="Menu"
         >
           {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
 
         {/* LOGO */}
-        <Logo size="md" href="/" className="flex-shrink-0" />
+        <Logo size="md" href="/" className="shrink-0" />
 
-        {/* RECHERCHE DESKTOP */}
-        <form onSubmit={handleSearchSubmit} className="flex-1 hidden lg:flex border-2 border-black hover:border-gray-800 focus-within:border-[#6D28D9] rounded-md transition-colors overflow-hidden h-11">
-          <select name="scope" className="bg-gray-50 border-r border-gray-200 px-3 text-[13px] text-black font-semibold focus:outline-none cursor-pointer appearance-none outline-none">
-            <option value="vente">Livres en vente</option>
-            <option value="livres">Base des livres</option>
-          </select>
+        {/* RECHERCHE DESKTOP (Simplifiée : livres en vente uniquement) */}
+        <form onSubmit={handleSearchSubmit} className="flex-1 hidden lg:flex border-2 border-black hover:border-gray-800 focus-within:border-[#6D28D9] rounded-xl transition-colors overflow-hidden h-11">
           <input
             type="search"
             name="q"
-            placeholder="Rechercher par ISBN, titre ou auteur"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Rechercher par ISBN, titre ou auteur..."
             className="flex-1 px-4 text-[13px] text-black placeholder-gray-400 focus:outline-none bg-white"
           />
-          <button type="submit" className="flex-shrink-0 bg-black hover:bg-[#6D28D9] text-white px-6 transition-colors flex items-center justify-center">
-            <Search className="h-4 w-4" strokeWidth={3} />
+          <button type="submit" className="shrink-0 bg-black hover:bg-[#6D28D9] text-white px-6 transition-colors flex items-center justify-center cursor-pointer">
+            <Search className="h-4 w-4" strokeWidth={2.5} />
           </button>
         </form>
 
         {/* ICONS CONTAINER */}
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-2 sm:gap-3.5 lg:gap-5 shrink-0">
           {/* Search Toggle Mobile */}
           <button 
             onClick={() => setSearchOpen(!searchOpen)} 
             className="lg:hidden text-black hover:text-[#6D28D9] transition-colors p-1"
             aria-label="Recherche"
           >
-            <Search className="h-6 w-6" />
+            <Search className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
 
           {/* Wishlist */}
           <Link href="/favorites" className="hidden sm:block relative text-black hover:text-[#6D28D9] transition-colors p-1">
-            <Heart className="h-6 w-6" strokeWidth={1.75} />
+            <Heart className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.75} />
             {wishlistCount > 0 && (
               <span className="absolute -top-1 -right-1.5 bg-[#6D28D9] text-white text-[10px] font-black rounded-full h-4.5 w-4.5 flex items-center justify-center shadow-sm">
                 {wishlistCount}
@@ -174,7 +197,7 @@ export default function Header() {
 
           {/* Cart */}
           <Link href="/cart" className="relative text-black hover:text-[#6D28D9] transition-colors p-1">
-            <ShoppingCart className="h-6 w-6" strokeWidth={1.75} />
+            <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.75} />
             {cartCount > 0 && (
               <span className="absolute -top-1 -right-1.5 bg-[#6D28D9] text-white text-[10px] font-black rounded-full h-4.5 w-4.5 flex items-center justify-center shadow-sm">
                 {cartCount}
@@ -188,19 +211,24 @@ export default function Header() {
               <div className="relative">
                 <button 
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-1 focus:outline-none group"
+                  className="flex items-center gap-1 focus:outline-none group cursor-pointer"
                 >
                   {!avatarError && getAvatarUrl() ? (
-                    <img src={getAvatarUrl() as string} alt="Avatar" className="w-10 h-10 rounded-full border-2 border-gray-100 group-hover:border-[#6D28D9] transition-all object-cover shadow-sm" onError={() => setAvatarError(true)} />
+                    <img 
+                      src={getAvatarUrl() as string} 
+                      alt="Avatar" 
+                      className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full border-2 border-gray-100 group-hover:border-[#6D28D9] transition-all object-cover shadow-xs" 
+                      onError={() => setAvatarError(true)} 
+                    />
                   ) : (
-                    <div className="w-10 h-10 rounded-full border-2 border-gray-100 group-hover:border-[#6D28D9] transition-all object-cover shadow-sm bg-[#6D28D9] text-white flex items-center justify-center font-bold text-sm">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full border-2 border-gray-100 group-hover:border-[#6D28D9] transition-all object-cover shadow-xs bg-[#6D28D9] text-white flex items-center justify-center font-bold text-xs sm:text-sm">
                       {(user?.profile?.nickname || user?.name) ? (user?.profile?.nickname || user?.name)?.charAt(0).toUpperCase() : "U"}
                     </div>
                   )}
                   {unreadMessages > 0 && !chatActive && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5">
+                    <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3 sm:h-3.5 sm:w-3.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-white"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 sm:h-3.5 sm:w-3.5 bg-red-500 border-2 border-white"></span>
                     </span>
                   )}
                 </button>
@@ -211,9 +239,9 @@ export default function Header() {
                       className="fixed inset-0 z-40" 
                       onClick={() => setUserMenuOpen(false)}
                     />
-                    <div className="absolute right-0 mt-3 w-56 bg-white border border-gray-100 shadow-xl rounded-lg overflow-hidden z-50 text-[13px] text-black">
+                    <div className="absolute right-0 mt-3 w-56 bg-white border border-gray-100 shadow-xl rounded-lg overflow-hidden z-50 text-[13px] text-black animate-in fade-in slide-in-from-top-2 duration-150">
                     <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-                      <p className="font-bold text-gray-900">{user?.profile?.nickname || user?.name}</p>
+                      <p className="font-bold text-gray-900 truncate">{user?.profile?.nickname || user?.name}</p>
                       <p className="text-[11px] text-gray-500 truncate">{user?.email}</p>
                     </div>
                     <Link 
@@ -270,7 +298,7 @@ export default function Header() {
                         logout();
                         setUserMenuOpen(false);
                       }}
-                      className="w-full text-left px-4 py-2.5 hover:bg-red-50 hover:text-red-600 text-gray-700 transition-colors flex items-center gap-2"
+                      className="w-full text-left px-4 py-2.5 hover:bg-red-50 hover:text-red-600 text-gray-700 transition-colors flex items-center gap-2 cursor-pointer"
                     >
                       <LogOut className="h-4 w-4 text-gray-400 group-hover:text-red-600" />
                       Déconnexion
@@ -285,31 +313,40 @@ export default function Header() {
                 className="text-black hover:text-[#6D28D9] transition-colors p-1"
                 aria-label="Connexion"
               >
-                <User className="h-6 w-6" strokeWidth={1.75} />
+                <User className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.75} />
               </Link>
             )}
           </div>
         </div>
 
-        {/* SEARCH BAR MOBILE (DROPDOWN) */}
+        {/* SEARCH BAR MOBILE (DROPDOWN AVEC AUTO-FERMETURE APRÈS 5S D'INACTIVITÉ OU CLIC EXTÉRIEUR) */}
         {searchOpen && (
-          <div className="absolute top-[78px] left-0 w-full bg-white border-b border-gray-200 p-4 z-40 lg:hidden shadow-lg animate-in slide-in-from-top-4 duration-200">
-            <form onSubmit={handleSearchSubmit} className="flex border-2 border-black rounded-md overflow-hidden h-10">
-              <select name="scope" className="bg-gray-50 border-r border-gray-200 px-2 text-[11px] text-black font-semibold focus:outline-none cursor-pointer appearance-none outline-none">
-                <option value="vente">En vente</option>
-                <option value="livres">Base des livres</option>
-              </select>
-              <input
-                type="search"
-                name="q"
-                placeholder="Rechercher par ISBN, titre ou auteur"
-                className="flex-1 px-4 text-[13px] text-black placeholder-gray-400 focus:outline-none bg-white"
-              />
-              <button type="submit" className="flex-shrink-0 bg-black text-white px-5 flex items-center justify-center">
-                <Search className="h-4 w-4" strokeWidth={3} />
-              </button>
-            </form>
-          </div>
+          <>
+            {/* Backdrop pour clic extérieur */}
+            <div 
+              className="fixed inset-0 z-30 lg:hidden"
+              onClick={() => setSearchOpen(false)}
+            />
+            <div className="absolute top-full left-0 w-full bg-white border-b border-gray-200 p-3 z-40 lg:hidden shadow-lg animate-in slide-in-from-top-2 duration-150">
+              <form onSubmit={handleSearchSubmit} className="flex border-2 border-black rounded-xl overflow-hidden h-11">
+                <input
+                  ref={mobileSearchInputRef}
+                  type="search"
+                  name="q"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    resetSearchInactivityTimer();
+                  }}
+                  placeholder="Rechercher par ISBN, titre ou auteur..."
+                  className="flex-1 px-3 text-sm text-black placeholder-gray-400 focus:outline-none bg-white"
+                />
+                <button type="submit" className="shrink-0 bg-[#6D28D9] hover:bg-violet-800 text-white px-4.5 flex items-center justify-center cursor-pointer transition-colors">
+                  <Search className="h-4 w-4" strokeWidth={2.5} />
+                </button>
+              </form>
+            </div>
+          </>
         )}
       </div>
 
