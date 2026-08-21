@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->prefix('dashboard')->group(function () {
 Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
     Route::get('/', [ProfileController::class, 'show']);
     Route::post('/', [ProfileController::class, 'update']);
+    Route::post('/password', [AuthController::class, 'updatePassword']);
 });
 
 // Public Listings Routes

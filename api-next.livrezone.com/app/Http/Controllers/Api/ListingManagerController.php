@@ -71,6 +71,20 @@ class ListingManagerController extends Controller
             $coverSourceUrl = $bookCoverSourceUrl;
         }
 
+        $status = 'pending_admin';
+
+        if ($book && !$request->hasFile('cover_image')) {
+            $normalizedTitle = mb_strtolower(trim($validated['title']));
+            $normalizedBookTitle = mb_strtolower(trim($book->title));
+            
+            $normalizedDesc = mb_strtolower(trim($validated['description'] ?? ''));
+            $normalizedBookDesc = mb_strtolower(trim($book->description ?? ''));
+
+            if ($normalizedTitle === $normalizedBookTitle && (empty($normalizedDesc) || $normalizedDesc === $normalizedBookDesc)) {
+                $status = 'published';
+            }
+        }
+
         $payload = [
             'user_id' => $request->user()->id,
             'listing_type' => 'single',
@@ -91,11 +105,17 @@ class ListingManagerController extends Controller
             'subject_id' => $subjectId,
             'language_id' => $validated['language_id'] ?? null,
             'isbn_13' => $validated['isbn_13'] ?? null,
-            'status' => 'pending_admin',
+            'status' => $status,
             'submitted_at' => now(),
         ];
 
         $listing = Listing::create($payload);
+
+        try {
+            app(\App\Services\TelegramNotificationService::class)->sendNewListingNotification($listing);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Erreur envoi Telegram: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Annonce créée avec succès, en attente de validation',
@@ -153,6 +173,43 @@ class ListingManagerController extends Controller
             $coverPath = $this->storeCover($request->file('cover_image'));
         }
 
+        // Déterminer si les données principales ont été altérées
+        $mainDataChanged = false;
+
+        if ($request->hasFile('cover_image')) {
+            $mainDataChanged = true;
+        } else {
+            $normalizedTitle = mb_strtolower(trim($validated['title']));
+            $normalizedOldTitle = mb_strtolower(trim($listing->title));
+            
+            $normalizedDesc = mb_strtolower(trim($validated['description'] ?? ''));
+            $normalizedOldDesc = mb_strtolower(trim($listing->description ?? ''));
+
+            $newIsbn = $validated['isbn_13'] ?? null;
+            $oldIsbn = $listing->isbn_13;
+
+            if ($normalizedTitle !== $normalizedOldTitle || $normalizedDesc !== $normalizedOldDesc || $newIsbn !== $oldIsbn) {
+                $mainDataChanged = true;
+            }
+        }
+
+        $status = $listing->status;
+
+        if ($mainDataChanged) {
+            $status = 'pending_admin';
+            if ($book && !$request->hasFile('cover_image')) {
+                $normalizedTitle = mb_strtolower(trim($validated['title']));
+                $normalizedBookTitle = mb_strtolower(trim($book->title));
+                
+                $normalizedDesc = mb_strtolower(trim($validated['description'] ?? ''));
+                $normalizedBookDesc = mb_strtolower(trim($book->description ?? ''));
+
+                if ($normalizedTitle === $normalizedBookTitle && (empty($normalizedDesc) || $normalizedDesc === $normalizedBookDesc)) {
+                    $status = 'published';
+                }
+            }
+        }
+
         $payload = [
             'book_id' => $bookId,
             'title' => $validated['title'],
@@ -170,11 +227,20 @@ class ListingManagerController extends Controller
             'isbn_13' => $validated['isbn_13'] ?? null,
             'cover_path' => $coverPath,
             'cover_source_url' => $coverSourceUrl,
-            'status' => 'pending_admin',
+            'status' => $status,
             'submitted_at' => now(),
         ];
 
+        $oldStatus = $listing->status;
         $listing->update($payload);
+
+        if ($oldStatus === 'published' && $status === 'pending_admin') {
+            try {
+                app(\App\Services\TelegramNotificationService::class)->sendNewListingNotification($listing);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Erreur envoi Telegram update: ' . $e->getMessage());
+            }
+        }
 
         return response()->json([
             'message' => 'Annonce mise à jour avec succès',

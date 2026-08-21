@@ -624,12 +624,13 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                 {/* Prix · Réduction % · Prix réduit */}
                 <div className="grid grid-cols-3 gap-4">
                     <div>
-                        <label className="mb-1 block text-sm font-semibold text-slate-700">
-                            Prix (MAD) <span className="text-red-500">*</span>
-                        </label>
+                        <label className="mb-1 block text-sm font-semibold text-slate-700">Prix (MAD) <span className="text-red-500">*</span></label>
                         <input type="number" step="0.01" min="0"
                                {...form.register("price", { valueAsNumber: true })}
-                               onChange={(e) => handlePriceChange(parseFloat(e.target.value))}
+                               onChange={(e) => {
+                                   form.register("price", { valueAsNumber: true }).onChange(e);
+                                   handlePriceChange(parseFloat(e.target.value));
+                               }}
                                className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20" />
                         {form.formState.errors.price && <p className="mt-1 text-xs text-red-600">{form.formState.errors.price.message}</p>}
                     </div>
@@ -648,8 +649,11 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                     <div>
                         <label className="mb-1 block text-sm font-semibold text-slate-700">Prix réduit (MAD)</label>
                         <input type="number" step="0.01" min="0"
-                               {...form.register("discount_price", { setValueAs: v => v === "" ? null : parseFloat(v) })}
-                               onChange={(e) => handleDiscountPriceChange(e.target.value === "" ? null : parseFloat(e.target.value))}
+                               {...form.register("discount_price", { setValueAs: v => (v === "" || v === null || isNaN(v)) ? null : parseFloat(v) })}
+                               onChange={(e) => {
+                                   form.register("discount_price").onChange(e);
+                                   handleDiscountPriceChange(e.target.value === "" || isNaN(parseFloat(e.target.value)) ? null : parseFloat(e.target.value));
+                               }}
                                placeholder="Optionnel"
                                className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20" />
                         {form.formState.errors.discount_price && <p className="mt-1 text-xs text-red-600">{form.formState.errors.discount_price.message}</p>}

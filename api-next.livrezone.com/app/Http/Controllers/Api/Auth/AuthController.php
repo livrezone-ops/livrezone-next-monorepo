@@ -196,6 +196,31 @@ class AuthController extends Controller
         ], 422);
     }
 
+    /**
+     * Mise à jour du mot de passe depuis le profil.
+     */
+    public function updatePassword(Request $request): JsonResponse
+    {
+        $rules = [
+            'password' => ['required', 'confirmed', PasswordRule::defaults()],
+        ];
+
+        if ($request->user()->password !== null) {
+            $rules['current_password'] = ['required', 'current_password'];
+        } else {
+            // Pour les utilisateurs Google sans mot de passe, current_password peut être envoyé vide ou ne pas être là
+            $rules['current_password'] = ['nullable'];
+        }
+
+        $validated = $request->validate($rules);
+
+        $request->user()->update([
+            'password' => $validated['password'],
+        ]);
+
+        return response()->json(['message' => 'Mot de passe mis à jour avec succès.']);
+    }
+
     protected function sendVerificationEmail(User $user): void
     {
         $url = URL::temporarySignedRoute(
