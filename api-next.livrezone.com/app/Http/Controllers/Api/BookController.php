@@ -32,35 +32,14 @@ class BookController extends Controller
     }
 
     /**
-     * Recherche publique dans la table books (catalogue, pas uniquement les annonces).
-     * Recherche sur : titre, ISBN, auteur, éditeur.
+     * Recherche dans la table books (catalogue).
+     * Sécurisé via BookCatalogueService (Hard cap pagination).
      */
     public function publicSearch(Request $request)
     {
-        $query = Book::query();
-
-        if ($request->filled('search')) {
-            $search = $request->get('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('isbn_13', 'like', "%{$search}%")
-                  ->orWhere('publisher', 'like', "%{$search}%")
-                  // Les auteurs sont stockés en JSON : on compare la représentation texte.
-                  ->orWhere('authors', 'like', "%{$search}%");
-            });
-        }
-
-        $limit = $request->integer('limit', 24);
-        $books = $query->orderBy('title')->paginate($limit);
-
-        $books->getCollection()->transform(function ($book) {
-            if ($book->title) {
-                $book->setAppends(['cover_url']);
-            }
-            return $book;
-        });
-
-        return response()->json($books);
+        return response()->json(
+            app(\App\Services\BookCatalogueService::class)->search($request)
+        );
     }
 
     /**
@@ -71,5 +50,25 @@ class BookController extends Controller
         return response()->json(
             app(\App\Services\BookAutocompleteService::class)->suggest($request)
         );
+    }
+
+    /**
+     * Récupère un livre par son ID, son ISBN ou son Titre
+     */
+    public function show($identifier)
+    {
+        $book = Book::query()
+            ->where('id', $identifier)
+            ->orWhere('isbn_13', $identifier)
+            ->orWhere('title', $identifier)
+            ->first();
+
+        if (!$book) {
+            return response()->json(['message' => 'Livre introuvable'], 404);
+        }
+
+        $book->setAppends(['cover_url', 'cover_thumbnail_url']);
+
+        return response()->json(['book' => $book]);
     }
 }

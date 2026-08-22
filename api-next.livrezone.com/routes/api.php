@@ -65,13 +65,14 @@ Route::get('/profiles/{nickname}/ratings', [ProfileController::class, 'ratings']
 // Protected Ratings
 Route::middleware('auth:sanctum')->post('/profiles/{nickname}/ratings', [ProfileController::class, 'storeRating']);
 
-// Public Books Catalogue Routes
-Route::get('/books', [\App\Http\Controllers\Api\BookController::class, 'publicSearch']);
-Route::get('/books/autocomplete', [\App\Http\Controllers\Api\BookController::class, 'autocomplete']);
-
 // Reference Data for Forms
 Route::get('/reference-data', [ReferenceDataController::class, 'index']);
-Route::get('/books/search', [BookController::class, 'searchByIsbn']);
+
+// Public Books Catalogue Routes
+Route::get('/books', [\App\Http\Controllers\Api\BookController::class, 'publicSearch'])->middleware('throttle:catalogue');
+Route::get('/books/autocomplete', [\App\Http\Controllers\Api\BookController::class, 'autocomplete']);
+Route::get('/books/search', [\App\Http\Controllers\Api\BookController::class, 'searchByIsbn']);
+Route::get('/books/{identifier}', [\App\Http\Controllers\Api\BookController::class, 'show']);
 
 // Wishlist (Favorites) - Authenticated
 Route::middleware('auth:sanctum')->prefix('wishlist')->group(function () {

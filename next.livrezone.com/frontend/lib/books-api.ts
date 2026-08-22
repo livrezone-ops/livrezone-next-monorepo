@@ -7,6 +7,7 @@ export interface BookSearchItem {
   authors?: string[] | string | null;
   publisher?: string | null;
   cover_url?: string | null;
+  cover_thumbnail_url?: string | null;
 }
 
 export interface BooksResult {

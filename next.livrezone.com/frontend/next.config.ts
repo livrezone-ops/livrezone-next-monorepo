@@ -32,6 +32,20 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/livres",
+        destination: "/books",
+        permanent: true,
+      },
+      {
+        source: "/livres/:path*",
+        destination: "/books/:path*",
+        permanent: true,
+      },
+    ];
+  },
   images: {
     unoptimized: true,
     remotePatterns: [

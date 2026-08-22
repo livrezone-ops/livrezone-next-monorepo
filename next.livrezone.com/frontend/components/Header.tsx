@@ -18,6 +18,7 @@ import {
 import SaveCartModal from "@/components/SaveCartModal";
 import { CATEGORIES } from "@/lib/reference-data";
 import Logo from "@/components/Logo";
+import HeaderSearch from "@/components/HeaderSearch";
 
 const NAV_LABELS: Record<string, string> = {
   SCOLAIRE: "Rentrée Scolaire",
@@ -29,14 +30,10 @@ export default function Header() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [lang, setLang] = useState("FR");
   const [avatarError, setAvatarError] = useState(false);
-
-  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
 
   const { user, isAuthenticated: isLoggedIn, logout } = useAuth();
   const { wishlistCount, cartCount } = useCommerce();
@@ -74,34 +71,6 @@ export default function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Gestion du timer de 5s d'inactivité pour fermer la recherche mobile
-  const resetSearchInactivityTimer = () => {
-    if (searchTimerRef.current) {
-      clearTimeout(searchTimerRef.current);
-    }
-    searchTimerRef.current = setTimeout(() => {
-      setSearchOpen(false);
-    }, 5000);
-  };
-
-  useEffect(() => {
-    if (searchOpen) {
-      resetSearchInactivityTimer();
-      setTimeout(() => {
-        mobileSearchInputRef.current?.focus();
-      }, 60);
-    } else {
-      if (searchTimerRef.current) {
-        clearTimeout(searchTimerRef.current);
-      }
-    }
-    return () => {
-      if (searchTimerRef.current) {
-        clearTimeout(searchTimerRef.current);
-      }
-    };
-  }, [searchOpen]);
-
   const navLinks = [
     { label: "Annonces", href: "/annonces" },
     ...CATEGORIES.map((c) => ({
@@ -109,15 +78,6 @@ export default function Header() {
       href: `/annonces?category=${c.code}`,
     })),
   ];
-
-  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const q = searchQuery.trim();
-    if (!q) return;
-    const query = encodeURIComponent(q);
-    router.push(`/annonces?search=${query}`);
-    setSearchOpen(false);
-  };
 
   return (
     <header
@@ -160,19 +120,7 @@ export default function Header() {
         <Logo size="md" href="/" className="shrink-0" />
 
         {/* RECHERCHE DESKTOP (Simplifiée : livres en vente uniquement) */}
-        <form onSubmit={handleSearchSubmit} className="flex-1 hidden lg:flex border-2 border-black hover:border-gray-800 focus-within:border-[#6D28D9] rounded-xl transition-colors overflow-hidden h-11">
-          <input
-            type="search"
-            name="q"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher par ISBN, titre ou auteur..."
-            className="flex-1 px-4 text-[13px] text-black placeholder-gray-400 focus:outline-none bg-white"
-          />
-          <button type="submit" className="shrink-0 bg-black hover:bg-[#6D28D9] text-white px-6 transition-colors flex items-center justify-center cursor-pointer">
-            <Search className="h-4 w-4" strokeWidth={2.5} />
-          </button>
-        </form>
+        <HeaderSearch />
 
         {/* ICONS CONTAINER */}
         <div className="flex items-center gap-2 sm:gap-3.5 lg:gap-5 shrink-0">
@@ -328,23 +276,7 @@ export default function Header() {
               onClick={() => setSearchOpen(false)}
             />
             <div className="absolute top-full left-0 w-full bg-white border-b border-gray-200 p-3 z-40 lg:hidden shadow-lg animate-in slide-in-from-top-2 duration-150">
-              <form onSubmit={handleSearchSubmit} className="flex border-2 border-black rounded-xl overflow-hidden h-11">
-                <input
-                  ref={mobileSearchInputRef}
-                  type="search"
-                  name="q"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    resetSearchInactivityTimer();
-                  }}
-                  placeholder="Rechercher par ISBN, titre ou auteur..."
-                  className="flex-1 px-3 text-sm text-black placeholder-gray-400 focus:outline-none bg-white"
-                />
-                <button type="submit" className="shrink-0 bg-[#6D28D9] hover:bg-violet-800 text-white px-4.5 flex items-center justify-center cursor-pointer transition-colors">
-                  <Search className="h-4 w-4" strokeWidth={2.5} />
-                </button>
-              </form>
+              <HeaderSearch isMobile={true} onCloseMobile={() => setSearchOpen(false)} />
             </div>
           </>
         )}

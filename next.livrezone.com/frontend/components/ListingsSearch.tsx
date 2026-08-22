@@ -92,7 +92,8 @@ export default function ListingsSearch({
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (initialListings !== undefined) {
+    // Si c'est le premier montage et qu'on a des données serveur, on les utilise directement
+    if (hydratedRef.current && initialListings !== undefined) {
       hydratedRef.current = false;
       setListings(initialListings);
       setLastPage(initialLastPage ?? 1);
@@ -101,11 +102,7 @@ export default function ListingsSearch({
       return;
     }
 
-    if (hydratedRef.current) {
-      hydratedRef.current = false;
-      return;
-    }
-
+    // Après le premier montage, tout changement de searchParams déclenche un fetch côté client
     let active = true;
     const fetchListings = async () => {
       setLoading(true);
@@ -141,7 +138,7 @@ export default function ListingsSearch({
     return () => {
       active = false;
     };
-  }, [initialListings, initialLastPage, initialTotal, searchParams, userId]);
+  }, [searchParams, userId, initialListings, initialLastPage, initialTotal]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Au changement de page/recherche, positionne le scroll en haut de la liste.

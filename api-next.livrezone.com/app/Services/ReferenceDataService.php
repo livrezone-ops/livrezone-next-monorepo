@@ -31,7 +31,8 @@ class ReferenceDataService
             // 2. Langues
             $languages = Language::where('is_active', true)
                 ->orderBy('name_fr')
-                ->get(['id', 'name_fr', 'code']);
+                ->get(['id', 'name_fr', 'code'])
+                ->toArray();
                 
             // 3. Niveaux et matières
             $levels = Level::where('is_active', true)
@@ -39,10 +40,11 @@ class ReferenceDataService
                     $query->where('is_active', true);
                 }])
                 ->orderBy('rank')
-                ->get();
+                ->get()
+                ->toArray();
 
             // 4. Villes
-            $cities = City::orderBy('name')->get(['id', 'name']);
+            $cities = City::orderBy('name')->get(['id', 'name'])->toArray();
 
             return [
                 'categories' => $tree,

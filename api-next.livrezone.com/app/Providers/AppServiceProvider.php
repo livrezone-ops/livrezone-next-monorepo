@@ -23,5 +23,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(Listing::class, ListingPolicy::class);
+
+        \Illuminate\Support\Facades\RateLimiter::for('catalogue', function (\Illuminate\Http\Request $request) {
+            if (!config('livrezone.anti_scraping.enabled')) {
+                return \Illuminate\Cache\RateLimiting\Limit::none();
+            }
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(config('livrezone.anti_scraping.max_requests_per_minute'))->by($request->ip());
+        });
     }
 }

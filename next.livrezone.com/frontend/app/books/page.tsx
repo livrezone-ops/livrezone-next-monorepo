@@ -7,7 +7,7 @@ import { getBooks, type BookSearchItem } from "@/lib/books-api";
 export const revalidate = 60;
 
 const SITE_URL = "https://next.livrezone.com";
-const PATH = "/livres";
+const PATH = "/books";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -126,9 +126,9 @@ export default async function LivresPage({ searchParams }: PageProps) {
                 className="flex flex-col bg-white border border-gray-100 rounded-xl p-3 shadow-xs"
               >
                 <div className="relative w-full pb-[130%] overflow-hidden rounded-md bg-gray-50">
-                  {book.cover_url ? (
+                  {(book.cover_thumbnail_url || book.cover_url) ? (
                     <Image
-                      src={book.cover_url}
+                      src={book.cover_thumbnail_url || book.cover_url || ""}
                       alt={book.title || ""}
                       fill
                       className="object-contain p-2"
@@ -153,10 +153,10 @@ export default async function LivresPage({ searchParams }: PageProps) {
                   <p className="text-[11px] text-gray-400 font-mono mt-0.5">{book.isbn_13}</p>
                 )}
                 <Link
-                  href={`/annonces?search=${encodeURIComponent(book.isbn_13 || book.title || "")}`}
+                  href={`/books/${book.id}-${book.isbn_13 || '0000000000000'}-${book.title ? book.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'livre'}`}
                   className="mt-3 text-[11px] font-bold text-[#6D28D9] hover:underline"
                 >
-                  Voir les annonces de ce livre →
+                  Voir les détails du livre →
                 </Link>
               </article>
             ))}

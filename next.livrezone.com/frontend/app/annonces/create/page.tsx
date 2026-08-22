@@ -1,11 +1,46 @@
 "use client";
 
+import React, { Component, ErrorInfo, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import ListingForm from "@/components/ListingForm";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import ToastContainer from "@/components/Toast";
 import { useToasts } from "@/hooks/useToasts";
+
+class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null, info: ErrorInfo | null}> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null, info: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error, info: null };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    this.setState({ info });
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 bg-red-50 rounded-xl border border-red-200 mt-8">
+          <div className="flex items-center gap-3 text-red-700 font-bold mb-4">
+            <AlertTriangle className="w-6 h-6" />
+            Crash Client Détecté (ErrorBoundary)
+          </div>
+          <div className="text-sm text-red-900 bg-red-100 p-4 rounded-lg font-mono overflow-auto mb-4 whitespace-pre-wrap">
+            {this.state.error?.toString()}
+          </div>
+          {this.state.info && (
+            <div className="text-xs text-red-800 bg-red-100/50 p-4 rounded-lg font-mono overflow-auto whitespace-pre-wrap">
+              {this.state.info.componentStack}
+            </div>
+          )}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function CreateListingPage() {
   const router = useRouter();
@@ -35,13 +70,15 @@ export default function CreateListingPage() {
           <p className="mt-2 text-sm text-gray-600">Remplissez les détails de votre livre pour le proposer à la vente.</p>
         </div>
 
-        <ListingForm 
-          onSubmitSuccess={() => {
-            pushToast("Votre annonce a été publiée avec succès");
-            setTimeout(() => router.push("/dashboard"), 1200);
-          }} 
-          onError={(message) => pushToast(message, "warning")}
-        />
+        <ErrorBoundary>
+          <ListingForm 
+            onSubmitSuccess={() => {
+              pushToast("Votre annonce a été publiée avec succès");
+              setTimeout(() => router.push("/dashboard"), 1200);
+            }} 
+            onError={(message) => pushToast(message, "warning")}
+          />
+        </ErrorBoundary>
       </div>
     </div>
     <ToastContainer toasts={toasts} dismiss={dismissToast} />

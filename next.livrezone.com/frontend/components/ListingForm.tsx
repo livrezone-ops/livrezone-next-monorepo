@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, Plus, Minus } from "lucide-react";
 
 // Types pour les données de référence
 interface CategoryNode {
@@ -159,10 +159,12 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Recherche ISBN
-  const [isbnInput, setIsbnInput] = useState(initialData?.isbn_13 || "");
-  const [isSearchingIsbn, setIsSearchingIsbn] = useState(false);
-  const [isbnSearchError, setIsbnSearchError] = useState<string | null>(null);
+  // Recherche / Autocomplétion de livres
+  const [bookSearchQuery, setBookSearchQuery] = useState("");
+  const [bookSuggestions, setBookSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearchingBooks, setIsSearchingBooks] = useState(false);
+  const [bookSearchError, setBookSearchError] = useState<string | null>(null);
 
   // Pourcentage de réduction
   const [discountPercent, setDiscountPercent] = useState<string>(() => {
@@ -215,7 +217,6 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
   useEffect(() => {
     if (!refData) return;
     const initial = buildListingDefaultValues(initialData);
-    setIsbnInput(initial.isbn_13 || "");
     const r = getCategoryRules(refData.categories, initial.category_id);
     if (r.category) {
       if (!r.levelApplicable) {
@@ -252,14 +253,15 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
     return name.includes("scolaire") || name.includes("universitaire");
   }, [selectedCategoryPath]);
 
-  const globalNaLevel = useMemo(
-    () => refData?.levels?.find((l) => l.code === "NON_APPLICABLE") || rules.naLevel,
-    [refData, rules.naLevel]
-  );
-  const globalNaSubject = useMemo(
-    () => refData?.categories?.flatMap(c => c.subjects || []).find(s => s.code === "NON_APPLICABLE") || rules.naSubject,
-    [refData, rules.naSubject]
-  );
+  const globalNaLevel = useMemo(() => {
+    const levelsArray = Array.isArray(refData?.levels) ? refData.levels : [];
+    return levelsArray.find((l) => l.code === "NON_APPLICABLE") || rules.naLevel;
+  }, [refData, rules.naLevel]);
+
+  const globalNaSubject = useMemo(() => {
+    const catsArray = Array.isArray(refData?.categories) ? refData.categories : [];
+    return catsArray.flatMap(c => c.subjects || []).find(s => s.code === "NON_APPLICABLE") || rules.naSubject;
+  }, [refData, rules.naSubject]);
 
   const allowedLevels = rules.levels;
   const allowedSubjects = rules.subjects;
@@ -289,8 +291,10 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
         (root.name_fr || root.name || root.slug || "").toLowerCase().includes("universitaire")
       );
 
-      const resolvedNaLevel = refData?.levels?.find((l) => l.code === "NON_APPLICABLE") || r.naLevel;
-      const resolvedNaSubject = refData?.categories?.flatMap(c => c.subjects || []).find(s => s.code === "NON_APPLICABLE") || r.naSubject;
+      const levelsArray = Array.isArray(refData?.levels) ? refData.levels : [];
+      const catsArray = Array.isArray(refData?.categories) ? refData.categories : [];
+      const resolvedNaLevel = levelsArray.find((l) => l.code === "NON_APPLICABLE") || r.naLevel;
+      const resolvedNaSubject = catsArray.flatMap(c => c.subjects || []).find(s => s.code === "NON_APPLICABLE") || r.naSubject;
 
       if (!r.levelApplicable || !isScolOrUniv) {
         nextLevel = resolvedNaLevel?.id ?? r.naLevel?.id ?? null;
@@ -313,20 +317,39 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
     form.setValue("subject_id", nextSubject, { shouldDirty: true });
   };
 
-  // Fonction de recherche ISBN
-  const searchIsbn = async () => {
-    const term = isbnInput.trim() || form.getValues("isbn_13")?.trim();
-    if (!term) return;
-    setIsSearchingIsbn(true);
-    setIsbnSearchError(null);
+  // Autocomplétion
+  useEffect(() => {
+    const term = bookSearchQuery.trim();
+    if (term.length < 2) {
+      setBookSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const delay = setTimeout(async () => {
+      try {
+        const res = await api.get(`/books/autocomplete?q=${encodeURIComponent(term)}`);
+        setBookSuggestions(res.data || []);
+        setShowSuggestions(true);
+      } catch (err) {
+        console.error(err);
+      }
+    }, 300);
+    return () => clearTimeout(delay);
+  }, [bookSearchQuery]);
+
+  // Récupérer les détails d'un livre (sélection depuis l'autocomplétion ou recherche forcée)
+  const fetchBookDetails = async (identifier: string | number) => {
+    if (!identifier) return;
+    setIsSearchingBooks(true);
+    setBookSearchError(null);
+    setShowSuggestions(false);
     try {
-      const res = await api.get(`/books/search?isbn=${term}`);
+      const res = await api.get(`/books/${encodeURIComponent(identifier)}`);
       const book = res.data.book;
       if (book) {
         form.setValue("title", book.title);
-        const foundIsbn = book.isbn_13 || book.isbn_10 || term;
+        const foundIsbn = book.isbn_13 || book.isbn_10 || "";
         form.setValue("isbn_13", foundIsbn);
-        setIsbnInput(foundIsbn);
         if (Array.isArray(book.authors) && book.authors.length) {
           form.setValue("author", book.authors.join(", "));
         }
@@ -357,26 +380,25 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
           }
         }
 
-        if (book.cover_url) {
+        if (book.cover_thumbnail_url) {
+          setCoverPreview(book.cover_thumbnail_url);
+          setCoverSourceUrl(book.cover_thumbnail_url);
+        } else if (book.cover_url) {
           setCoverPreview(book.cover_url);
           setCoverSourceUrl(book.cover_url);
-        } else if (book.cover_path) {
-          const url = resolveCoverUrl(book.cover_path);
-          setCoverPreview(url);
-          setCoverSourceUrl(url);
         }
       }
     } catch {
-      setIsbnSearchError("Aucun livre trouvé pour cet ISBN. Vous pouvez remplir les champs manuellement ci-dessous.");
+      setBookSearchError("Aucun livre trouvé. Vous pouvez remplir les champs manuellement ci-dessous.");
     } finally {
-      setIsSearchingIsbn(false);
+      setIsSearchingBooks(false);
     }
   };
 
-  const handleIsbnInputChange = (val: string) => {
-    setIsbnInput(val);
-    form.setValue("isbn_13", val);
-    if (isbnSearchError) setIsbnSearchError(null);
+  const handleManualSearch = () => {
+    if (bookSearchQuery.trim()) {
+      fetchBookDetails(bookSearchQuery.trim());
+    }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -487,61 +509,101 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
   }
 
   // Listes dérivées de la hiérarchie pour les dropdowns (chemin de la catégorie sélectionnée)
-  const l1Categories = refData?.categories || [];
+  const l1Categories = Array.isArray(refData?.categories) ? refData.categories : [];
   const l2Categories = selectedCategoryPath[0]?.children || [];
   const l3Categories = selectedCategoryPath[1]?.children || [];
 
   return (
     <div className="mx-auto max-w-5xl">
+      {/* Box de recherche globale au-dessus du formulaire */}
+      <div className="mb-6 rounded-xl border-2 border-[#6D28D9]/20 bg-violet-50/50 p-4 sm:p-5 shadow-sm relative z-50">
+          <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-[#6D28D9]">
+                  <Search className="w-4 h-4" />
+              </div>
+              <div>
+                  <h3 className="font-bold text-slate-800 text-sm">Rechercher un livre existant</h3>
+                  <p className="text-xs text-slate-500">Trouvez votre livre par ISBN ou titre pour remplir le formulaire automatiquement.</p>
+              </div>
+          </div>
+          <div className="relative flex items-center w-full z-50">
+              <input
+                  type="text"
+                  value={bookSearchQuery}
+                  onChange={(e) => {
+                    setBookSearchQuery(e.target.value);
+                    if (bookSearchError) setBookSearchError(null);
+                  }}
+                  onFocus={() => { if (bookSuggestions.length > 0) setShowSuggestions(true); }}
+                  onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleManualSearch();
+                      }
+                  }}
+                  placeholder="Tapez le titre, l'auteur ou l'ISBN..."
+                  className="h-12 w-full rounded-lg border border-violet-200 bg-white pl-4 pr-12 text-sm shadow-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20"
+              />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[#6D28D9]">
+                {isSearchingBooks ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+              </div>
+          </div>
+          
+          {/* Dropdown suggestions */}
+          {showSuggestions && bookSuggestions.length > 0 && (
+            <div className="absolute left-4 right-4 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-72 overflow-y-auto">
+              <ul className="py-2">
+                {bookSuggestions.map((book) => (
+                  <li 
+                    key={book.id} 
+                    onClick={() => fetchBookDetails(book.id)}
+                    className="px-4 py-3 hover:bg-slate-50 cursor-pointer flex items-center gap-4 transition-colors border-b border-slate-50 last:border-0"
+                  >
+                    <div className="w-12 h-16 bg-slate-100 rounded flex items-center justify-center shrink-0 overflow-hidden relative border border-slate-200/60 shadow-sm">
+                      {book.cover_url ? (
+                        <img src={book.cover_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[9px] text-slate-400 text-center leading-tight">Sans couv.</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px] font-bold text-slate-900 truncate">{book.title}</p>
+                      {book.authors && <p className="text-xs text-slate-500 font-medium truncate mt-0.5">{book.authors}</p>}
+                      {book.isbn_13 && <p className="text-[11px] text-slate-400 font-mono mt-1 tracking-wider">{book.isbn_13}</p>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {/* Click outside pour fermer */}
+          {showSuggestions && (
+            <div className="fixed inset-0 z-40" onClick={() => setShowSuggestions(false)} />
+          )}
+
+          {bookSearchError && (
+              <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 relative z-30 flex items-center gap-2">
+                  <Search className="w-4 h-4 shrink-0" />
+                  {bookSearchError}
+              </div>
+          )}
+      </div>
+
       {/* Formulaire d'annonce */}
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 relative z-10">
 
         {/* 1. BLOC ISBN & TITRE (Sur mobile en 1er, sur desktop en haut à droite) */}
         <div className="order-1 lg:order-2 lg:col-span-8">
             <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm space-y-4">
-                {/* Recherche ISBN */}
-                <div className="rounded-lg bg-slate-50/80 border border-slate-200/80 p-3">
-                    <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                            Recherche par ISBN
-                        </label>
-                        <span className="text-[11px] text-slate-500">Pré-remplir les informations</span>
-                    </div>
-                    <div className="relative flex items-center w-full">
-                        <input
-                            type="text"
-                            value={isbnInput}
-                            onChange={(e) => handleIsbnInputChange(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    searchIsbn();
-                                }
-                            }}
-                            placeholder="Ex: 9782294788222"
-                            className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-3 pr-28 text-xs sm:text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20"
-                        />
-                        <button
-                            type="button"
-                            onClick={searchIsbn}
-                            disabled={isSearchingIsbn || !isbnInput.trim()}
-                            className="absolute right-1 top-1 bottom-1 px-3 rounded-md bg-[#F97316] hover:bg-[#ea630a] text-white text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
-                        >
-                            {isSearchingIsbn ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                                <>
-                                    <Search className="w-3.5 h-3.5" />
-                                    <span>Rechercher</span>
-                                </>
-                            )}
-                        </button>
-                    </div>
-                    {isbnSearchError && (
-                        <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
-                            {isbnSearchError}
-                        </div>
-                    )}
+                {/* ISBN */}
+                <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">
+                        ISBN <span className="text-xs text-slate-400 font-normal ml-1">(Optionnel)</span>
+                    </label>
+                    <input type="text" {...form.register("isbn_13")}
+                           placeholder="Ex: 9781234567890"
+                           className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20" />
+                    {form.formState.errors.isbn_13 && <p className="mt-1 text-xs text-red-600">{form.formState.errors.isbn_13.message}</p>}
                 </div>
 
                 {/* Titre */}
@@ -655,7 +717,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                         <select {...form.register("language_id", { setValueAs: v => v === "" ? null : parseInt(v) })}
                                 className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20">
                             <option value="">-- Choisir --</option>
-                            {refData?.languages.map(lang => (
+                            {(Array.isArray(refData?.languages) ? refData.languages : []).map(lang => (
                                 <option key={lang.id} value={lang.id}>{lang.name_fr}</option>
                             ))}
                         </select>
@@ -665,9 +727,33 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                         <label className="mb-1 block text-sm font-semibold text-slate-700">
                             Quantité <span className="text-red-500">*</span>
                         </label>
-                        <input type="number" min="1" step="1"
-                               {...form.register("quantity", { valueAsNumber: true })}
-                               className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-[#6D28D9] focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/20" />
+                        <div className="flex items-center h-11 w-full rounded-lg border border-slate-300 overflow-hidden focus-within:border-[#6D28D9] focus-within:ring-2 focus-within:ring-[#6D28D9]/20">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const current = form.getValues("quantity") || 1;
+                                    if (current > 1) {
+                                        form.setValue("quantity", current - 1, { shouldValidate: true, shouldDirty: true });
+                                    }
+                                }}
+                                className="h-full px-4 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors border-r border-slate-200"
+                            >
+                                <Minus className="w-4 h-4" />
+                            </button>
+                            <input type="number" min="1" step="1"
+                                   {...form.register("quantity", { valueAsNumber: true })}
+                                   className="h-full flex-1 w-full text-center text-sm font-semibold text-slate-700 outline-none appearance-none bg-transparent" />
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const current = form.getValues("quantity") || 1;
+                                    form.setValue("quantity", current + 1, { shouldValidate: true, shouldDirty: true });
+                                }}
+                                className="h-full px-4 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors border-l border-slate-200"
+                            >
+                                <Plus className="w-4 h-4" />
+                            </button>
+                        </div>
                         {form.formState.errors.quantity && <p className="mt-1 text-xs text-red-600">{form.formState.errors.quantity.message}</p>}
                     </div>
                 </div>

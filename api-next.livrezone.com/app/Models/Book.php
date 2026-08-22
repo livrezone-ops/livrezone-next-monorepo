@@ -110,6 +110,11 @@ class Book extends Model
         return $external !== '' ? $external : null;
     }
 
+    public function getCoverThumbnailUrlAttribute(): ?string
+    {
+        return $this->getCoverThumbnailUrl(160);
+    }
+
     public function getCoverThumbnailUrl(int $size = 160): ?string
     {
         $path = trim((string) ($this->cover_path ?? ''));

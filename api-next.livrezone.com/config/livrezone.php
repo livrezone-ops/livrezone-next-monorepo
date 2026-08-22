@@ -21,4 +21,9 @@ return [
         // Dernières annonces en page d'accueil - Défaut: 10 minutes
         'homepage_listings' => (int) env('CACHE_TTL_HOMEPAGE_LISTINGS', 600),
     ],
+
+    'anti_scraping' => [
+        'enabled' => env('ANTI_SCRAPING_ENABLED', false), // Désactivé par défaut comme demandé
+        'max_requests_per_minute' => (int) env('ANTI_SCRAPING_MAX_REQUESTS', 10),
+    ],
 ];
