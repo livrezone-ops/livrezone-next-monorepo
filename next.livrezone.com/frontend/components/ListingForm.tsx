@@ -56,6 +56,7 @@ interface RawCategory {
 
 // Schéma de validation Zod
 const formSchema = z.object({
+  book_id: z.number().optional().nullable(),
   title: z.string().min(3, "Le titre doit faire au moins 3 caractères"),
   author: z.string().max(255).optional().nullable(),
   publisher: z.string().max(255).optional().nullable(),
@@ -90,6 +91,7 @@ export interface ListingFormProps {
 
 // Construit les valeurs initiales du formulaire depuis initialData (fonction pure).
 const buildListingDefaultValues = (data?: ListingFormProps["initialData"]): Partial<FormValues> => ({
+  book_id: data?.book_id ?? null,
   title: data?.title || "",
   author: data?.author || "",
   publisher: data?.publisher || "",
@@ -347,6 +349,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
       const res = await api.get(`/books/${encodeURIComponent(identifier)}`);
       const book = res.data.book;
       if (book) {
+        form.setValue("book_id", book.id);
         form.setValue("title", book.title);
         const foundIsbn = book.isbn_13 || book.isbn_10 || "";
         form.setValue("isbn_13", foundIsbn);

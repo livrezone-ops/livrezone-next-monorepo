@@ -8,13 +8,22 @@ use App\Models\Category;
 use App\Models\Listing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
-use Intervention\Image\Encoders\WebpEncoder;
-use Intervention\Image\Laravel\Facades\Image;
+use App\Services\ImageUploadService;
+use App\Services\ListingProcessorService;
+use App\Services\BookDataFetcherService;
+use App\Services\ListingValidationService;
+use App\Services\TelegramNotificationService;
 
 class ListingManagerController extends Controller
 {
+    public function __construct(
+        protected ImageUploadService $imageUploadService,
+        protected ListingProcessorService $listingProcessorService,
+        protected BookDataFetcherService $bookDataFetcherService,
+        protected ListingValidationService $validationService,
+        protected TelegramNotificationService $telegramService
+    ) {}
+
     public function show(Request $request, Listing $listing)
     {
         if ($listing->user_id !== $request->user()->id) {
@@ -35,21 +44,28 @@ class ListingManagerController extends Controller
 
         // Résolution des relations catégorie / niveau / matière
         $category = Category::with(['levels', 'subjects'])->findOrFail($validated['category_id']);
-        $this->validateCategoryParent($category, $request->input('parent_category_id'));
-        [$levelId, $subjectId] = $this->resolveLevelSubject(
+        $this->listingProcessorService->validateCategoryParent($category, $request->input('parent_category_id'));
+        
+        [$levelId, $subjectId] = $this->listingProcessorService->resolveLevelSubject(
             $category,
             $validated['level_id'] ?? null,
             $validated['subject_id'] ?? null
         );
 
-        // Recherche du livre par ISBN pour lier book_id et récupérer la couverture catalogue
+        // Recherche du livre (par book_id ou ISBN) pour lier et récupérer la couverture catalogue
         $book = null;
-        $bookId = null;
+        $bookId = $validated['book_id'] ?? null;
         $bookCoverPath = null;
         $bookCoverSourceUrl = null;
 
-        if (!empty($validated['isbn_13'])) {
-            $book = Book::where('isbn_13', $validated['isbn_13'])->first();
+        if ($bookId) {
+            $book = Book::find($bookId);
+            if ($book) {
+                $bookCoverPath = $book->cover_path;
+                $bookCoverSourceUrl = $book->cover_source_url;
+            }
+        } elseif (!empty($validated['isbn_13'])) {
+            $book = $this->bookDataFetcherService->findBookByIsbn($validated['isbn_13']);
             if ($book) {
                 $bookId = $book->id;
                 $bookCoverPath = $book->cover_path;
@@ -57,21 +73,21 @@ class ListingManagerController extends Controller
             }
         }
 
-        [$author, $publisher] = $this->resolveAuthorPublisher($book, $validated);
+        [$author, $publisher] = $this->listingProcessorService->resolveAuthorPublisher($book, $validated);
 
         // Gestion de la couverture : priorité à l'upload utilisateur > couverture du book catalogue
         $coverPath = null;
         $coverSourceUrl = null;
 
         if ($request->hasFile('cover_image')) {
-            $coverPath = $this->storeCover($request->file('cover_image'));
+            $coverPath = $this->imageUploadService->storeCover($request->file('cover_image'));
         } elseif ($bookCoverPath) {
             // Utiliser la couverture du livre catalogue (chemin relatif)
             $coverPath = $bookCoverPath;
             $coverSourceUrl = $bookCoverSourceUrl;
         }
 
-        $status = app(\App\Services\ListingValidationService::class)->determineStatus(
+        $status = $this->validationService->determineStatus(
             $validated,
             $book,
             $request->hasFile('cover_image')
@@ -104,7 +120,7 @@ class ListingManagerController extends Controller
         $listing = Listing::create($payload);
 
         try {
-            app(\App\Services\TelegramNotificationService::class)->sendNewListingNotification($listing);
+            $this->telegramService->sendNewListingNotification($listing);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Erreur envoi Telegram: ' . $e->getMessage());
         }
@@ -125,28 +141,32 @@ class ListingManagerController extends Controller
 
         // Résolution des relations catégorie / niveau / matière
         $category = Category::with(['levels', 'subjects'])->findOrFail($validated['category_id']);
-        $this->validateCategoryParent($category, $request->input('parent_category_id'));
-        [$levelId, $subjectId] = $this->resolveLevelSubject(
+        $this->listingProcessorService->validateCategoryParent($category, $request->input('parent_category_id'));
+        
+        [$levelId, $subjectId] = $this->listingProcessorService->resolveLevelSubject(
             $category,
             $validated['level_id'] ?? null,
             $validated['subject_id'] ?? null
         );
 
-        // Recherche du livre par ISBN pour mettre à jour le lien book_id
-        $bookId = $listing->book_id;
+        // Recherche du livre par book_id ou ISBN pour mettre à jour le lien book_id
+        $bookId = $validated['book_id'] ?? $listing->book_id;
         $coverPath = $listing->cover_path;
         $coverSourceUrl = $listing->cover_source_url;
         $book = null;
 
-        if (!empty($validated['isbn_13'])) {
-            $book = Book::where('isbn_13', $validated['isbn_13'])->first();
-            if ($book) {
-                $bookId = $book->id;
-                // Si le listing n'a pas encore de couverture, utiliser celle du book catalogue
-                if (!$coverPath && !$request->hasFile('cover_image')) {
-                    $coverPath = $book->cover_path;
-                    $coverSourceUrl = $book->cover_source_url;
-                }
+        if (!empty($validated['book_id'])) {
+            $book = Book::find($validated['book_id']);
+        } elseif (!empty($validated['isbn_13'])) {
+            $book = $this->bookDataFetcherService->findBookByIsbn($validated['isbn_13']);
+        }
+
+        if ($book) {
+            $bookId = $book->id;
+            // Si le listing n'a pas encore de couverture, utiliser celle du book catalogue
+            if (!$coverPath && !$request->hasFile('cover_image')) {
+                $coverPath = $book->cover_path;
+                $coverSourceUrl = $book->cover_source_url;
             }
         }
 
@@ -155,14 +175,14 @@ class ListingManagerController extends Controller
             $book = $listing->book;
         }
 
-        [$author, $publisher] = $this->resolveAuthorPublisher($book ?? null, $validated);
+        [$author, $publisher] = $this->listingProcessorService->resolveAuthorPublisher($book, $validated);
 
         // Upload d'une nouvelle couverture utilisateur (prioritaire)
         if ($request->hasFile('cover_image')) {
             if ($coverPath && !str_starts_with($coverPath, 'http')) {
                 Storage::disk('public')->delete($coverPath);
             }
-            $coverPath = $this->storeCover($request->file('cover_image'));
+            $coverPath = $this->imageUploadService->storeCover($request->file('cover_image'));
         }
 
         // Déterminer si les données principales ont été altérées
@@ -188,7 +208,7 @@ class ListingManagerController extends Controller
         $status = $listing->status;
 
         if ($mainDataChanged) {
-            $status = app(\App\Services\ListingValidationService::class)->determineStatus(
+            $status = $this->validationService->determineStatus(
                 $validated,
                 $book,
                 $request->hasFile('cover_image')
@@ -221,7 +241,7 @@ class ListingManagerController extends Controller
 
         if ($oldStatus === 'published' && $status === 'pending_admin') {
             try {
-                app(\App\Services\TelegramNotificationService::class)->sendNewListingNotification($listing);
+                $this->telegramService->sendNewListingNotification($listing);
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Erreur envoi Telegram update: ' . $e->getMessage());
             }
@@ -236,6 +256,7 @@ class ListingManagerController extends Controller
     private function validateListing(Request $request)
     {
         return $request->validate([
+            'book_id' => 'nullable|integer|exists:books,id',
             'title' => 'required|string|max:255',
             'author' => 'nullable|string|max:255',
             'publisher' => 'nullable|string|max:255',
@@ -254,98 +275,4 @@ class ListingManagerController extends Controller
             'cover_source_url' => 'nullable|url'
         ]);
     }
-
-    /**
-     * Vérifie que la sous-catégorie appartient bien à la catégorie parente sélectionnée.
-     */
-    private function validateCategoryParent(Category $category, $parentId): void
-    {
-        if ($parentId !== null && (int) $parentId !== (int) $category->parent_id) {
-            throw ValidationException::withMessages([
-                'category_id' => 'La sous-catégorie sélectionnée n\'appartient pas à la catégorie parente choisie.',
-            ]);
-        }
-    }
-
-    /**
-     * Résout le niveau et la matière en respectant les relations de la catégorie
-     * (category_level / category_subject). Impose « Non applicable » quand la
-     * relation l'exige, et rejette toute valeur non autorisée.
-     *
-     * @return array{0: int|null, 1: int|null} [level_id, subject_id]
-     */
-    private function resolveLevelSubject(Category $category, ?int $levelId, ?int $subjectId): array
-    {
-        $allowedLevels = $category->levels;
-        $allowedSubjects = $category->subjects;
-
-        $naLevel = $allowedLevels->first(fn ($l) => $l->code === 'NON_APPLICABLE');
-        $levelIsNA = $allowedLevels->count() === 0 || ($allowedLevels->count() === 1 && $naLevel !== null);
-
-        if ($levelIsNA) {
-            $levelId = $naLevel?->id ?? null;
-        } elseif ($levelId !== null && !in_array($levelId, $allowedLevels->pluck('id')->all(), true)) {
-            throw ValidationException::withMessages([
-                'level_id' => 'Le niveau sélectionné n\'est pas autorisé pour cette catégorie.',
-            ]);
-        }
-
-        $naSubject = $allowedSubjects->first(fn ($s) => $s->code === 'NON_APPLICABLE');
-        $subjectIsNA = $allowedSubjects->count() === 0 || ($allowedSubjects->count() === 1 && $naSubject !== null);
-
-        if ($subjectIsNA) {
-            $subjectId = $naSubject?->id ?? null;
-        } elseif ($subjectId !== null && !in_array($subjectId, $allowedSubjects->pluck('id')->all(), true)) {
-            throw ValidationException::withMessages([
-                'subject_id' => 'La matière sélectionnée n\'est pas autorisée pour cette catégorie.',
-            ]);
-        }
-
-        return [$levelId, $subjectId];
-    }
-
-    /**
-     * Résout l'auteur et l'éditeur d'un listing.
-     * La saisie utilisateur a la priorité ; sinon on se rabat sur les
-     * métadonnées du livre catalogue (authors est stocké en tableau).
-     *
-     * @return array{0: string|null, 1: string|null} [author, publisher]
-     */
-    private function resolveAuthorPublisher(?Book $book, array $validated): array
-    {
-        $author = $validated['author'] ?? null;
-        if ($author === null || trim($author) === '') {
-            $author = null;
-            if ($book) {
-                $authors = is_array($book->authors) ? $book->authors : [];
-                if (!empty($authors)) {
-                    $author = implode(', ', array_filter(array_map('trim', $authors)));
-                }
-            }
-        }
-
-        $publisher = $validated['publisher'] ?? null;
-        if ($publisher === null || trim($publisher) === '') {
-            $publisher = null;
-            if ($book && !empty($book->publisher)) {
-                $publisher = $book->publisher;
-            }
-        }
-
-        return [$author, $publisher];
-    }
-
-    private function storeCover($file)
-    {
-        $filename = 'covers/users/' . Str::random(20) . '.webp';
-        
-        $image = Image::read($file->getRealPath())
-            ->scaleDown(width: 800)
-            ->encode(new WebpEncoder(quality: 82));
-            
-        Storage::disk('public')->put($filename, (string) $image);
-        
-        return $filename;
-    }
 }
-

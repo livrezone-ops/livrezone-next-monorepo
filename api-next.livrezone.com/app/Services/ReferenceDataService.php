@@ -70,10 +70,10 @@ class ReferenceDataService
                     'icon' => $element->icon,
                     'levels' => $element->levels
                         ->map(fn ($l) => ['id' => $l->id, 'code' => $l->code, 'name_fr' => $l->name_fr])
-                        ->values(),
+                        ->values()->toArray(),
                     'subjects' => $element->subjects
                         ->map(fn ($s) => ['id' => $s->id, 'code' => $s->code, 'name_fr' => $s->name_fr])
-                        ->values(),
+                        ->values()->toArray(),
                 ];
                 
                 if ($children) {
