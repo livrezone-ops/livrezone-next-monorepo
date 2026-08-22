@@ -27,14 +27,4 @@ class Rating extends Model
         return $this->belongsTo(Profile::class);
     }
 
-    protected static function booted()
-    {
-        static::saved(function ($rating) {
-            $rating->profile->updateRatingStats();
-        });
-
-        static::deleted(function ($rating) {
-            $rating->profile->updateRatingStats();
-        });
-    }
 }

@@ -18,13 +18,36 @@ class ImageUploadService
      */
     public function storeCover(UploadedFile $file): string
     {
-        $filename = 'covers/users/' . Str::random(20) . '.webp';
+        return $this->storeImage($file, 'covers/users', 800);
+    }
+
+    /**
+     * Traite et sauvegarde une image dans un dossier spécifique avec des dimensions optionnelles.
+     *
+     * @param UploadedFile $file
+     * @param string $folder Le dossier de destination (ex: 'profiles/logos')
+     * @param int|null $width Largeur de l'image (optionnel)
+     * @param int|null $height Hauteur de l'image (optionnel)
+     * @param int $quality Qualité WebP
+     * @return string Chemin relatif de l'image stockée
+     */
+    public function storeImage(UploadedFile $file, string $folder, ?int $width = null, ?int $height = null, int $quality = 82): string
+    {
+        $filename = $folder . '/' . Str::random(20) . '.webp';
         
-        $image = Image::read($file->getRealPath())
-            ->scaleDown(width: 800)
-            ->encode(new WebpEncoder(quality: 82));
+        $image = Image::decode($file->getRealPath());
+
+        if ($width && $height) {
+            $image->cover($width, $height);
+        } elseif ($width) {
+            $image->scaleDown(width: $width);
+        } elseif ($height) {
+            $image->scaleDown(height: $height);
+        }
+
+        $encoded = $image->encode(new WebpEncoder(quality: $quality));
             
-        Storage::disk('public')->put($filename, (string) $image);
+        Storage::disk('public')->put($filename, (string) $encoded);
         
         return $filename;
     }

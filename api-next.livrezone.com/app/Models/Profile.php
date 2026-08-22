@@ -118,11 +118,4 @@ class Profile extends Model
         return $this->hasMany(Rating::class);
     }
 
-    public function updateRatingStats()
-    {
-        $this->update([
-            'rating_average' => $this->ratings()->avg('score') ?? 0,
-            'rating_count' => $this->ratings()->count(),
-        ]);
-    }
 }

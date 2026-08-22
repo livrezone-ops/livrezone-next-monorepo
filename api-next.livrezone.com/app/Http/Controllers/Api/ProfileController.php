@@ -11,8 +11,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Intervention\Image\Encoders\WebpEncoder;
-use Intervention\Image\Laravel\Facades\Image;
 
 class ProfileController extends Controller
 {
@@ -87,7 +85,7 @@ class ProfileController extends Controller
     /**
      * Enregistre ou met à jour l'avis d'un acheteur sur un vendeur.
      */
-    public function storeRating(Request $request, string $nickname): JsonResponse
+    public function storeRating(Request $request, string $nickname, \App\Services\RatingService $ratingService): JsonResponse
     {
         $profile = Profile::query()
             ->where('nickname', $nickname)
@@ -97,22 +95,17 @@ class ProfileController extends Controller
             return response()->json(['message' => 'Profil introuvable.'], 404);
         }
 
-        // Interdiction de l'auto-évaluation.
-        if ($profile->user_id === $request->user()->id) {
-            return response()->json(['message' => "Vous ne pouvez pas évaluer votre propre profil."], 403);
-        }
-
         $validated = $request->validate([
             'score' => 'required|integer|min:1|max:5',
             'comment' => 'nullable|string|max:1000',
         ]);
 
-        $rating = Rating::updateOrCreate(
-            ['user_id' => $request->user()->id, 'profile_id' => $profile->id],
-            ['score' => $validated['score'], 'comment' => $validated['comment'] ?? null]
+        $rating = $ratingService->storeRating(
+            $request->user(),
+            $profile,
+            $validated['score'],
+            $validated['comment'] ?? null
         );
-
-        $profile->refresh();
 
         return response()->json([
             'message' => 'Merci pour votre avis !',
@@ -133,7 +126,7 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function update(Request $request): JsonResponse
+    public function update(Request $request, \App\Services\ImageUploadService $imageUploadService): JsonResponse
     {
         if ($request->filled('nickname')) {
             $request->merge([
@@ -202,22 +195,16 @@ class ProfileController extends Controller
             // Avatar généré à partir du pseudonyme (rendu côté frontend).
             $logoPath = null;
         } elseif ($request->hasFile('logo')) {
-            // Upload personnalisé : redimensionné en WebP 160x160.
-            $directory = public_path('profile-logos');
-
-            if (! is_dir($directory)) {
-                mkdir($directory, 0755, true);
-            }
-
-            $filename = Str::random(12).'.webp';
-            $relativePath = 'profile-logos/'.$filename;
-
-            Image::decode($request->file('logo'))
-                ->cover(160, 160)
-                ->encode(new WebpEncoder(quality: 90))
-                ->save(public_path($relativePath));
-
-            $logoPath = '/'.$relativePath;
+            // Upload personnalisé via ImageUploadService
+            $relativePath = $imageUploadService->storeImage(
+                $request->file('logo'),
+                'profiles/logos',
+                160,
+                160,
+                90
+            );
+            
+            $logoPath = '/storage/'.$relativePath;
             // Conserve le dernier logo importé pour pouvoir y revenir.
             $avatarUpload = $logoPath;
         } elseif ($avatarMode === 'custom') {

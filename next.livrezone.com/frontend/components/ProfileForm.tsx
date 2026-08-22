@@ -191,10 +191,16 @@ export default function ProfileForm({
     }, [router]);
 
     const goBack = () => {
-        if (typeof window !== 'undefined' && window.history.length > 1) {
-            router.back();
-        } else {
-            router.push('/dashboard');
+        if (typeof window !== 'undefined') {
+            const referrer = document.referrer;
+            // Si on a tapé l'URL directement (vide) ou qu'on vient d'une page profile (boucle), on redirige vers l'accueil (welcome) ou le dashboard
+            if (!referrer || referrer.includes('/profile')) {
+                router.push('/');
+            } else if (window.history.length > 1) {
+                router.back();
+            } else {
+                router.push('/dashboard');
+            }
         }
     };
 
@@ -291,12 +297,15 @@ export default function ProfileForm({
             queryClient.invalidateQueries({ queryKey: ['user'] });
 
             if (action === 'confirm') {
-                if (redirectPath) {
-                    setTimeout(() => {
+                setTimeout(() => {
+                    if (redirectPath) {
                         router.replace(redirectPath);
-                        router.refresh();
-                    }, 1000);
-                }
+                    } else {
+                        // Si pas de redirectPath, on utilise goBack pour revenir en arrière
+                        goBack();
+                    }
+                    router.refresh();
+                }, 1000);
             } else {
                 goBack();
             }
