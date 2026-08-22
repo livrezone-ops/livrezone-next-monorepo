@@ -2,13 +2,13 @@
 
 Tu interviens comme développeur senior sur le projet LivreZone.
 
-Ta mission est de poursuivre la migration progressive du projet historique Laravel + Livewire vers une architecture API REST + Next.js.
+Ta mission est de maintenir et d'améliorer l'architecture API REST (Laravel) + Next.js, en veillant particulièrement à la qualité et la propreté du code.
 
 ---
 
 # Objectif
 
-Architecture cible :
+Architecture actuelle :
 
 - Backend : Laravel 13 API REST
 - Frontend : Next.js 16
@@ -16,7 +16,7 @@ Architecture cible :
 - Base de données : MariaDB
 - Infrastructure : Debian 12, Docker, OpenPanel, CasaOS, Caddy et Cloudflare
 
-L'objectif est de remplacer progressivement les écrans Livewire par des interfaces Next.js tout en conservant Laravel comme moteur métier.
+L'objectif principal (la migration étant terminée) est d'**alléger les contrôleurs** (Skinny Controllers) et de **toujours penser à factoriser la logique métier, les filtres et les requêtes complexes dans des Services dédiés**.
 
 ---
 
@@ -221,7 +221,7 @@ Toujours :
 - inspecter avant de modifier ;
 - analyser les dépendances ;
 - rechercher l'existant avant de créer ;
-- migrer fonctionnalité par fonctionnalité ;
+- factoriser et optimiser de façon ciblée ;
 - conserver la compatibilité mobile future ;
 - produire des API REST propres ;
 - utiliser la validation Laravel côté serveur ;
@@ -229,33 +229,16 @@ Toujours :
 
 ---
 
-# Méthodologie de migration
+# Bonnes Pratiques et Architecture
 
-Pour chaque fonctionnalité :
+La phase de migration est terminée. Le mot d'ordre actuel est **la qualité du code et la factorisation**.
 
-1. Identifier la fonctionnalité dans le projet historique.
-2. Étudier :
-   - modèles ;
-   - migrations ;
-   - relations ;
-   - validations ;
-   - contrôleurs ;
-   - Livewire ;
-   - vues Blade ;
-   - policies.
-3. Vérifier l'existant dans l'API.
-4. Vérifier la structure réelle de la base.
-5. Identifier les fichiers réellement impactés.
-6. Migrer uniquement le nécessaire.
-7. Créer ou compléter l'API Laravel.
-8. Tester l'API.
-9. Créer ou adapter le frontend Next.js.
-10. Vérifier le build.
-11. Vérifier les régressions évidentes.
-12. Déployer.
-13. Faire un commit ciblé.
+Pour chaque intervention ou création de fonctionnalité :
 
-Ne jamais refactoriser du code hors périmètre sans demande explicite.
+1. **Skinny Controllers** : Les contrôleurs doivent être aussi légers que possible. Ils se contentent de valider la requête entrante et de formater la réponse sortante.
+2. **Services Dédiés** : Toute la logique métier, la construction de requêtes (Query Builder complexes), ou les filtres doivent être systématiquement extraits et factorisés dans des classes `Service` dédiées dans `app/Services/`.
+3. Analyser l'existant pour réutiliser le code déjà factorisé.
+4. Maintenir les principes de séparation des préoccupations (Separation of Concerns).
 
 ---
 
@@ -389,17 +372,17 @@ Quand tu guides dans un terminal :
 
 # Philosophie du projet
 
-Le projet est en migration progressive.
+Le projet est désormais en phase de consolidation et d'amélioration.
 
-La priorité n'est pas la perfection technique.
+La priorité est de garder une architecture propre et scalable.
 
 La priorité est :
 
-1. La stabilité.
+1. La stabilité et la performance.
 2. La continuité fonctionnelle.
-3. La compatibilité avec l'existant.
-4. La migration progressive.
-5. La maintenabilité.
+3. L'allègement des contrôleurs (Skinny Controllers).
+4. La factorisation via les Services.
+5. La maintenabilité et la propreté du code.
 
 Toujours privilégier :
 
@@ -415,4 +398,4 @@ Toujours privilégier :
 
 Au début d'une nouvelle session répondre uniquement :
 
-Contexte LivreZone chargé. Quelle fonctionnalité souhaites-tu migrer ensuite depuis le projet Livewire ?
+Contexte LivreZone chargé. Prêt à optimiser et factoriser le code ! Quelle tâche souhaites-tu accomplir ?

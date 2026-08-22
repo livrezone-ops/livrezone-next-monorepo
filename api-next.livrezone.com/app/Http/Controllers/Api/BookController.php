@@ -62,4 +62,14 @@ class BookController extends Controller
 
         return response()->json($books);
     }
+
+    /**
+     * Endpoint d'autocomplétion ultra-rapide (Typeahead) via Meilisearch
+     */
+    public function autocomplete(Request $request)
+    {
+        return response()->json(
+            app(\App\Services\BookAutocompleteService::class)->suggest($request)
+        );
+    }
 }

@@ -13,13 +13,8 @@ class HeroController extends Controller
      */
     public function index()
     {
-        $messages = HeroMessage::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->get()
-            ->map(fn (HeroMessage $m) => $m->toHeroMessageShape())
-            ->values();
-
-        return response()->json(['messages' => $messages]);
+        return response()->json([
+            'messages' => app(\App\Services\HeroMessageService::class)->getActiveMessages()
+        ]);
     }
 }

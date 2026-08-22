@@ -5,10 +5,28 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
+use Laravel\Scout\Searchable;
 
 class Book extends Model
 {
-    use HasFactory;
+    use HasFactory, Searchable;
+
+    /**
+     * Get the indexable data array for the model.
+     *
+     * @return array
+     */
+    public function toSearchableArray()
+    {
+        return [
+            'id' => (int) $this->id,
+            'title' => $this->title,
+            'authors' => is_array($this->authors) ? implode(', ', $this->authors) : $this->authors,
+            'isbn_13' => $this->isbn_13,
+            'publisher' => $this->publisher,
+            'cover_url' => $this->cover_url, // Inclus pour affichage direct depuis Meilisearch
+        ];
+    }
 
     protected $appends = [
         'cover_url',

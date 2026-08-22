@@ -67,6 +67,7 @@ Route::middleware('auth:sanctum')->post('/profiles/{nickname}/ratings', [Profile
 
 // Public Books Catalogue Routes
 Route::get('/books', [\App\Http\Controllers\Api\BookController::class, 'publicSearch']);
+Route::get('/books/autocomplete', [\App\Http\Controllers\Api\BookController::class, 'autocomplete']);
 
 // Reference Data for Forms
 Route::get('/reference-data', [ReferenceDataController::class, 'index']);

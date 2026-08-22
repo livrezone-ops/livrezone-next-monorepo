@@ -1,0 +1,38 @@
+=========================================================
+INSTALLATION DE MEILISEARCH ET CONFIGURATION LARAVEL
+=========================================================
+
+1. CREATION DU CONTENEUR DOCKER (A lancer sur le serveur via SSH)
+---------------------------------------------------------
+docker run -d \
+  --name meilisearch \
+  --restart unless-stopped \
+  -p 7700:7700 \
+  -e MEILI_MASTER_KEY="LIVREZONE_MEILI_MASTER_KEY_2026" \
+  -e MEILI_NO_ANALYTICS=true \
+  -e MEILI_ENV=production \
+  -v /home/livrezone/docker-data/meilisearch_data:/meili_data \
+  getmeili/meilisearch:v1.10
+
+
+2. CONFIGURATION LARAVEL (Fichier .env de l'API)
+---------------------------------------------------------
+Ajoutez ces lignes dans votre .env :
+
+SCOUT_DRIVER=meilisearch
+MEILISEARCH_HOST=http://192.168.1.202:7700
+MEILISEARCH_KEY="LIVREZONE_MEILI_MASTER_KEY_2026"
+
+
+3. INSTALLATION DES DEPENDANCES COMPOSER
+---------------------------------------------------------
+A lancer dans le terminal du conteneur PHP (ou via le gestionnaire OpenPanel) :
+
+composer require laravel/scout meilisearch/meilisearch-php http-interop/http-factory-guzzle
+
+
+4. IMPORT DES DONNEES (INDEXATION)
+---------------------------------------------------------
+Une fois l'installation terminee, synchronisez les livres existants vers Meilisearch :
+
+php artisan scout:import "App\Models\Book"

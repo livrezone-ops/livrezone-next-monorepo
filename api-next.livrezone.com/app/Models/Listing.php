@@ -6,10 +6,28 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Category;
 use Illuminate\Database\Eloquent\Builder;
+use Laravel\Scout\Searchable;
 
 class Listing extends Model
 {
-    use HasFactory;
+    use HasFactory, Searchable;
+
+    /**
+     * Get the indexable data array for the model.
+     *
+     * @return array
+     */
+    public function toSearchableArray()
+    {
+        return [
+            'id' => (int) $this->id,
+            'title' => $this->title,
+            'isbn_13' => $this->isbn_13,
+            'author' => $this->author,
+            'publisher' => $this->publisher,
+            // You can add more fields if needed for text search
+        ];
+    }
 
     // ----------------------------------------------------------------
     // Sécurité des couvertures
