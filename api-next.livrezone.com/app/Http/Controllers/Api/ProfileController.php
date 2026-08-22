@@ -154,11 +154,7 @@ class ProfileController extends Controller
                 'nullable',
                 Rule::in(['étudiant(e)', 'passionné(e)', 'librairie']),
             ],
-            'subscription_type' => [
-                Rule::requiredIf($isConfirm),
-                'nullable',
-                Rule::in(['free', 'premium']),
-            ],
+
             'delivery_option' => [
                 Rule::requiredIf($isConfirm),
                 'nullable',
@@ -228,7 +224,7 @@ class ProfileController extends Controller
             'phone' => $validated['phone'] ?? null,
             'city_id' => $validated['city_id'],
             'profile_type' => $validated['profile_type'],
-            'subscription_type' => $validated['subscription_type'],
+
             'delivery_option' => $validated['delivery_option'],
             'nickname' => $validated['nickname'],
             'adresse' => $validated['adresse'] ?? null,

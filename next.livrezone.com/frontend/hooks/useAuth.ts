@@ -21,6 +21,7 @@ export interface User {
         nickname: string;
         logo: string | null;
         avatar_mode?: string | null;
+        subscription_type?: string;
     };
 }
 

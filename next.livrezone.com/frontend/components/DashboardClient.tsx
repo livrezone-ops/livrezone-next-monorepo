@@ -451,6 +451,23 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
   return (
     <div className="space-y-10 font-sans">
       
+      {user?.profile?.subscription_type === 'free' && (
+        <div className="bg-gradient-to-r from-orange-500 to-rose-500 rounded-xl p-4 shadow-lg shadow-orange-500/20 flex flex-col sm:flex-row items-center justify-between gap-4 border border-orange-400/50 animate-in fade-in zoom-in duration-500">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white/20 backdrop-blur-sm rounded-lg text-white shadow-inner">
+              <ShieldAlert className="w-6 h-6 drop-shadow-sm" />
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-black text-white drop-shadow-sm uppercase tracking-tight">Passez à la vitesse supérieure !</h3>
+              <p className="text-xs sm:text-sm font-medium text-white/95 mt-0.5">Débloquez les annonces illimitées et les notifications prioritaires avec nos offres Pro et Premium.</p>
+            </div>
+          </div>
+          <Link href="/tarification" className="whitespace-nowrap px-4 py-2 bg-white text-orange-600 text-xs sm:text-sm font-black uppercase tracking-wider rounded-lg hover:bg-orange-50 hover:scale-105 transition-all shadow-md active:scale-95">
+            Découvrir
+          </Link>
+        </div>
+      )}
+
       {/* 1. Header (Profil & Stats) */}
       <div className="flex flex-col lg:flex-row gap-8 items-center lg:items-stretch">
         {/* Profile Card */}

@@ -46,11 +46,21 @@ class ReferenceDataService
             // 4. Villes
             $cities = City::orderBy('name')->get(['id', 'name'])->toArray();
 
+            // 5. Pricing / Configuration
+            $pricing = [
+                'max_free_listings' => (int) env('MAX_FREE_LISTINGS', 25),
+                'pro_price' => (float) env('PRO_PRICE', 30),
+                'premium_price' => (float) env('PREMIUM_PRICE', 50),
+                'promo_pro_free' => env('PROMO_PRO_FREE', false) === 'true' || env('PROMO_PRO_FREE', false) === true,
+                'pro_notification_delay_hours' => (int) env('PRO_NOTIFICATION_DELAY_HOURS', 3),
+            ];
+
             return [
                 'categories' => $tree,
                 'languages' => $languages,
                 'levels' => $levels,
                 'cities' => $cities,
+                'pricing' => $pricing,
             ];
         });
     }

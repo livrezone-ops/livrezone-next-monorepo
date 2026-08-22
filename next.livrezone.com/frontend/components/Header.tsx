@@ -81,7 +81,7 @@ export default function Header() {
 
   return (
     <header
-      className={`sticky top-0 z-50 bg-white border-b border-gray-100 transition-all duration-200 ${
+      className={`relative z-50 bg-white border-b border-gray-100 transition-all duration-200 ${
         scrolled ? "shadow-md py-1" : "py-0"
       }`}
     >

@@ -6,7 +6,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
-import { Loader2, Search, Plus, Minus } from "lucide-react";
+import { Loader2, Search, Plus, Minus, ShieldAlert } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import Link from "next/link";
 
 // Types pour les données de référence
 interface CategoryNode {
@@ -42,6 +44,13 @@ interface ReferenceData {
   categories: CategoryNode[];
   languages: Language[];
   levels: Level[];
+  pricing?: {
+    max_free_listings: number;
+    pro_price: number;
+    premium_price: number;
+    promo_pro_free: boolean;
+    pro_notification_delay_hours: number;
+  };
 }
 
 interface RawCategory {
@@ -146,6 +155,7 @@ const getCategoryRules = (cats: CategoryNode[] | undefined, categoryId: number |
 };
 
 export default function ListingForm({ initialData, onSubmitSuccess, isEditMode = false, onError }: ListingFormProps) {
+  const { user } = useAuth();
   const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'https://api-next.livrezone.com/api').replace(/\/api\/?$/, '');
   const resolveCoverUrl = (path?: string) => {
     if (!path) return null;
@@ -518,6 +528,23 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
 
   return (
     <div className="mx-auto max-w-5xl">
+      {user?.profile?.subscription_type === 'free' && (
+        <div className="mb-6 rounded-xl bg-gradient-to-r from-orange-500 to-rose-500 p-4 shadow-lg shadow-orange-500/20 flex flex-col sm:flex-row items-center justify-between gap-4 border border-orange-400/50 animate-in fade-in zoom-in duration-500 relative z-50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white/20 backdrop-blur-sm rounded-lg text-white shadow-inner">
+              <ShieldAlert className="w-6 h-6 drop-shadow-sm" />
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-black text-white drop-shadow-sm uppercase tracking-tight">Vendez sans limites avec Pro !</h3>
+              <p className="text-xs sm:text-sm font-medium text-white/95 mt-0.5">Le compte gratuit est limité à {refData?.pricing?.max_free_listings ?? 25} annonces. Passez en Pro pour des annonces illimitées.</p>
+            </div>
+          </div>
+          <Link href="/tarification" target="_blank" className="whitespace-nowrap px-4 py-2 bg-white text-orange-600 text-xs sm:text-sm font-black uppercase tracking-wider rounded-lg hover:bg-orange-50 hover:scale-105 transition-all shadow-md active:scale-95">
+            Découvrir
+          </Link>
+        </div>
+      )}
+
       {/* Box de recherche globale au-dessus du formulaire */}
       <div className="mb-6 rounded-xl border-2 border-[#6D28D9]/20 bg-violet-50/50 p-4 sm:p-5 shadow-sm relative z-50">
           <div className="flex items-center gap-3 mb-3">
@@ -525,8 +552,8 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                   <Search className="w-4 h-4" />
               </div>
               <div>
-                  <h3 className="font-bold text-slate-800 text-sm">Rechercher un livre existant</h3>
-                  <p className="text-xs text-slate-500">Trouvez votre livre par ISBN ou titre pour remplir le formulaire automatiquement.</p>
+                  <h3 className="font-bold text-slate-800 text-lg sm:text-xl">Quel livre souhaitez-vous vendre ? (Titre ou ISBN)</h3>
+                  <p className="text-sm font-medium text-slate-500 mt-0.5">On s'occupe du reste ✨</p>
               </div>
           </div>
           <div className="relative flex items-center w-full z-50">
