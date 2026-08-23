@@ -18,26 +18,33 @@ function firstParam(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] || "" : value || "";
 }
 
-function canonicalHref(search: string, condition: string, city: number | null, sort: string, page: number): string {
+function toList(value: string | string[] | undefined): string[] {
+  if (!value) return [];
+  const parts = Array.isArray(value) ? value : value.split(",");
+  return parts.map((p) => p.trim()).filter(Boolean);
+}
+
+function canonicalHref(search: string, conditions: string[], cities: number[], sort: string, page: number): string {
   const pairs: string[] = [];
   if (search) pairs.push(`search=${encodeURIComponent(search)}`);
-  if (condition) pairs.push(`condition=${encodeURIComponent(condition)}`);
-  if (city) pairs.push(`city=${city}`);
-  if (sort && sort !== "rating") pairs.push(`sort=${sort}`);
+  if (conditions.length) pairs.push(`condition=${encodeURIComponent(conditions.join(","))}`);
+  if (cities.length) pairs.push(`city=${cities.join(",")}`);
+  if (sort && sort !== "publications") pairs.push(`sort=${sort}`);
   if (page > 1) pairs.push(`page=${page}`);
   return pairs.length > 0 ? `${SITE_URL}${PATH}?${pairs.join("&")}` : `${SITE_URL}${PATH}`;
 }
 
 export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
   const sp = await searchParams;
-  const city = parseInt(firstParam(sp.city) || "", 10) || null;
+  const cities = toList(sp.city).map(Number).filter(n => Number.isFinite(n) && n > 0);
   const page = parseInt(firstParam(sp.page) || "1", 10) || 1;
   const search = firstParam(sp.search);
-  const condition = firstParam(sp.condition);
+  const conditions = toList(sp.condition).filter(c => c === "neuf" || c === "occas");
 
   const title = search
-    ? `Librairies « ${search} » | LivreZone`
+    ? `Librairies à « ${search} » | LivreZone`
     : "Annuaire des librairies en ligne au Maroc | LivreZone";
+
   const description = search
     ? `Découvrez les librairies correspondant à « ${search} » sur LivreZone : ville, note et nombre de publications.`
     : "Parcourez l'annuaire des librairies et vendeurs de livres au Maroc. Filtrez par ville et par condition des livres, triez par note ou par nombre de publications.";
@@ -45,21 +52,19 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   return {
     title,
     description,
-    alternates: { canonical: canonicalHref(search, condition, city, firstParam(sp.sort), page) },
+    alternates: { canonical: canonicalHref(search, conditions, cities, firstParam(sp.sort), page) },
     openGraph: { title, description, type: "website", locale: "fr_MA", siteName: "LivreZone" },
     robots: page > 1 ? { index: false, follow: true } : { index: true, follow: true },
   };
 }
 
 function parseFilters(sp: SearchParams) {
-  const cityRaw = parseInt(firstParam(sp.city) || "", 10);
-  const condition = firstParam(sp.condition);
   const sortRaw = firstParam(sp.sort);
   return {
-    city: Number.isFinite(cityRaw) && cityRaw > 0 ? cityRaw : null,
-    condition: condition === "neuf" || condition === "occas" ? condition : null,
+    cities: toList(sp.city).map(Number).filter(n => Number.isFinite(n) && n > 0),
+    conditions: toList(sp.condition).filter(c => c === "neuf" || c === "occas"),
     search: firstParam(sp.search) || "",
-    sort: sortRaw === "publications" ? "publications" : "rating",
+    sort: sortRaw === "rating" ? "rating" : "publications",
     page: Math.max(1, parseInt(firstParam(sp.page) || "1", 10) || 1),
   };
 }
@@ -70,8 +75,8 @@ export default async function LibrairiesPage({ searchParams }: PageProps) {
 
   const [result, refData] = await Promise.all([
     getLibraries({
-      city: f.city,
-      condition: f.condition,
+      cities: f.cities,
+      conditions: f.conditions,
       search: f.search || null,
       sort: f.sort,
       page: f.page,
@@ -101,9 +106,10 @@ export default async function LibrairiesPage({ searchParams }: PageProps) {
         initialPage={result.currentPage}
         initialLastPage={result.lastPage}
         initialSearch={f.search}
-        initialCity={f.city}
-        initialCondition={f.condition}
+        initialCities={f.cities}
+        initialConditions={f.conditions}
         initialSort={f.sort}
+        initialFacets={result.facets}
         cities={refData.cities || []}
       />
 

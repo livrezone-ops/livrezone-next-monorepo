@@ -125,8 +125,8 @@ export const LEVELS: LevelRef[] = [
 ];
 
 export const CONDITIONS: ConditionRef[] = [
-  { code: "neuf", name: "Neuf" },
-  { code: "occas", name: "Occasion" },
+  { code: "neuf", name: "Livres neufs" },
+  { code: "occas", name: "Livres d'occasion" },
 ];
 
 export const LANGUAGES: LanguageRef[] = [

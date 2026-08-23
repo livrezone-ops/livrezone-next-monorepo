@@ -195,6 +195,93 @@ class ListingSearchService
             $payload['price_max'] = (float) ($bounds->max_price ?? 500);
         }
 
+        $payload['facets'] = [
+            'categories' => [],
+            'languages' => [],
+            'conditions' => [],
+        ];
+
+        if ($request->get('compact') != '1') {
+            try {
+                $facetBuilder = \App\Models\Listing::search($request->get('search', ''), function ($meilisearch, $query, $options) {
+                    $options['facets'] = ['category_id', 'language_id', 'book_condition', 'level_id', 'city_id'];
+                    $options['hitsPerPage'] = 0;
+                    return $meilisearch->search($query, $options);
+                });
+
+                $facetBuilder->where('status', 'published');
+                if (!empty($languageIds)) {
+                    $facetBuilder->whereIn('language_id', $languageIds);
+                }
+                if (!empty($levelIds)) {
+                    $facetBuilder->whereIn('level_id', $levelIds);
+                }
+                if (!empty($conditions)) {
+                    $facetBuilder->whereIn('book_condition', $conditions);
+                }
+                if (!empty($cityIds)) {
+                    $facetBuilder->whereIn('city_id', $cityIds);
+                }
+
+                $rawFacets = $facetBuilder->raw();
+                $categoryFacets = $rawFacets['facetDistribution']['category_id'] ?? [];
+                $languageFacets = $rawFacets['facetDistribution']['language_id'] ?? [];
+                $conditionFacets = $rawFacets['facetDistribution']['book_condition'] ?? [];
+                $levelFacets = $rawFacets['facetDistribution']['level_id'] ?? [];
+                $cityFacets = $rawFacets['facetDistribution']['city_id'] ?? [];
+
+                $categoryMap = \Illuminate\Support\Facades\Cache::remember('category_code_map', 3600, function () {
+                    return \App\Models\Category::pluck('code', 'id')->toArray();
+                });
+                
+                $languageMap = \Illuminate\Support\Facades\Cache::remember('language_code_map', 3600, function () {
+                    return \App\Models\Language::pluck('code', 'id')->toArray();
+                });
+                
+                $levelMap = \Illuminate\Support\Facades\Cache::remember('level_code_map', 3600, function () {
+                    return \App\Models\Level::pluck('code', 'id')->toArray();
+                });
+
+                $mappedCategories = [];
+                foreach ($categoryFacets as $id => $count) {
+                    $code = $categoryMap[$id] ?? $id;
+                    $mappedCategories[$code] = $count;
+                }
+                
+                $mappedLanguages = [];
+                foreach ($languageFacets as $id => $count) {
+                    $code = $languageMap[$id] ?? $id;
+                    $mappedLanguages[$code] = $count;
+                }
+                
+                $mappedLevels = [];
+                foreach ($levelFacets as $id => $count) {
+                    $code = $levelMap[$id] ?? $id;
+                    $mappedLevels[$code] = $count;
+                }
+                
+                $mappedCities = [];
+                foreach ($cityFacets as $id => $count) {
+                    $mappedCities[(string)$id] = $count;
+                }
+                
+                $mappedConditions = [];
+                foreach ($conditionFacets as $code => $count) {
+                    $mappedConditions[$code] = $count;
+                }
+
+                $payload['facets'] = [
+                    'categories' => $mappedCategories,
+                    'languages' => $mappedLanguages,
+                    'conditions' => $mappedConditions,
+                    'levels' => $mappedLevels,
+                    'cities' => $mappedCities,
+                ];
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Meilisearch facets failed: ' . $e->getMessage());
+            }
+        }
+
         return $payload;
     }
 

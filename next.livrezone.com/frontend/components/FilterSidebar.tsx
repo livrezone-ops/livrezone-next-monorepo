@@ -72,6 +72,13 @@ interface FilterSidebarProps {
   showCity?: boolean;
   sections?: FilterSection[];
   basePath?: string;
+  facets?: {
+    categories?: Record<string, number>;
+    languages?: Record<string, number>;
+    conditions?: Record<string, number>;
+    levels?: Record<string, number>;
+    cities?: Record<string, number>;
+  };
 }
 
 interface Draft {
@@ -91,6 +98,7 @@ export default function FilterSidebar({
   showCity = true,
   sections = DEFAULT_SECTIONS,
   basePath,
+  facets,
 }: FilterSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -125,11 +133,40 @@ export default function FilterSidebar({
   const [citySearch, setCitySearch] = useState("");
   const cityDropdownRef = useRef<HTMLDivElement>(null);
 
+  const sortedLanguages = useMemo(() => {
+    return [...LANGUAGES].map(lang => ({
+      ...lang,
+      count: facets?.languages?.[lang.code] || 0
+    })).sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.code.localeCompare(b.code);
+    });
+  }, [facets?.languages]);
+
+  const conditionsWithCount = useMemo(() => {
+    return CONDITIONS.map(cond => ({
+      ...cond,
+      count: facets?.conditions?.[cond.code] || 0
+    }));
+  }, [facets?.conditions]);
+
+  const sortedCities = useMemo(() => {
+    return [...cities].map(city => ({
+      ...city,
+      count: facets?.cities?.[city.id.toString()] || 0
+    }))
+    .filter((city) => city.count > 0)
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.id - b.id;
+    });
+  }, [cities, facets?.cities]);
+
   const filteredCities = citySearch.trim()
-    ? cities.filter((c) =>
+    ? sortedCities.filter((c) =>
         c.name.toLowerCase().includes(citySearch.toLowerCase())
       )
-    : cities;
+    : sortedCities;
 
   // Ferme le menu déroulant Ville au clic extérieur.
   useEffect(() => {
@@ -280,8 +317,19 @@ export default function FilterSidebar({
     setDraft((prev) => ({ ...prev, minPrice: Math.min(val, prev.maxPrice) }));
   };
   const updateMax = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = Number(e.target.value);
+    const val = parseInt(e.target.value, 10);
     setDraft((prev) => ({ ...prev, maxPrice: Math.max(val, prev.minPrice) }));
+  };
+
+
+  const getFacetCount = (n: CategoryRef): number => {
+    let count = facets?.categories?.[n.code] || 0;
+    if (n.children) {
+      for (const child of n.children) {
+        count += getFacetCount(child);
+      }
+    }
+    return count;
   };
 
   const renderCategoryNode = (nodes: CategoryRef[], level: number) => (
@@ -292,6 +340,7 @@ export default function FilterSidebar({
         const hasChildren = !!node.children && node.children.length > 0;
         const isExpanded = expandedCategories.has(node.code);
         const isChecked = draft.categories.includes(node.code);
+        const count = getFacetCount(node);
 
         const handleCategoryCheck = () => {
           if (!hasChildren) return;
@@ -321,6 +370,11 @@ export default function FilterSidebar({
                   } group-hover:text-black transition-colors`}
                 >
                   {node.name}
+                  {count > 0 && (
+                    <span className="ml-1.5 text-[11px] text-gray-400 font-semibold">
+                      ({count})
+                    </span>
+                  )}
                 </span>
               </label>
               {hasChildren && (
@@ -449,7 +503,7 @@ export default function FilterSidebar({
               />
               {openSections.languages && (
                 <div className="mt-4 space-y-3">
-                  {LANGUAGES.map((lang) => (
+                  {sortedLanguages.map((lang) => (
                     <label
                       key={lang.code}
                       className="flex items-center justify-between cursor-pointer group"
@@ -463,6 +517,11 @@ export default function FilterSidebar({
                         />
                         <span className="text-[15px] text-gray-700 group-hover:text-black transition-colors">
                           {lang.name}
+                          {lang.count > 0 && (
+                            <span className="ml-1.5 text-[11px] text-gray-400 font-semibold">
+                              ({lang.count})
+                            </span>
+                          )}
                         </span>
                       </div>
                     </label>
@@ -536,7 +595,9 @@ export default function FilterSidebar({
                         </div>
                         {isExpanded && (
                           <div className="ml-4 mt-2 border-l border-gray-100 pl-3 space-y-3">
-                            {group.levels.map((level) => (
+                            {group.levels.map((level) => {
+                              const lvlCount = facets?.levels?.[level.code] || 0;
+                              return (
                               <label
                                 key={level.code}
                                 className="flex items-center justify-between cursor-pointer group"
@@ -550,10 +611,16 @@ export default function FilterSidebar({
                                   />
                                   <span className="text-[15px] text-gray-600 group-hover:text-black transition-colors">
                                     {level.name}
+                                    {lvlCount > 0 && (
+                                      <span className="ml-1.5 text-[11px] text-gray-400 font-semibold">
+                                        ({lvlCount})
+                                      </span>
+                                    )}
                                   </span>
                                 </div>
                               </label>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -570,11 +637,11 @@ export default function FilterSidebar({
               <SectionToggle
                 open={!!openSections.conditions}
                 onToggle={() => toggleSection("conditions")}
-                title="État du livre"
+                title={basePath === "/librairies" ? "Type d'activité" : "État du livre"}
               />
               {openSections.conditions && (
                 <div className="mt-4 space-y-3">
-                  {CONDITIONS.map((cond) => (
+                  {conditionsWithCount.map((cond) => (
                     <label
                       key={cond.code}
                       className="flex items-center cursor-pointer group"
@@ -587,6 +654,11 @@ export default function FilterSidebar({
                       />
                       <span className="text-[15px] text-gray-700 group-hover:text-black transition-colors">
                         {cond.name}
+                        {cond.count > 0 && (
+                          <span className="ml-1.5 text-[11px] text-gray-400 font-semibold">
+                            ({cond.count})
+                          </span>
+                        )}
                       </span>
                     </label>
                   ))}
@@ -658,6 +730,11 @@ export default function FilterSidebar({
                         />
                         <span className="text-[15px] text-gray-700 group-hover:text-black transition-colors">
                           {city.name}
+                          {city.count > 0 && (
+                            <span className="ml-1.5 text-[11px] text-gray-400 font-semibold">
+                              ({city.count})
+                            </span>
+                          )}
                         </span>
                       </label>
                     ))}

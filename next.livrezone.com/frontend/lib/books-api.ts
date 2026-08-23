@@ -30,6 +30,9 @@ export interface BooksResult {
   total: number;
   lastPage: number;
   currentPage: number;
+  facets?: {
+    categories?: Record<string, number>;
+  };
 }
 
 const API_BASE = (process.env.INTERNAL_API_URL
@@ -89,6 +92,7 @@ export async function getBooks(query: {
       total: Number(json.total || 0),
       lastPage: Number(json.last_page || 1),
       currentPage: Number(json.current_page || 1),
+      facets: json.facets,
     };
   } catch {
     return empty;

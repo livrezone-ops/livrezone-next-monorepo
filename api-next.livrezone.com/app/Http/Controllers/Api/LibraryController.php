@@ -32,6 +32,7 @@ class LibraryController extends Controller
             'total' => $result['total'],
             'current_page' => $result['current_page'],
             'last_page' => $result['last_page'],
+            'facets' => $result['facets'] ?? null,
         ]);
     }
 }

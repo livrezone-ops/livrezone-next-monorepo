@@ -307,6 +307,7 @@ export default async function AnnoncesPage({ searchParams }: PageProps) {
             priceMinLimit={priceMinLimit}
             priceMaxLimit={priceMaxLimit}
             cities={cities}
+            facets={result.ok ? result.facets : undefined}
           />
         </Suspense>
 

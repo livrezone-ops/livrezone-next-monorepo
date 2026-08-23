@@ -25,7 +25,12 @@ class Listing extends Model
             'isbn_13' => $this->isbn_13,
             'author' => $this->author,
             'publisher' => $this->publisher,
-            // You can add more fields if needed for text search
+            'category_id' => (int) $this->category_id,
+            'language_id' => (int) $this->language_id,
+            'level_id' => (int) $this->level_id,
+            'book_condition' => $this->book_condition,
+            'status' => $this->status,
+            'city_id' => $this->user && $this->user->profile ? (int) $this->user->profile->city_id : 0,
         ];
     }
 

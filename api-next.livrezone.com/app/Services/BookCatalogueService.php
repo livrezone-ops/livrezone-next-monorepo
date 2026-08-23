@@ -28,27 +28,46 @@ class BookCatalogueService
         $search = trim($request->get('search', ''));
         $field = $request->get('field', 'all');
 
-        // Source unique : Meilisearch (requête vide = toute la base).
+        // --- 1. Requête pour les Facettes (sans le filtre catégorie) ---
+        $facetBuilder = Book::search($search, function ($meilisearch, $query, $options) {
+            $options['facets'] = ['default_category_id'];
+            $options['hitsPerPage'] = 0; // Optimisation : on ne veut que les facettes
+            return $meilisearch->search($query, $options);
+        });
+
+        if ($search !== '' && $field === 'isbn') {
+            $facetBuilder->where('isbn_13', str_replace(['-', ' '], '', $search));
+        }
+
+        $languageIds = $this->filterService->resolveLanguageIds($request, ['languages', 'language', 'language_id', 'lang']);
+        if (!empty($languageIds)) {
+            $facetBuilder->whereIn('language_id', $languageIds);
+        }
+
+        $levelIds = $this->filterService->resolveLevelIds($request, ['levels', 'level', 'level_id']);
+        if (!empty($levelIds)) {
+            $facetBuilder->whereIn('default_level_id', $levelIds);
+        }
+
+        $rawFacets = $facetBuilder->raw();
+        $categoryFacets = $rawFacets['facetDistribution']['default_category_id'] ?? [];
+
+        // --- 2. Requête principale (avec tous les filtres) ---
         $builder = Book::search($search);
 
-        // Recherche ciblée ISBN (précise via filtre), sinon full-text Meilisearch.
         if ($search !== '' && $field === 'isbn') {
             $builder->where('isbn_13', str_replace(['-', ' '], '', $search));
         }
 
-        // Filtres catégorie / langue / niveau (codes ou IDs résolus côté MySQL,
-        // petit volume ; le filtrage effectif se fait dans Meilisearch).
         $categoryIds = $this->filterService->resolveCategoryIds($request, ['categories', 'category', 'category_id', 'c']);
         if (!empty($categoryIds)) {
             $builder->whereIn('default_category_id', $categoryIds);
         }
 
-        $languageIds = $this->filterService->resolveLanguageIds($request, ['languages', 'language', 'language_id', 'lang']);
         if (!empty($languageIds)) {
             $builder->whereIn('language_id', $languageIds);
         }
 
-        $levelIds = $this->filterService->resolveLevelIds($request, ['levels', 'level', 'level_id']);
         if (!empty($levelIds)) {
             $builder->whereIn('default_level_id', $levelIds);
         }
@@ -91,6 +110,22 @@ class BookCatalogueService
             ];
         });
 
-        return $paginated;
+        $response = $paginated->toArray();
+
+        // Map numeric category_id to string codes for the frontend
+        $categoryMap = \App\Models\Category::pluck('code', 'id')->toArray();
+        $mappedFacets = [];
+        foreach ($categoryFacets as $id => $count) {
+            $code = $categoryMap[$id] ?? $id;
+            // Accumulate counts for parent categories if needed? Meilisearch already handles specific book IDs.
+            // Wait, we just pass the count for each code.
+            $mappedFacets[$code] = $count;
+        }
+
+        $response['facets'] = [
+            'categories' => $mappedFacets
+        ];
+
+        return $response;
     }
 }

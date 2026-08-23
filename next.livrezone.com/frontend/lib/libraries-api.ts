@@ -21,11 +21,15 @@ export interface LibrariesResult {
   total: number;
   lastPage: number;
   currentPage: number;
+  facets?: {
+    cities?: Record<string, number>;
+    conditions?: Record<string, number>;
+  };
 }
 
 export interface LibrariesQuery {
-  city?: number | null;
-  condition?: string | null;
+  cities?: number[];
+  conditions?: string[];
   search?: string | null;
   sort?: string | null;
   page?: number;
@@ -37,8 +41,8 @@ const API_BASE = (process.env.INTERNAL_API_URL
 
 export async function getLibraries(query: LibrariesQuery): Promise<LibrariesResult> {
   const params = new URLSearchParams();
-  if (query.city) params.set("city", String(query.city));
-  if (query.condition) params.set("condition", query.condition);
+  if (query.cities?.length) params.set("city", query.cities.join(","));
+  if (query.conditions?.length) params.set("condition", query.conditions.join(","));
   if (query.search) params.set("search", query.search);
   if (query.sort) params.set("sort", query.sort);
   params.set("page", String(query.page || 1));
@@ -48,7 +52,7 @@ export async function getLibraries(query: LibrariesQuery): Promise<LibrariesResu
     data: [],
     total: 0,
     lastPage: 1,
-    currentPage: query.page || 1,
+    currentPage: 1,
   };
 
   try {
@@ -65,8 +69,10 @@ export async function getLibraries(query: LibrariesQuery): Promise<LibrariesResu
       total: Number(json.total || 0),
       lastPage: Number(json.last_page || 1),
       currentPage: Number(json.current_page || 1),
+      facets: json.facets,
     };
-  } catch {
+  } catch (error) {
+    console.error("[getLibraries] Fetch error:", error);
     return empty;
   }
 }

@@ -419,3 +419,4 @@ Toujours privilégier :
 Au début d'une nouvelle session répondre uniquement :
 
 Contexte LivreZone chargé. Prêt à optimiser et factoriser le code ! Quelle tâche souhaites-tu accomplir ?
+* **Interdiction de Supposer** : Ne jamais faire de suppositions sur les besoins ou la logique métier (par exemple, supposer qu'un filtre n'accepte qu'une seule valeur). Toujours poser la question à l'utilisateur avant de prendre une décision limitante.

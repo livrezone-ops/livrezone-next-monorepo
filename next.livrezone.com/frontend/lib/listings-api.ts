@@ -35,6 +35,9 @@ export interface PublicListingsResult {
   currentPage: number;
   priceMin?: number;
   priceMax?: number;
+  facets?: {
+    categories?: Record<string, number>;
+  };
 }
 
 export interface ListingsQuery {
@@ -140,6 +143,7 @@ export async function getPublicListings(query: ListingsQuery): Promise<PublicLis
       currentPage: typeof json.current_page === "number" ? json.current_page : 1,
       priceMin: typeof json.price_min === "number" ? json.price_min : undefined,
       priceMax: typeof json.price_max === "number" ? json.price_max : undefined,
+      facets: json.facets,
     };
   } catch {
     return empty;
