@@ -1,0 +1,101 @@
+================================================================================
+DIAGNOSTIC — Page /librairies + index Meilisearch "profiles"
+================================================================================
+Contexte : La page https://next.livrezone.com/librairies doit lister les profils de
+type "librairie". Elle s'affiche vide. Objectif de ce prompt : comprendre si le
+problème vient (a) des données, (b) de l'index Meilisearch, (c) du code de recherche,
+ou (d) du front, et le corriger proprement.
+
+Règle : ne rien supposer. Vérifier chaque étape et consigner les sorties réelles.
+
+--------------------------------------------------------------------------------
+1) DONNÉES — distribution réelle de profile_type (déjà fait, à reconfirmer)
+--------------------------------------------------------------------------------
+SQL :
+  SELECT profile_type, COUNT(*) AS n FROM profiles GROUP BY profile_type;
+
+Attendu : au moins une ligne profile_type = 'librairie' (valeur d'ENUM stricte de la
+migration 2026_07_30_183622_create_profiles_table.php). Si 0 ligne 'librairie', c'est
+une question de données (aucun profil n'a choisi "Librairie").
+
+--------------------------------------------------------------------------------
+2) INDEX MEILISEARCH — existe-t-il et contient-il des documents ?
+--------------------------------------------------------------------------------
+Dans artisan tinker (sur le serveur) :
+  sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan tinker --execute="echo json_encode(['stats'=>$client=app(\Meilisearch\Client::class),'index'=>$client->index('profiles')->getStats(),'settings'=>$client->index('profiles')->getSettings()]);"
+
+À décortiquer :
+  - stats["numberOfDocuments"] : doit être >= nombre de profils 'librairie' (sinon
+    l'index n'a pas été peuplé par scout:import).
+  - settings["filterableAttributes"] : DOIT contenir 'profile_type', 'city_id',
+    'listing_count', 'profile_book_conditions'. Sinon le filtre where('profile_type',...)
+    échoue silencieusement (page vide).
+  - settings["sortableAttributes"] : DOIT contenir 'subscription_rank', 'rating_average',
+    'listing_count', 'id'.
+  - settings["searchableAttributes"] : DOIT être ['nickname'] (recherche stricte).
+
+Si numberOfDocuments = 0 ou settings incomplets -> relancer :
+  sudo ... artisan profiles:configure-search
+  sudo ... artisan scout:import "App\Models\Profile"
+
+--------------------------------------------------------------------------------
+3) RECHERCHE CÔTÉ CODE — est-ce que Profile::search renvoie quelque chose ?
+--------------------------------------------------------------------------------
+Dans tinker :
+  sudo ... artisan tinker --execute="echo json_encode(\App\Models\Profile::search('')->where('profile_type','librairie')->take(10)->get()->toArray());"
+
+Attendu : un tableau non vide de profils 'librairie'.
+  - Si vide -> problème d'index (étape 2) ou shouldBeSearchable() qui renvoie false.
+  - Vérifier Profile::shouldBeSearchable() : doit être true pour profile_type='librairie'
+    (code actuel : in_array(profile_type, ['librairie','library'])).
+
+--------------------------------------------------------------------------------
+4) ENDPOINT API PUBLIC — que renvoie /api/libraries ?
+--------------------------------------------------------------------------------
+Depuis le serveur :
+  curl -s -H "Host: api-next.livrezone.com" "https://api-next.livrezone.com/api/libraries?page=1" | head -c 3000
+
+À vérifier dans le JSON :
+  - "data" : tableau de profils (non vide si index OK).
+  - "total", "current_page", "last_page".
+Si "data" est vide mais sans erreur HTTP -> index vide (étape 2).
+Si erreur HTTP 500 -> lire storage/logs/laravel-*.log pour la trace (souvent une
+exception Meilisearch "attribute not filterable" ou "index not found").
+
+--------------------------------------------------------------------------------
+5) FRONTEND — le SSR appelle bien l'API, mais attrape les erreurs
+--------------------------------------------------------------------------------
+- lib/libraries-api.ts -> getLibraries() : en cas d'erreur réseau/HTTP, renvoie
+  {ok:false, data:[]}. Donc une erreur API se traduit par une page VIDE, sans message.
+- app/librairies/page.tsx fait un fetch serveur vers /api/libraries. Si l'API renvoie
+  vide/erreur, la grille est vide.
+- À vérifier : la bannière et les filtres s'affichent-ils ? Si oui, c'est bien le
+  "data" vide qui est le problème (pas un crash de page).
+
+--------------------------------------------------------------------------------
+6) LOGS
+--------------------------------------------------------------------------------
+  - Laravel : storage/logs/laravel-*.log (erreurs Meilisearch / SQL).
+  - Meilisearch : logs du conteneur meilisearch (si accessible).
+  - Caddy : logs front (erreurs 502/504 vers api-next).
+
+--------------------------------------------------------------------------------
+7) RÉSUMÉ DES CAUSES POSSIBLES (hypothèses à valider, pas à supposer)
+--------------------------------------------------------------------------------
+  A. Données : 0 profil 'librairie' -> page vide normale, il faut créer des profils.
+  B. Index vide / settings incomplets -> relancer profiles:configure-search +
+     scout:import "App\Models\Profile" + optimize:clear + lz.
+  C. Erreur Meilisearch (filterable manquant) -> page vide silencieuse -> voir logs.
+  D. Code de recherche désynchronisé (ancien shouldBeSearchable/listing_count>0) ->
+     optimize:clear puis lz pour recharger le code PHP.
+
+--------------------------------------------------------------------------------
+8) COMMANDES DE REMISE À ZÉRO (ordre)
+--------------------------------------------------------------------------------
+  sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan profiles:configure-search
+  sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan scout:import "App\Models\Profile"
+  sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan optimize:clear
+  lz
+
+Consigner chaque sortie réelle avant de conclure. Ne jamais deviner.
+================================================================================

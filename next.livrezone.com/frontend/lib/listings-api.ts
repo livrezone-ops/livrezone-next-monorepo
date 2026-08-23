@@ -69,7 +69,7 @@ export interface PublicProfile {
   delivery_option?: string | null;
   rating_average: number;
   rating_count: number;
-  publication_count: number;
+  listing_count: number;
   city?: CityRef | null;
 }
 

@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Scout\Searchable;
 
 class Profile extends Model
 {
-    use HasFactory;
+    use HasFactory, Searchable;
 
     /**
      * Nicknames réservés : mots clés des routes statiques du frontend et zones sensibles.
@@ -55,10 +56,13 @@ class Profile extends Model
         'avatar_upload',
         'rating_average',
         'rating_count',
+        'listing_count',
+        'profile_book_conditions',
     ];
 
     protected $casts = [
         'has_whatsapp' => 'boolean',
+        'listing_count' => 'integer',
     ];
 
     protected static function boot()
@@ -116,6 +120,52 @@ class Profile extends Model
     public function ratings()
     {
         return $this->hasMany(Rating::class);
+    }
+
+    /**
+     * Rang de priorité du compte pour le tri Meilisearch (toujours prioritaire) :
+     * premium (3) > pro (2) > free (1).
+     */
+    public function subscriptionRank(): int
+    {
+        return match ($this->subscription_type) {
+            'premium' => 3,
+            'pro' => 2,
+            default => 1,
+        };
+    }
+
+    /**
+     * Seuls les profils de type librairie sont indexés dans l'annuaire.
+     */
+    public function shouldBeSearchable(): bool
+    {
+        return $this->profile_type === 'librairie';
+    }
+
+    public function searchableAs(): string
+    {
+        return 'profiles';
+    }
+
+    /**
+     * Document indexé dans Meilisearch (moteur de recherche par défaut).
+     * La recherche plein texte porte strictement sur le nickname.
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'nickname' => $this->nickname,
+            'city_id' => $this->city_id,
+            'profile_type' => $this->profile_type,
+            'subscription_type' => $this->subscription_type,
+            'subscription_rank' => $this->subscriptionRank(),
+            'rating_average' => (float) $this->rating_average,
+            'rating_count' => (int) $this->rating_count,
+            'listing_count' => (int) $this->listing_count,
+            'profile_book_conditions' => $this->profile_book_conditions,
+        ];
     }
 
 }

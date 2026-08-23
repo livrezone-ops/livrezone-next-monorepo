@@ -99,13 +99,22 @@ export interface ListingFormProps {
 }
 
 // Construit les valeurs initiales du formulaire depuis initialData (fonction pure).
-const buildListingDefaultValues = (data?: ListingFormProps["initialData"]): Partial<FormValues> => ({
+// Lors de la création (pas de initialData), l'état du livre est pré-rempli avec
+// l'activité principale déclarée sur le profil (profile_book_conditions).
+const buildListingDefaultValues = (
+  data?: ListingFormProps["initialData"],
+  profileBookConditions?: string | null,
+): Partial<FormValues> => ({
   book_id: data?.book_id ?? null,
   title: data?.title || "",
   author: data?.author || "",
   publisher: data?.publisher || "",
   description: data?.description || "",
-  book_condition: data?.book_condition || "occas",
+  book_condition:
+    data?.book_condition ??
+    (profileBookConditions === "neuf" || profileBookConditions === "occas"
+      ? profileBookConditions
+      : "occas"),
   price: data?.price ?? undefined,
   discount_price: data?.discount_price ?? null,
   quantity: data?.quantity ?? 1,
@@ -218,7 +227,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: buildListingDefaultValues(initialData),
+    defaultValues: buildListingDefaultValues(initialData, user?.profile?.profile_book_conditions),
   });
 
   // Source de vérité : catégorie sélectionnée observée via React Hook Form.
@@ -228,7 +237,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
   const initKey = isEditMode && initialData?.id ? String(initialData.id) : "create";
   useEffect(() => {
     if (!refData) return;
-    const initial = buildListingDefaultValues(initialData);
+    const initial = buildListingDefaultValues(initialData, user?.profile?.profile_book_conditions);
     const r = getCategoryRules(refData.categories, initial.category_id);
     if (r.category) {
       if (!r.levelApplicable) {

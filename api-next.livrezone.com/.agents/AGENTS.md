@@ -15,6 +15,7 @@ Architecture actuelle :
 - Authentification : Laravel Sanctum + Socialite
 - Base de données : MariaDB
 - Infrastructure : Debian 12, Docker, OpenPanel, CasaOS, Caddy et Cloudflare
+- Recherche : Meilisearch (moteur de recherche par défaut du projet, voir `.agents/meilisearch.md`)
 
 L'objectif principal (la migration étant terminée) est d'**alléger les contrôleurs** (Skinny Controllers) et de **toujours penser à factoriser la logique métier, les filtres et les requêtes complexes dans des Services dédiés**.
 
@@ -354,6 +355,25 @@ lz
 
 Ne jamais lancer `npm run build` ou `docker build` manuellement pour le frontend.
 Toujours utiliser `lz`.
+
+---
+
+# Réindexation Meilisearch (moteur de recherche par défaut)
+
+Meilisearch est le moteur de recherche par défaut du projet (catalogue `books` et
+annuaire des librairies `profiles`). Pour (ré)indexer un modèle :
+
+```bash
+sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan scout:import "App\Models\Profile"
+sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan scout:import "App\Models\Book"
+```
+
+L'annuaire des librairies (`profiles`) est configuré et pré-rempli (activité `occas`
+par défaut + `listing_count` calculé) par :
+
+```bash
+sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan profiles:configure-search
+```
 
 ---
 

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\City;
-use App\Models\Listing;
 use App\Models\Profile;
 use App\Models\Rating;
 use Illuminate\Http\JsonResponse;
@@ -29,10 +28,7 @@ class ProfileController extends Controller
             return response()->json(['message' => 'Profil introuvable.'], 404);
         }
 
-        $publicationCount = Listing::query()
-            ->forUser($profile->user_id)
-            ->where('status', 'published')
-            ->count();
+        $listingCount = (int) $profile->listing_count;
 
         return response()->json([
             'data' => [
@@ -46,7 +42,7 @@ class ProfileController extends Controller
                 'delivery_option' => $profile->delivery_option ?? 'selon destination',
                 'rating_average' => (float) $profile->rating_average,
                 'rating_count' => (int) $profile->rating_count,
-                'publication_count' => $publicationCount,
+                'listing_count' => $listingCount,
                 'city' => $profile->city ? ['id' => $profile->city->id, 'name' => $profile->city->name] : null,
             ],
         ]);
@@ -155,6 +151,11 @@ class ProfileController extends Controller
                 Rule::in(['étudiant(e)', 'passionné(e)', 'librairie']),
             ],
 
+            'profile_book_conditions' => [
+                'required',
+                Rule::in(['neuf', 'occas']),
+            ],
+
             'delivery_option' => [
                 Rule::requiredIf($isConfirm),
                 'nullable',
@@ -224,6 +225,7 @@ class ProfileController extends Controller
             'phone' => $validated['phone'] ?? null,
             'city_id' => $validated['city_id'],
             'profile_type' => $validated['profile_type'],
+            'profile_book_conditions' => $validated['profile_book_conditions'] ?? null,
 
             'delivery_option' => $validated['delivery_option'],
             'nickname' => $validated['nickname'],

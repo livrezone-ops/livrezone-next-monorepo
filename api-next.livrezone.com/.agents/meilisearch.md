@@ -84,3 +84,62 @@ Vérification effectuée (serveur) : `DRIVER=meilisearch`, `BOOKS_INDEX=654004`,
   (filtrage instantané Meilisearch) pour pousser l'objectif « catalogue = demande ».
 - **Optionnel (tuning)** : `searchableAttributes`, synonyms, ranking rules dans
   Meilisearch selon les retours de recherche réelle.
+
+---
+
+## Annuaire des librairies (profils vendeurs)
+
+**Meilisearch est le moteur de recherche par défaut** du projet. Outre le catalogue
+`books` (index `books`), il alimente aussi l'annuaire des librairies (`/libraries`),
+via l'index `profiles`.
+
+### Index `profiles`
+- `App\Models\Profile` implémente `Laravel\Scout\Searchable`.
+- `searchableAttributes = ['nickname']` → la recherche plein texte porte
+  **strictement sur le nickname** (jamais le nom réel de l'utilisateur).
+- `filterableAttributes` : `city_id`, `profile_type`, `listing_count`, `profile_book_conditions`.
+- `sortableAttributes` : `subscription_rank`, `rating_average`, `listing_count`, `id`.
+
+### Périmètre de l'annuaire (`profile_type` = `librairie` / `library`)
+L'annuaire des librairies liste les profils de type librairie. Le repo définit l'ENUM
+`['étudiant(e)', 'passionné(e)', 'librairie']`, **mais la base live stocke `library`**
+(schéma live différent de la migration). Le filtre et `shouldBeSearchable()` acceptent
+donc les **deux valeurs** `librairie` et `library` pour éviter tout écran vide.
+À confirmer via `SELECT DISTINCT profile_type FROM profiles;` puis normaliser
+(altérer l'ENUM vers `library` + mettre à jour les lignes + validation/form) si souhaité.
+
+### Counter cache (`profiles.listing_count`)
+Pour afficher et trier instantanément le nombre de publications, un compteur en base
+(`profiles.listing_count` = annonces `published`) est maintenu par
+`App\Services\ProfileSearchService` et l'observer `App\Observers\ListingObserver`
+(déclenché sur changement de `status` / `book_condition` / `user_id`, et à la
+suppression). `listing_count` sert au tri et à l'affichage, pas au périmètre.
+
+### Conditions de livres (`profiles.profile_book_conditions`)
+Valeur **unique déclarée à l'inscription** (`neuf` ou `occas`), stockée en colonne
+`profiles.profile_book_conditions` (et mirrorée dans l'index). Permet le filtre
+Meilisearch `profile_book_conditions = "neuf"`.
+
+### Tri prioritaire des comptes payants
+`subscription_rank` (premium = 3, pro = 2, free = 1) est **toujours** ordonné en DESC
+en premier, quel que soit le tri secondaire (rating ou publications), afin de maximiser
+la visibilité des comptes payants.
+
+### Déploiement
+```bash
+sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan migrate
+sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan profiles:configure-search
+sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan scout:import "App\Models\Profile"
+# Puis rebuild du front :
+lz
+```
+
+La commande `profiles:configure-search` configure l'index **et** pré-remplit les
+profils existants : `profile_book_conditions` est mis à `occas` par défaut pour tous
+les profils ne l'ayant pas déclaré, et `listing_count` est recalculé (nombre d'annonces
+`published`). Le `scout:import` pousse ensuite tout l'index.
+
+Pour réindexer le catalogue de livres (même invocation) :
+```bash
+sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan scout:import "App\Models\Book"
+```

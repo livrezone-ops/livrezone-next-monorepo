@@ -34,6 +34,7 @@ interface Profile {
     city_id: number | null;
     profile_type: string;
     subscription_type: string;
+    profile_book_conditions?: string | null;
     delivery_option: string;
     nickname: string;
     adresse: string | null;
@@ -118,6 +119,7 @@ export default function ProfileForm({
         has_whatsapp: true,
         city_id: '',
         profile_type: 'passionné(e)',
+        profile_book_conditions: 'occas',
 
         delivery_option: 'selon destination',
         adresse: '',
@@ -148,6 +150,9 @@ export default function ProfileForm({
                             : '',
                         profile_type:
                             data.profile.profile_type ?? 'passionné(e)',
+
+                        profile_book_conditions:
+                            data.profile.profile_book_conditions ?? 'occas',
 
                         delivery_option:
                             data.profile.delivery_option ??
@@ -711,6 +716,36 @@ export default function ProfileForm({
                             </div>
 
                             {fieldError('profile_type')}
+                        </div>
+
+                        {/* 4b. ACTIVITÉ PRINCIPALE : LIVRES NEUFS / OCCASION */}
+                        <div>
+                            <label
+                                htmlFor="profile_book_conditions"
+                                className="mb-1.5 block text-xs sm:text-sm font-semibold text-slate-700"
+                            >
+                                Activité principale :
+                            </label>
+
+                            <div className="relative">
+                                <Building className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                <select
+                                    id="profile_book_conditions"
+                                    name="profile_book_conditions"
+                                    value={form.profile_book_conditions}
+                                    onChange={handleChange}
+                                    required
+                                    className="h-11 sm:h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-8 text-sm text-slate-900 outline-none transition-all focus:border-[#6D28D9] focus:bg-white focus:ring-2 focus:ring-[#6D28D9]/20 cursor-pointer appearance-none"
+                                >
+                                    <option value="neuf">Livres neufs</option>
+                                    <option value="occas">Livres d'occasion</option>
+                                </select>
+                                <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
+                                    ▼
+                                </div>
+                            </div>
+
+                            {fieldError('profile_book_conditions')}
                         </div>
 
                         {/* 5. LIGNE 4 : ADRESSE EN 2 LIGNES (PLUS LONG & SPACIEUX) */}

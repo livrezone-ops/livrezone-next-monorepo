@@ -58,7 +58,7 @@ export async function generateMetadata({
   const profile = await getPublicProfile(nickname);
   if (!profile) return { title: "Bibliothèque introuvable | LivreZone" };
   const title = buildTitle(profile.nickname);
-  const description = buildDescription(profile, profile.publication_count);
+  const description = buildDescription(profile, profile.listing_count);
   const canonical = buildCanonical(profile.nickname);
   return {
     title,
@@ -135,7 +135,7 @@ export default async function LibraryProfilePage({ params, searchParams }: PageP
       ? Math.ceil(result.priceMax)
       : PRICE_MAX_LIMIT;
 
-  const total = result.ok ? result.total : profile.publication_count;
+  const total = result.ok ? result.total : profile.listing_count;
   const articleCount = `${total} ${total > 1 ? "articles" : "article"}`;
   const logo = resolveLogo(profile.logo);
   const isPro = profile.profile_type === "librairie" || profile.profile_type === "professional";
@@ -210,7 +210,7 @@ export default async function LibraryProfilePage({ params, searchParams }: PageP
         <div className="flex flex-nowrap gap-3 md:gap-6 justify-center md:justify-end mt-4 md:mt-0 items-center md:items-start">
           <div className="bg-white rounded-xl border border-gray-100 px-3.5 py-2.5 md:px-5 md:py-4 flex flex-col items-center justify-center min-w-[100px]">
             <div className="text-xl md:text-2xl font-black text-gray-900">
-              {profile.publication_count}
+              {profile.listing_count}
             </div>
             <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-1">
               Annonces

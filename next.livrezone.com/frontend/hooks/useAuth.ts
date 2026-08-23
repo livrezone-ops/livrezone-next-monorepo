@@ -22,6 +22,7 @@ export interface User {
         logo: string | null;
         avatar_mode?: string | null;
         subscription_type?: string;
+        profile_book_conditions?: string | null;
     };
 }
 

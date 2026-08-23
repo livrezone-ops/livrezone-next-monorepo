@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\HeroController;
+use App\Http\Controllers\Api\LibraryController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     $user = $request->user()->load('profile');
@@ -77,6 +78,9 @@ Route::get('/demandes', [\App\Http\Controllers\Api\OrderController::class, 'publ
 // Public Library (seller profile)
 Route::get('/profiles/{nickname}', [ProfileController::class, 'publicLibrary']);
 Route::get('/profiles/{nickname}/ratings', [ProfileController::class, 'ratings']);
+
+// Public Libraries Directory
+Route::get('/libraries', [LibraryController::class, 'publicLibraries']);
 
 // Protected Ratings
 Route::middleware('auth:sanctum')->post('/profiles/{nickname}/ratings', [ProfileController::class, 'storeRating']);
