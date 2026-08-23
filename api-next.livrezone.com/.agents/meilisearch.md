@@ -100,13 +100,11 @@ via l'index `profiles`.
 - `filterableAttributes` : `city_id`, `profile_type`, `listing_count`, `profile_book_conditions`.
 - `sortableAttributes` : `subscription_rank`, `rating_average`, `listing_count`, `id`.
 
-### Périmètre de l'annuaire (`profile_type` = `librairie` / `library`)
-L'annuaire des librairies liste les profils de type librairie. Le repo définit l'ENUM
-`['étudiant(e)', 'passionné(e)', 'librairie']`, **mais la base live stocke `library`**
-(schéma live différent de la migration). Le filtre et `shouldBeSearchable()` acceptent
-donc les **deux valeurs** `librairie` et `library` pour éviter tout écran vide.
-À confirmer via `SELECT DISTINCT profile_type FROM profiles;` puis normaliser
-(altérer l'ENUM vers `library` + mettre à jour les lignes + validation/form) si souhaité.
+### Périmètre de l'annuaire (`profile_type` = `librairie`)
+L'annuaire des librairies liste les profils de type `librairie`. L'ENUM est
+`['étudiant(e)', 'passionné(e)', 'librairie']` et la base de données stocke
+exclusivement `librairie`. Le filtre (`LibraryService`) et `shouldBeSearchable()`
+ne retiennent donc que la valeur `librairie` (aucune référence à `library`).
 
 ### Counter cache (`profiles.listing_count`)
 Pour afficher et trier instantanément le nombre de publications, un compteur en base
