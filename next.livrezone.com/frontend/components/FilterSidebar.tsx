@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { ChevronDown, X, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, X, SlidersHorizontal, Search } from "lucide-react";
 import {
   CATEGORIES,
   LANGUAGES,
@@ -48,11 +48,30 @@ const dualSliderCss = `
   }
 `;
 
+export type FilterSection =
+  | "categories"
+  | "levels"
+  | "languages"
+  | "conditions"
+  | "cities"
+  | "price";
+
+const DEFAULT_SECTIONS: FilterSection[] = [
+  "categories",
+  "levels",
+  "languages",
+  "conditions",
+  "cities",
+  "price",
+];
+
 interface FilterSidebarProps {
   priceMinLimit?: number;
   priceMaxLimit?: number;
   cities?: CityRef[];
   showCity?: boolean;
+  sections?: FilterSection[];
+  basePath?: string;
 }
 
 interface Draft {
@@ -70,10 +89,15 @@ export default function FilterSidebar({
   priceMaxLimit = 500,
   cities = [],
   showCity = true,
+  sections = DEFAULT_SECTIONS,
+  basePath,
 }: FilterSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const targetPath = basePath || pathname;
+  const isSectionVisible = (section: FilterSection) => sections.includes(section);
 
   const filters = useMemo(
     () => parseFilters((key) => searchParams.get(key)),
@@ -98,7 +122,14 @@ export default function FilterSidebar({
   );
   const [openCycles, setOpenCycles] = useState<Set<string>>(new Set());
   const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
+  const [citySearch, setCitySearch] = useState("");
   const cityDropdownRef = useRef<HTMLDivElement>(null);
+
+  const filteredCities = citySearch.trim()
+    ? cities.filter((c) =>
+        c.name.toLowerCase().includes(citySearch.toLowerCase())
+      )
+    : cities;
 
   // Ferme le menu déroulant Ville au clic extérieur.
   useEffect(() => {
@@ -148,20 +179,20 @@ export default function FilterSidebar({
   const applyFilters = () => {
     submitting.current = true;
     const params = buildFilterQuery({
-      categories: draft.categories,
-      levels: draft.levels,
-      languages: draft.languages,
-      conditions: draft.conditions,
-      cities: draft.cities,
-      minPrice: draft.minPrice,
-      maxPrice: draft.maxPrice,
+      categories: isSectionVisible("categories") ? draft.categories : [],
+      levels: isSectionVisible("levels") ? draft.levels : [],
+      languages: isSectionVisible("languages") ? draft.languages : [],
+      conditions: isSectionVisible("conditions") ? draft.conditions : [],
+      cities: isSectionVisible("cities") ? draft.cities : [],
+      minPrice: isSectionVisible("price") ? draft.minPrice : undefined,
+      maxPrice: isSectionVisible("price") ? draft.maxPrice : undefined,
       minLimit: priceMinLimit,
       maxLimit: priceMaxLimit,
       search: filters.search,
       sort: filters.sort,
     });
     const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    router.push(qs ? `${targetPath}?${qs}` : targetPath, { scroll: false });
     setOpen(false);
   };
 
@@ -181,7 +212,7 @@ export default function FilterSidebar({
     const params = new URLSearchParams();
     if (filters.search) params.set("search", filters.search);
     const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    router.push(qs ? `${targetPath}?${qs}` : targetPath, { scroll: false });
     setOpen(false);
   };
 
@@ -215,8 +246,8 @@ export default function FilterSidebar({
   };
 
   // Le bloc Niveau s'affiche au démarrage (aucune catégorie sélectionnée) et dès
-// qu'une catégorie scolaire OU universitaire/professionnelle est cochée.
-// Les cycles affichés dépendent de la catégorie sélectionnée.
+  // qu'une catégorie scolaire OU universitaire/professionnelle est cochée.
+  // Les cycles affichés dépendent de la catégorie sélectionnée.
   const niveauRelevant =
     draft.categories.length === 0 ||
     draft.categories.some(
@@ -320,15 +351,17 @@ export default function FilterSidebar({
 
   const activeCount = useMemo(() => {
     let count = 0;
-    count += filters.categories.length;
-    count += filters.levels.length;
-    count += filters.languages.length;
-    count += filters.conditions.length;
-    count += filters.cities.length;
-    if (filters.minPrice !== null && filters.minPrice > priceMinLimit) count += 1;
-    if (filters.maxPrice !== null && filters.maxPrice < priceMaxLimit) count += 1;
+    if (isSectionVisible("categories")) count += filters.categories.length;
+    if (isSectionVisible("levels")) count += filters.levels.length;
+    if (isSectionVisible("languages")) count += filters.languages.length;
+    if (isSectionVisible("conditions")) count += filters.conditions.length;
+    if (isSectionVisible("cities")) count += filters.cities.length;
+    if (isSectionVisible("price")) {
+      if (filters.minPrice !== null && filters.minPrice > priceMinLimit) count += 1;
+      if (filters.maxPrice !== null && filters.maxPrice < priceMaxLimit) count += 1;
+    }
     return count;
-  }, [filters, priceMinLimit, priceMaxLimit]);
+  }, [filters, priceMinLimit, priceMaxLimit, sections]);
 
   return (
     <>
@@ -393,50 +426,54 @@ export default function FilterSidebar({
           </div>
 
           {/* Catégories */}
-          <div className="border-b border-gray-100 py-5">
-            <SectionToggle
-              open={!!openSections.categories}
-              onToggle={() => toggleSection("categories")}
-              title="Catégories"
-            />
-            {openSections.categories && (
-              <div className="mt-4">{renderCategoryNode(CATEGORIES, 0)}</div>
-            )}
-          </div>
+          {isSectionVisible("categories") && (
+            <div className="border-b border-gray-100 py-5">
+              <SectionToggle
+                open={!!openSections.categories}
+                onToggle={() => toggleSection("categories")}
+                title="Catégories"
+              />
+              {openSections.categories && (
+                <div className="mt-4">{renderCategoryNode(CATEGORIES, 0)}</div>
+              )}
+            </div>
+          )}
 
           {/* Langues */}
-          <div className="border-b border-gray-100 py-5">
-            <SectionToggle
-              open={!!openSections.languages}
-              onToggle={() => toggleSection("languages")}
-              title="Langues"
-            />
-            {openSections.languages && (
-              <div className="mt-4 space-y-3">
-                {LANGUAGES.map((lang) => (
-                  <label
-                    key={lang.code}
-                    className="flex items-center justify-between cursor-pointer group"
-                  >
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={draft.languages.includes(lang.code)}
-                        onChange={() => toggleValue("languages", lang.code)}
-                        className="w-4 h-4 rounded-sm border-gray-300 text-[#F97316] focus:ring-[#F97316] mr-3"
-                      />
-                      <span className="text-[15px] text-gray-700 group-hover:text-black transition-colors">
-                        {lang.name}
-                      </span>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+          {isSectionVisible("languages") && (
+            <div className="border-b border-gray-100 py-5">
+              <SectionToggle
+                open={!!openSections.languages}
+                onToggle={() => toggleSection("languages")}
+                title="Langues"
+              />
+              {openSections.languages && (
+                <div className="mt-4 space-y-3">
+                  {LANGUAGES.map((lang) => (
+                    <label
+                      key={lang.code}
+                      className="flex items-center justify-between cursor-pointer group"
+                    >
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={draft.languages.includes(lang.code)}
+                          onChange={() => toggleValue("languages", lang.code)}
+                          className="w-4 h-4 rounded-sm border-gray-300 text-[#F97316] focus:ring-[#F97316] mr-3"
+                        />
+                        <span className="text-[15px] text-gray-700 group-hover:text-black transition-colors">
+                          {lang.name}
+                        </span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Niveau, classé par cycle (visible si scolaire/universitaire sélectionné ou au démarrage) */}
-          {niveauRelevant && (
+          {isSectionVisible("levels") && niveauRelevant && (
             <div className="border-b border-gray-100 py-5">
               <SectionToggle
                 open={!!openSections.levels}
@@ -528,36 +565,38 @@ export default function FilterSidebar({
           )}
 
           {/* État du livre */}
-          <div className="border-b border-gray-100 py-5">
-            <SectionToggle
-              open={!!openSections.conditions}
-              onToggle={() => toggleSection("conditions")}
-              title="État du livre"
-            />
-            {openSections.conditions && (
-              <div className="mt-4 space-y-3">
-                {CONDITIONS.map((cond) => (
-                  <label
-                    key={cond.code}
-                    className="flex items-center cursor-pointer group"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={draft.conditions.includes(cond.code)}
-                      onChange={() => toggleValue("conditions", cond.code)}
-                      className="w-4 h-4 rounded-sm border-gray-300 text-[#F97316] focus:ring-[#F97316] mr-3"
-                    />
-                    <span className="text-[15px] text-gray-700 group-hover:text-black transition-colors">
-                      {cond.name}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+          {isSectionVisible("conditions") && (
+            <div className="border-b border-gray-100 py-5">
+              <SectionToggle
+                open={!!openSections.conditions}
+                onToggle={() => toggleSection("conditions")}
+                title="État du livre"
+              />
+              {openSections.conditions && (
+                <div className="mt-4 space-y-3">
+                  {CONDITIONS.map((cond) => (
+                    <label
+                      key={cond.code}
+                      className="flex items-center cursor-pointer group"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={draft.conditions.includes(cond.code)}
+                        onChange={() => toggleValue("conditions", cond.code)}
+                        className="w-4 h-4 rounded-sm border-gray-300 text-[#F97316] focus:ring-[#F97316] mr-3"
+                      />
+                      <span className="text-[15px] text-gray-700 group-hover:text-black transition-colors">
+                        {cond.name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* Ville (menu déroulant multi-sélection) */}
-          {showCity && cities.length > 0 && (
+          {/* Ville (menu déroulant multi-sélection avec recherche) */}
+          {isSectionVisible("cities") && showCity && cities.length > 0 && (
             <div
               ref={cityDropdownRef}
               className="relative border-b border-gray-100 py-5"
@@ -565,7 +604,7 @@ export default function FilterSidebar({
               <button
                 type="button"
                 onClick={() => setCityDropdownOpen((v) => !v)}
-                className="flex items-center justify-between w-full text-[18px] font-bold text-black focus:outline-none"
+                className="flex items-center justify-between w-full text-[18px] font-bold text-black focus:outline-none cursor-pointer"
               >
                 <span>Ville</span>
                 <span className="flex items-center gap-2">
@@ -593,8 +632,20 @@ export default function FilterSidebar({
 
               {cityDropdownOpen && (
                 <div className="mt-3 border border-gray-100 rounded-lg shadow-lg bg-white overflow-hidden">
+                  <div className="p-2 border-b border-gray-100">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
+                      <input
+                        type="text"
+                        placeholder="Chercher une ville..."
+                        value={citySearch}
+                        onChange={(e) => setCitySearch(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-xs focus:outline-none focus:border-[#F97316]"
+                      />
+                    </div>
+                  </div>
                   <div className="max-h-56 overflow-y-auto p-3 space-y-2">
-                    {cities.map((city) => (
+                    {filteredCities.map((city) => (
                       <label
                         key={city.id}
                         className="flex items-center cursor-pointer group"
@@ -603,13 +654,18 @@ export default function FilterSidebar({
                           type="checkbox"
                           checked={draft.cities.includes(city.id)}
                           onChange={() => toggleCity(city.id)}
-                          className="w-4 h-4 rounded-sm border-gray-300 text-[#F97316] focus:ring-[#F97316] mr-3"
+                          className="w-4 h-4 rounded-sm border-gray-300 text-[#F97316] focus:ring-[#F97316] mr-3 cursor-pointer"
                         />
                         <span className="text-[15px] text-gray-700 group-hover:text-black transition-colors">
                           {city.name}
                         </span>
                       </label>
                     ))}
+                    {filteredCities.length === 0 && (
+                      <div className="text-center text-gray-400 text-xs py-3">
+                        Aucune ville trouvée.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -617,49 +673,51 @@ export default function FilterSidebar({
           )}
 
           {/* Prix */}
-          <div className="py-5">
-            <SectionToggle
-              open={!!openSections.price}
-              onToggle={() => toggleSection("price")}
-              title="Prix"
-            />
-            {openSections.price && (
-              <div className="mt-8 mb-2">
-                <style>{dualSliderCss}</style>
-                <div className="relative w-full h-1.5 bg-gray-200 rounded-full mb-6">
-                  <div
-                    className="absolute h-1.5 bg-[#F97316] rounded-full"
-                    style={{
-                      left: `${minPercent}%`,
-                      right: `${100 - maxPercent}%`,
-                    }}
-                  />
-                  <input
-                    type="range"
-                    min={priceMinLimit}
-                    max={priceMaxLimit}
-                    step={1}
-                    value={draft.minPrice}
-                    onChange={updateMin}
-                    className="dual-slider-input absolute w-full -top-[5px] h-0 appearance-none pointer-events-none bg-transparent outline-none"
-                  />
-                  <input
-                    type="range"
-                    min={priceMinLimit}
-                    max={priceMaxLimit}
-                    step={1}
-                    value={draft.maxPrice}
-                    onChange={updateMax}
-                    className="dual-slider-input absolute w-full -top-[5px] h-0 appearance-none pointer-events-none bg-transparent outline-none"
-                  />
+          {isSectionVisible("price") && (
+            <div className="py-5">
+              <SectionToggle
+                open={!!openSections.price}
+                onToggle={() => toggleSection("price")}
+                title="Prix"
+              />
+              {openSections.price && (
+                <div className="mt-8 mb-2">
+                  <style>{dualSliderCss}</style>
+                  <div className="relative w-full h-1.5 bg-gray-200 rounded-full mb-6">
+                    <div
+                      className="absolute h-1.5 bg-[#F97316] rounded-full"
+                      style={{
+                        left: `${minPercent}%`,
+                        right: `${100 - maxPercent}%`,
+                      }}
+                    />
+                    <input
+                      type="range"
+                      min={priceMinLimit}
+                      max={priceMaxLimit}
+                      step={1}
+                      value={draft.minPrice}
+                      onChange={updateMin}
+                      className="dual-slider-input absolute w-full -top-[5px] h-0 appearance-none pointer-events-none bg-transparent outline-none"
+                    />
+                    <input
+                      type="range"
+                      min={priceMinLimit}
+                      max={priceMaxLimit}
+                      step={1}
+                      value={draft.maxPrice}
+                      onChange={updateMax}
+                      className="dual-slider-input absolute w-full -top-[5px] h-0 appearance-none pointer-events-none bg-transparent outline-none"
+                    />
+                  </div>
+                  <div className="flex justify-between items-center text-[15px] font-medium text-black">
+                    <span>{draft.minPrice} MAD</span>
+                    <span>{draft.maxPrice} MAD</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-[15px] font-medium text-black">
-                  <span>{draft.minPrice} MAD</span>
-                  <span>{draft.maxPrice} MAD</span>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <div className="mt-6 pt-4 border-t border-gray-100 flex gap-3">
             <button

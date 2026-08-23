@@ -11,6 +11,10 @@ use App\Models\Language;
 
 class ListingSearchService
 {
+    public function __construct(
+        protected ReferenceFilterService $filterService
+    ) {}
+
     /**
      * Search listings based on the request filters.
      *
@@ -55,21 +59,14 @@ class ListingSearchService
             $query->with(['book', 'category', 'user.profile.city']);
         }
 
-        // 1. Filtrer par Catégories : codes (category=A,B ou categories=A,B)
-        //    ou IDs historiques (c=1,2,3), avec inclusion des enfants + affinage.
-        $categoryCodes = $this->csvParam($request, ['categories', 'category']);
-        $categoryIds = !empty($categoryCodes)
-            ? Category::whereIn('code', $categoryCodes)->pluck('id')->all()
-            : $this->csvIntParam($request->get('c'));
+        // 1. Filtrer par Catégories : codes ou IDs avec inclusion des enfants + affinage.
+        $categoryIds = $this->filterService->resolveCategoryIds($request);
         if (!empty($categoryIds)) {
-            $query->whereIn('category_id', $this->resolveCategoryIds($categoryIds));
+            $query->whereIn('category_id', $categoryIds);
         }
 
         // 2. Filtrer par Niveaux (levels=A,B ou lvl=1,2)
-        $levelCodes = $this->csvParam($request, ['levels', 'level']);
-        $levelIds = !empty($levelCodes)
-            ? Level::whereIn('code', $levelCodes)->pluck('id')->all()
-            : $this->csvIntParam($request->get('lvl'));
+        $levelIds = $this->filterService->resolveLevelIds($request);
         if (!empty($levelIds)) {
             $query->whereIn('level_id', $levelIds);
         }
@@ -84,16 +81,13 @@ class ListingSearchService
         }
 
         // 4. Filtrer par Langues (languages=fr,ar ou l=2,1)
-        $languageCodes = $this->csvParam($request, ['languages', 'language']);
-        $languageIds = !empty($languageCodes)
-            ? Language::whereIn('code', $languageCodes)->pluck('id')->all()
-            : $this->csvIntParam($request->get('l'));
+        $languageIds = $this->filterService->resolveLanguageIds($request);
         if (!empty($languageIds)) {
             $query->whereIn('language_id', $languageIds);
         }
 
         // 5. Filtrer par État du livre (condition=neuf,occas ou condiciones=.../cond=...)
-        $conditions = $this->csvParam($request, ['conditions', 'condition', 'cond']);
+        $conditions = $this->filterService->csvParam($request, ['conditions', 'condition', 'cond']);
         $conditions = array_values(array_intersect(
             array_map('strtolower', $conditions),
             ['neuf', 'occas']
@@ -122,10 +116,7 @@ class ListingSearchService
         }
 
         // 6b. Filtrer par villes (city=1,2 ou city_id=1,2) — communes de l'annonceur
-        $cityIds = !empty($this->csvParam($request, ['city', 'cities']))
-            ? $this->csvParam($request, ['city', 'cities'])
-            : $this->csvIntParam($request->get('city_id'));
-        $cityIds = array_map('intval', array_unique(array_filter($cityIds, 'is_numeric')));
+        $cityIds = $this->filterService->resolveCityIds($request);
         if (!empty($cityIds)) {
             $query->whereHas('user.profile', function ($q) use ($cityIds) {
                 $q->whereIn('city_id', $cityIds);
@@ -208,45 +199,6 @@ class ListingSearchService
     }
 
     /**
-     * Récupère la première valeur non vide parmi une liste de paramètres
-     * et la découpe en tableau (support CSV : "ROMANS,BD").
-     */
-    private function csvParam(Request $request, array $keys): array
-    {
-        $value = null;
-        foreach ($keys as $key) {
-            if ($request->has($key) && $request->filled($key)) {
-                $value = $request->get($key);
-                break;
-            }
-        }
-        if ($value === null) {
-            return [];
-        }
-        $parts = is_array($value) ? $value : explode(',', $value);
-        return array_values(array_filter(array_map('trim', $parts), fn ($v) => $v !== ''));
-    }
-
-    /**
-     * Découpe un paramètre CSV en entiers uniques (format historique "c=1,2,3").
-     */
-    private function csvIntParam($value): array
-    {
-        if ($value === null || $value === '') {
-            return [];
-        }
-        $parts = is_array($value) ? $value : explode(',', $value);
-        $ints = [];
-        foreach ($parts as $part) {
-            $trimmed = trim($part);
-            if (is_numeric($trimmed)) {
-                $ints[] = (int) $trimmed;
-            }
-        }
-        return array_values(array_unique($ints));
-    }
-
-    /**
      * Convertit une valeur en flottant, ou null si absente/invalide.
      */
     private function floatOrNull($value): ?float
@@ -255,43 +207,5 @@ class ListingSearchService
             return null;
         }
         return (float) $value;
-    }
-
-    /**
-     * Résout les IDs de catégories sélectionnés avec :
-     * - inclusion des descendants pour un parent ;
-     * - affinage : si un parent ET un de ses enfants sont cochés, seul l'enfant est retenu.
-     */
-    private function resolveCategoryIds(array $categoryIds): array
-    {
-        if (empty($categoryIds)) {
-            return [];
-        }
-
-        $allCategories = Category::all()->keyBy('id');
-
-        $selected = [];
-        foreach ($categoryIds as $catId) {
-            $category = $allCategories->get($catId);
-            if (!$category) {
-                continue;
-            }
-            $descendants = array_diff($category->selfAndDescendantIds(), [$catId]);
-            $hasSelectedDescendant = count(array_intersect($descendants, $categoryIds)) > 0;
-            if (!$hasSelectedDescendant) {
-                $selected[] = $catId;
-            }
-        }
-
-        $merged = [];
-        foreach ($selected as $catId) {
-            $category = $allCategories->get($catId);
-            if (!$category) {
-                continue;
-            }
-            $merged = array_merge($merged, $category->selfAndDescendantIds());
-        }
-
-        return array_values(array_unique($merged));
     }
 }

@@ -40,6 +40,23 @@ class ListingManagerController extends Controller
 
     public function store(Request $request)
     {
+        $user = $request->user();
+        $promoProFree = filter_var(env('PROMO_PRO_FREE', false), FILTER_VALIDATE_BOOLEAN);
+        $maxFreeListings = (int) env('MAX_FREE_LISTINGS', 25);
+        $subscriptionType = $user->profile->subscription_type ?? 'free';
+        
+        if (!$promoProFree && $subscriptionType === 'free') {
+            $activeCount = Listing::where('user_id', $user->id)
+                                  ->whereIn('status', ['published', 'pending_admin', 'pending_stock'])
+                                  ->count();
+            
+            if ($activeCount >= $maxFreeListings) {
+                return response()->json([
+                    'message' => "Vous avez atteint la limite de {$maxFreeListings} annonces gratuites. Veuillez passer à l'offre Pro pour publier sans limites."
+                ], 403);
+            }
+        }
+
         $validated = $this->validateListing($request);
 
         // Résolution des relations catégorie / niveau / matière

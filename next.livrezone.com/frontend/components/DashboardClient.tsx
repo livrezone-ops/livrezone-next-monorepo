@@ -11,15 +11,18 @@ import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/api-error";
 import ToastContainer, { ToastData, ToastType } from "@/components/Toast";
+import DashboardListingCard from "@/components/DashboardListingCard";
 
 const PAGE_SIZE = 12;
 
 interface Listing {
   id: number;
+  user_id?: number;
+  book_id?: number | null;
   title: string;
   price: number;
   discount_price?: number | null;
-  book_condition: string;
+  book_condition?: string | null;
   isbn_13?: string | null;
   status: string;
   created_at: string;
@@ -28,10 +31,12 @@ interface Listing {
   cover_thumbnail_url?: string | null;
   cover_source_url?: string | null;
   book?: {
+    cover_thumbnail_url?: string | null;
     cover_url?: string | null;
     authors?: string[] | string | null;
   } | null;
   category?: {
+    id?: number;
     name_fr: string;
   } | null;
 }
@@ -815,84 +820,20 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
 
             {/* Cards View (Responsive default) */}
             <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 ${viewMode === "cards" ? "block" : "block sm:hidden"}`}>
-              {pageListings.map((l) => {
-                  const coverUrl = primaryCoverUrl(l);
-
-                  return (
-                    <div 
-                      key={l.id} 
-                      className={`bg-white rounded-xl border border-gray-150 p-4 flex flex-col gap-3 relative shadow-xs hover:shadow-md transition-shadow ${
-                        selectedIds.includes(l.id) ? "border-[#6D28D9]/40 bg-violet-50/10" : ""
-                      }`}
-                    >
-                      {/* Checkbox badge */}
-                      <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedIds.includes(l.id)} 
-                          onChange={() => handleToggleSelect(l.id)}
-                          className="rounded border-gray-300 text-[#6D28D9] focus:ring-[#6D28D9] cursor-pointer"
-                        />
-                        {l.book_condition === "neuf" ? (
-                          <span className="text-[8px] bg-orange-500 text-white font-bold px-1.5 py-0.5 rounded-xs uppercase tracking-wide">Neuf</span>
-                        ) : (
-                          <span className="text-[8px] bg-teal-600 text-white font-bold px-1.5 py-0.5 rounded-xs uppercase tracking-wide">Occasion</span>
-                        )}
-                      </div>
-
-                      {/* Status flag */}
-                      <div className="absolute top-3 right-3">
-                        {(() => { const b = statusBadge(l); return (
-                          <span className={`text-[9px] font-bold px-2 py-0.5 border rounded-sm ${b.className}`}>{b.label}</span>
-                        ); })()}
-                      </div>
-
-                      {/* Image cover & Details */}
-                      <div className="flex gap-3 pt-6 border-b border-gray-100 pb-3">
-                        <Link href={buildListingUrl(l)} className="w-12 h-16 flex-shrink-0 bg-gray-50 flex items-center justify-center rounded border border-gray-150 text-gray-300 cursor-pointer hover:border-[#6D28D9] transition-colors">
-                          {coverUrl ? (
-                            <img src={coverUrl} alt={l.title} onError={(e) => handleCoverError(e, l)} className="w-full h-full object-contain" />
-                          ) : (
-                            <BookOpen className="w-5 h-5 stroke-1" />
-                          )}
-                        </Link>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 group/title">
-                            <Link href={buildListingUrl(l)} className="font-bold text-gray-950 text-sm truncate hover:text-[#6D28D9]">{l.title}</Link>
-                            <button 
-                              onClick={() => handleStartEdit(l)}
-                              className="text-gray-300 hover:text-[#6D28D9] p-0.5 transition-colors cursor-pointer"
-                            >
-                              <Edit className="w-3 h-3" />
-                            </button>
-                          </div>
-                          <span className="text-[10px] text-gray-400 block mt-0.5 font-mono">ISBN: {l.isbn_13 || "N/A"}</span>
-                          {l.category && (
-                            <span className="text-[9px] text-[#6D28D9] font-bold block mt-0.5">{l.category.name_fr}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Price & Actions */}
-                      <div className="flex items-center justify-between mt-auto">
-                        <div>
-                          {l.discount_price ? (
-                            <div className="flex flex-col items-end">
-                              <span className="text-[10px] text-gray-400 line-through block leading-none mb-0.5">{Number(l.price).toFixed(2)}</span>
-                              <span className="font-extrabold text-[#6D28D9] text-base">{Number(l.discount_price).toFixed(2)} MAD</span>
-                            </div>
-                          ) : (
-                            <span className="font-extrabold text-gray-950 text-base">{Number(l.price).toFixed(2)} MAD</span>
-                          )}
-                        </div>
-
-                        <div className="flex gap-1.5">
-                          {renderActions(l, true)}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              {pageListings.map((l) => (
+                <DashboardListingCard
+                  key={l.id}
+                  listing={l as any}
+                  isSelected={selectedIds.includes(l.id)}
+                  onToggleSelect={handleToggleSelect}
+                  onStartEdit={handleStartEdit}
+                  renderActions={renderActions}
+                  statusBadge={statusBadge}
+                  buildListingUrl={buildListingUrl}
+                  primaryCoverUrl={primaryCoverUrl}
+                  onCoverError={handleCoverError}
+                />
+              ))}
             </div>
 
             {/* Pagination */}

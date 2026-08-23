@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Book;
+use App\Services\BookDetailService;
 
 class BookController extends Controller
 {
@@ -57,17 +58,11 @@ class BookController extends Controller
      */
     public function show($identifier)
     {
-        $book = Book::query()
-            ->where('id', $identifier)
-            ->orWhere('isbn_13', $identifier)
-            ->orWhere('title', $identifier)
-            ->first();
+        $book = app(BookDetailService::class)->getByIdentifier((string) $identifier);
 
         if (!$book) {
             return response()->json(['message' => 'Livre introuvable'], 404);
         }
-
-        $book->setAppends(['cover_url', 'cover_thumbnail_url']);
 
         return response()->json(['book' => $book]);
     }

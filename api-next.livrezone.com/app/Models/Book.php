@@ -25,6 +25,11 @@ class Book extends Model
             'isbn_13' => $this->isbn_13,
             'publisher' => $this->publisher,
             'cover_url' => $this->cover_url, // Inclus pour affichage direct depuis Meilisearch
+            // Champs de filtre (doivent être déclarés filterable côté Meilisearch)
+            'default_category_id' => $this->default_category_id,
+            'language_id' => $this->language_id,
+            'default_level_id' => $this->default_level_id,
+            'created_at' => $this->created_at?->timestamp,
         ];
     }
 

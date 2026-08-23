@@ -51,12 +51,28 @@ Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
     Route::get('/', [ProfileController::class, 'show']);
     Route::post('/', [ProfileController::class, 'update']);
     Route::post('/password', [AuthController::class, 'updatePassword']);
+    Route::get('/notifications', [ProfileController::class, 'getNotificationPreferences']);
+    Route::post('/notifications', [ProfileController::class, 'updateNotificationPreferences']);
 });
+
+Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\OrderController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\OrderController::class, 'store']);
+    Route::get('/{order}', [\App\Http\Controllers\Api\OrderController::class, 'show']);
+    Route::post('/{order}', [\App\Http\Controllers\Api\OrderController::class, 'update']);
+    Route::put('/{order}', [\App\Http\Controllers\Api\OrderController::class, 'update']);
+    Route::post('/{order}/cancel', [\App\Http\Controllers\Api\OrderController::class, 'cancel']);
+});
+
+Route::middleware('auth:sanctum')->get('/payments', [\App\Http\Controllers\Api\PaymentController::class, 'index']);
 
 // Public Listings Routes
 Route::get('/listings', [\App\Http\Controllers\Api\ListingController::class, 'index']);
 Route::get('/listings/{id}', [\App\Http\Controllers\Api\ListingController::class, 'show']);
 Route::get('/sitemap/listings', [\App\Http\Controllers\Api\ListingController::class, 'sitemap']);
+
+// Public Demandes (Book Requests) Routes
+Route::get('/demandes', [\App\Http\Controllers\Api\OrderController::class, 'publicDemandes']);
 
 // Public Library (seller profile)
 Route::get('/profiles/{nickname}', [ProfileController::class, 'publicLibrary']);

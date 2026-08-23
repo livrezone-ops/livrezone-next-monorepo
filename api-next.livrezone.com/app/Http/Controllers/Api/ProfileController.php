@@ -258,5 +258,41 @@ class ProfileController extends Controller
             'profile' => $profile->fresh()->load('city'),
         ]);
     }
-}
+    public function getNotificationPreferences(Request $request): JsonResponse
+    {
+        $prefs = \App\Models\NotificationPreference::where('user_id', $request->user()->id)->get();
+        return response()->json(['preferences' => $prefs]);
+    }
 
+    public function updateNotificationPreferences(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'preferences' => 'required|array',
+            'preferences.*.notification_type' => 'required|string',
+            'preferences.*.channel' => 'required|string',
+            'preferences.*.is_enabled' => 'required|boolean',
+            'preferences.*.filters' => 'nullable|array',
+        ]);
+
+        $userId = $request->user()->id;
+
+        foreach ($validated['preferences'] as $pref) {
+            \App\Models\NotificationPreference::updateOrCreate(
+                [
+                    'user_id' => $userId,
+                    'notification_type' => $pref['notification_type'],
+                    'channel' => $pref['channel'],
+                ],
+                [
+                    'is_enabled' => $pref['is_enabled'],
+                    'filters' => $pref['filters'] ?? null,
+                ]
+            );
+        }
+
+        return response()->json([
+            'message' => 'Préférences mises à jour avec succès.',
+            'preferences' => \App\Models\NotificationPreference::where('user_id', $userId)->get()
+        ]);
+    }
+}

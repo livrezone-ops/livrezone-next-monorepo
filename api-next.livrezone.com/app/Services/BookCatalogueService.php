@@ -7,39 +7,90 @@ use Illuminate\Http\Request;
 
 class BookCatalogueService
 {
+    public function __construct(
+        protected ReferenceFilterService $filterService
+    ) {}
+
     /**
-     * Recherche publique sécurisée contre le scraping massif.
+     * Catalogue public : recherche + filtres + pagination DÉLEGÉS à Meilisearch.
+     *
+     * Meilisearch renvoie les IDs matchés (et le total estimé) sans scanner
+     * MySQL. On ne récupère depuis MySQL que les ~12 livres de la page.
      */
     public function search(Request $request)
     {
-        $limit = $request->integer('limit', 24);
-        $page = $request->integer('page', 1);
+        $limit = $request->integer('limit', 12);
+        if ($limit > 48) {
+            $limit = 48;
+        }
+        $page = max(1, $request->integer('page', 1));
 
-        // HARD CAP : Bloquer les requêtes au-delà de la page 20
-        // Cela empêche l'aspiration totale de la BDD via pagination profonde.
-        if ($page > 20) {
-            // Renvoie une collection vide formatée comme une pagination
-            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $limit, $page);
+        $search = trim($request->get('search', ''));
+        $field = $request->get('field', 'all');
+
+        // Source unique : Meilisearch (requête vide = toute la base).
+        $builder = Book::search($search);
+
+        // Recherche ciblée ISBN (précise via filtre), sinon full-text Meilisearch.
+        if ($search !== '' && $field === 'isbn') {
+            $builder->where('isbn_13', str_replace(['-', ' '], '', $search));
         }
 
-        if ($request->filled('search')) {
-            $search = $request->get('search');
-            // Recherche ultra-rapide via Meilisearch
-            $books = Book::search($search)->paginate($limit);
-        } else {
-            // S'il n'y a pas de recherche texte, on renvoie les derniers livres
-            $books = Book::latest('id')->paginate($limit);
+        // Filtres catégorie / langue / niveau (codes ou IDs résolus côté MySQL,
+        // petit volume ; le filtrage effectif se fait dans Meilisearch).
+        $categoryIds = $this->filterService->resolveCategoryIds($request, ['categories', 'category', 'category_id', 'c']);
+        if (!empty($categoryIds)) {
+            $builder->whereIn('default_category_id', $categoryIds);
         }
 
-        $books->getCollection()->transform(function ($book) {
-            if ($book->title) {
-                // On inclut les deux pour le frontend : la miniature pour la perf
-                // et l'original en fallback (assuré par le proxy web.php)
-                $book->setAppends(['cover_url', 'cover_thumbnail_url']);
-            }
-            return $book;
+        $languageIds = $this->filterService->resolveLanguageIds($request, ['languages', 'language', 'language_id', 'lang']);
+        if (!empty($languageIds)) {
+            $builder->whereIn('language_id', $languageIds);
+        }
+
+        $levelIds = $this->filterService->resolveLevelIds($request, ['levels', 'level', 'level_id']);
+        if (!empty($levelIds)) {
+            $builder->whereIn('default_level_id', $levelIds);
+        }
+
+        // Pagination via Meilisearch (total = estimatedTotalHits, aucun COUNT MySQL).
+        $paginated = $builder->paginate($limit, 'page', $page);
+
+        // Les ~12 livres sont hydratés par Scout depuis MySQL : on charge les
+        // relations et le comptage d'annonces (ordre Meilisearch préservé).
+        $paginated->getCollection()
+            ->load(['language', 'defaultCategory', 'defaultLevel']);
+
+        // Transformation en payload ultra-léger.
+        $paginated->getCollection()->transform(function ($book) {
+            $category = $book->defaultCategory;
+            $language = $book->language;
+            $level = $book->defaultLevel;
+
+            return [
+                'id' => $book->id,
+                'isbn_13' => $book->isbn_13,
+                'title' => $book->title,
+                'authors' => $book->authors,
+                'publisher' => $book->publisher,
+                'cover_url' => $book->cover_url,
+                'cover_thumbnail_url' => $book->getCoverThumbnailUrl(160),
+                'cover_thumbnail_url_320' => $book->getCoverThumbnailUrl(320),
+                'category' => $category ? [
+                    'id' => $category->id,
+                    'name_fr' => $category->name_fr ?? $category->name,
+                ] : null,
+                'language' => $language ? [
+                    'id' => $language->id,
+                    'name_fr' => $language->name_fr ?? $language->name,
+                ] : null,
+                'level' => $level ? [
+                    'id' => $level->id,
+                    'name_fr' => $level->name_fr ?? $level->name,
+                ] : null,
+            ];
         });
 
-        return $books;
+        return $paginated;
     }
 }

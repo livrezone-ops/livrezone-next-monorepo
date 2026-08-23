@@ -8,6 +8,20 @@ export interface BookSearchItem {
   publisher?: string | null;
   cover_url?: string | null;
   cover_thumbnail_url?: string | null;
+  cover_thumbnail_url_320?: string | null;
+  active_listings_count?: number;
+  category?: {
+    id: number;
+    name_fr: string;
+  } | null;
+  language?: {
+    id: number;
+    name_fr: string;
+  } | null;
+  level?: {
+    id: number;
+    name_fr: string;
+  } | null;
 }
 
 export interface BooksResult {
@@ -24,13 +38,34 @@ const API_BASE = (process.env.INTERNAL_API_URL
 
 export async function getBooks(query: {
   search?: string;
+  field?: string;
+  category_id?: string | number;
+  categories?: string[] | string;
+  languages?: string[] | string;
+  levels?: string[] | string;
   page?: number;
   limit?: number;
 }): Promise<BooksResult> {
   const params = new URLSearchParams();
   if (query.search) params.set("search", query.search);
+  if (query.field) params.set("field", query.field);
+  
+  if (query.categories) {
+    params.set("categories", Array.isArray(query.categories) ? query.categories.join(",") : query.categories);
+  } else if (query.category_id) {
+    params.set("categories", String(query.category_id));
+  }
+
+  if (query.languages) {
+    params.set("languages", Array.isArray(query.languages) ? query.languages.join(",") : query.languages);
+  }
+
+  if (query.levels) {
+    params.set("levels", Array.isArray(query.levels) ? query.levels.join(",") : query.levels);
+  }
+
   params.set("page", String(query.page || 1));
-  params.set("limit", String(query.limit || 24));
+  params.set("limit", String(query.limit || 12));
 
   const empty: BooksResult = {
     ok: false,

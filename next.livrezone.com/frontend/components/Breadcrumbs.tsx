@@ -13,6 +13,10 @@ export default function Breadcrumbs({
   items: BreadcrumbItem[];
   className?: string;
 }) {
+  const filteredItems = items.filter(
+    (item) => item.label.toLowerCase() !== "accueil" && item.href !== "/"
+  );
+
   return (
     <nav
       aria-label="Fil d'Ariane"
@@ -21,8 +25,8 @@ export default function Breadcrumbs({
       <Link href="/" className="hover:text-black transition-colors not-italic">
         Accueil
       </Link>
-      {items.map((item, index) => {
-        const isLast = index === items.length - 1;
+      {filteredItems.map((item, index) => {
+        const isLast = index === filteredItems.length - 1;
         return (
           <React.Fragment key={index}>
             <span className="not-italic text-gray-400">/</span>

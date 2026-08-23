@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { 
   Menu, X, Search, Heart, ShoppingCart, User, 
-  Settings, LogOut, MessageSquare, BookOpen, ShieldCheck
+  Settings, LogOut, MessageSquare, BookOpen, ShieldCheck,
+  Bell, CreditCard
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCommerce } from "@/lib/commerce-store";
@@ -28,6 +29,7 @@ const NAV_LABELS: Record<string, string> = {
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -72,11 +74,12 @@ export default function Header() {
   }, []);
 
   const navLinks = [
-    { label: "Annonces", href: "/annonces" },
-    ...CATEGORIES.map((c) => ({
-      label: NAV_LABELS[c.code] ?? c.name,
-      href: `/annonces?category=${c.code}`,
-    })),
+    { label: "Accueil", href: "/" },
+    { label: "Les livres en vente", href: "/annonces" },
+    { label: "Les librairies en ligne", href: "/librairies" },
+    { label: "Les demandes de livres", href: "/demandes" },
+    { label: "Référentiel des livres", href: "/books" },
+    { label: "Qui sommes nous", href: "/a-propos" },
   ];
 
   return (
@@ -215,6 +218,30 @@ export default function Header() {
                       <BookOpen className="h-4 w-4 text-gray-400" />
                       Mon espace
                     </Link>
+                    <Link 
+                      href="/dashboard/demandes" 
+                      onClick={() => setUserMenuOpen(false)}
+                      className="px-4 py-2.5 hover:bg-gray-50 hover:text-[#6D28D9] transition-colors flex items-center gap-2"
+                    >
+                      <Search className="h-4 w-4 text-gray-400" />
+                      Mes demandes
+                    </Link>
+                    <Link 
+                      href="/dashboard/notifications" 
+                      onClick={() => setUserMenuOpen(false)}
+                      className="px-4 py-2.5 hover:bg-gray-50 hover:text-[#6D28D9] transition-colors flex items-center gap-2"
+                    >
+                      <Bell className="h-4 w-4 text-gray-400" />
+                      Mes notifications
+                    </Link>
+                    <Link 
+                      href="/dashboard/paiements" 
+                      onClick={() => setUserMenuOpen(false)}
+                      className="px-4 py-2.5 hover:bg-gray-50 hover:text-[#6D28D9] transition-colors flex items-center gap-2"
+                    >
+                      <CreditCard className="h-4 w-4 text-gray-400" />
+                      Mes paiements
+                    </Link>
                     {user?.is_admin && (
                       <Link 
                         href="/admin" 
@@ -301,17 +328,24 @@ export default function Header() {
             </div>
             <nav className="flex-1 overflow-y-auto py-4">
               <ul className="flex flex-col text-[16px] sm:text-[17px] font-bold text-gray-900 tracking-tight">
-                {navLinks.map((link) => (
-                  <li key={link.label}>
-                    <Link 
-                      href={link.href} 
-                      onClick={() => setMenuOpen(false)}
-                      className="block px-6 py-4 hover:bg-violet-50 hover:text-[#6D28D9] transition-all border-l-4 border-transparent hover:border-[#6D28D9]"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
+                {navLinks.map((link) => {
+                  const isActive = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+                  return (
+                    <li key={link.label}>
+                      <Link 
+                        href={link.href} 
+                        onClick={() => setMenuOpen(false)}
+                        className={`block px-6 py-4 transition-all border-l-4 ${
+                          isActive
+                            ? "bg-violet-50 text-[#6D28D9] border-[#6D28D9] font-black"
+                            : "text-gray-900 border-transparent hover:bg-violet-50 hover:text-[#6D28D9]"
+                        }`}
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </nav>
             <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex gap-4 justify-center">
@@ -338,18 +372,29 @@ export default function Header() {
       {/* NAVIGATION DESKTOP BAR */}
       <nav className="hidden lg:block border-t border-gray-100 bg-white">
         <div className="w-[90%] max-w-7xl mx-auto">
-          <ul className="flex items-center justify-center gap-6 xl:gap-8 h-[56px] text-[15px] xl:text-[16px] font-bold text-gray-900 tracking-tight">
-            {navLinks.map((link) => (
-              <li key={link.label}>
-                <Link 
-                  href={link.href} 
-                  className="hover:text-[#6D28D9] transition-colors relative py-3 group whitespace-nowrap"
-                >
-                  {link.label}
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-[#6D28D9] transition-all duration-200 group-hover:w-full"></span>
-                </Link>
-              </li>
-            ))}
+          <ul className="flex items-center justify-center gap-6 xl:gap-8 h-[56px] text-[15px] xl:text-[16px] font-bold tracking-tight">
+            {navLinks.map((link) => {
+              const isActive = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+              return (
+                <li key={link.label}>
+                  <Link 
+                    href={link.href} 
+                    className={`transition-colors relative py-3 group whitespace-nowrap ${
+                      isActive
+                        ? "text-[#6D28D9] font-black"
+                        : "text-gray-900 hover:text-[#6D28D9]"
+                    }`}
+                  >
+                    {link.label}
+                    <span 
+                      className={`absolute bottom-0 left-0 h-0.5 bg-[#6D28D9] transition-all duration-200 ${
+                        isActive ? "w-full" : "w-0 group-hover:w-full"
+                      }`}
+                    />
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </nav>

@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { BookOpen, ArrowLeft } from "lucide-react";
+import { BookOpen, ArrowLeft, Layers } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import OrderBookButton from "./OrderBookButton";
 
 export const revalidate = 60;
 
@@ -13,7 +14,7 @@ const API_BASE = (process.env.INTERNAL_API_URL
 
 async function getBookDetails(slug: string) {
   // Extract ID or ISBN from the slug (e.g., 42-978123-harry-potter -> 42)
-  const identifier = slug.split('-')[0];
+  const identifier = slug.split("-")[0];
   if (!identifier) return null;
 
   try {
@@ -40,7 +41,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!book) return { title: "Livre introuvable | LivreZone" };
 
   const title = `${book.title} | LivreZone`;
-  const description = `Découvrez les annonces pour le livre ${book.title}${book.authors ? ` de ${book.authors}` : ''} sur LivreZone Maroc.`;
+  const description = `Découvrez les annonces pour le livre ${book.title}${book.authors ? ` de ${book.authors}` : ""} sur LivreZone Maroc.`;
 
   return {
     title,
@@ -55,33 +56,40 @@ export default async function BookDetailsPage({ params }: PageProps) {
 
   if (!book) return notFound();
 
-  return (
-    <div className="w-[90%] max-w-7xl mx-auto py-8">
-      <Breadcrumbs items={[
-        { label: "Catalogue des livres", href: "/books" },
-        { label: book.title || "Détails" }
-      ]} />
+  const listingsCount = book.active_listings_count ?? 0;
 
-      <Link href="/books" className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-black mb-8 transition-colors">
+  return (
+    <div className="w-[92%] max-w-6xl mx-auto py-8">
+      <Breadcrumbs
+        items={[
+          { label: "Catalogue des livres", href: "/books" },
+          { label: book.title || "Détails" },
+        ]}
+      />
+
+      <Link
+        href="/books"
+        className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-black mb-6 transition-colors"
+      >
         <ArrowLeft className="w-4 h-4" />
         Retour au catalogue
       </Link>
 
-      <div className="bg-white border border-gray-100 rounded-2xl p-6 sm:p-10 shadow-sm flex flex-col md:flex-row gap-10">
+      <div className="bg-white border border-gray-100 rounded-2xl p-6 sm:p-8 shadow-xs flex flex-col md:flex-row gap-8">
         {/* Colonne Image */}
-        <div className="w-full md:w-1/3 max-w-sm shrink-0 mx-auto md:mx-0">
-          <div className="relative w-full pb-[140%] overflow-hidden rounded-xl bg-gray-50 border border-gray-100">
-            {(book.cover_thumbnail_url || book.cover_url) ? (
+        <div className="w-full md:w-1/3 max-w-xs shrink-0 mx-auto md:mx-0">
+          <div className="relative w-full pb-[135%] overflow-hidden rounded-xl bg-gray-50 border border-gray-100">
+            {book.cover_thumbnail_url || book.cover_url ? (
               <Image
                 src={book.cover_thumbnail_url || book.cover_url || ""}
                 alt={book.title || ""}
                 fill
-                className="object-contain p-4 shadow-xs"
+                className="object-contain p-4"
                 unoptimized
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-                <BookOpen className="w-24 h-24 stroke-1" />
+                <BookOpen className="w-20 h-20 stroke-1" />
               </div>
             )}
           </div>
@@ -89,59 +97,76 @@ export default async function BookDetailsPage({ params }: PageProps) {
 
         {/* Colonne Détails */}
         <div className="flex-1 min-w-0 flex flex-col">
-          <h1 className="text-3xl sm:text-4xl font-black text-gray-900 mb-2 leading-tight">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            {listingsCount > 0 ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-full">
+                <Layers className="w-3.5 h-3.5" />
+                {listingsCount} {listingsCount > 1 ? "annonces disponibles" : "annonce disponible"}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold rounded-full">
+                0 annonce en vente actuellement
+              </span>
+            )}
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mb-2 leading-tight">
             {book.title}
           </h1>
-          
+
           {book.authors && (
-            <p className="text-lg text-gray-600 mb-6">
-              De <span className="font-bold text-gray-800">{book.authors}</span>
+            <p className="text-sm sm:text-base text-gray-600 mb-6">
+              De <span className="font-bold text-gray-800">{Array.isArray(book.authors) ? book.authors.join(", ") : book.authors}</span>
             </p>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 bg-gray-50 p-5 rounded-xl border border-gray-100">
+          <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 mb-6 bg-gray-50/70 p-4 rounded-xl border border-gray-100">
             {book.isbn_13 && (
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">ISBN-13</p>
-                <p className="text-sm font-mono text-gray-900">{book.isbn_13}</p>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">ISBN-13</p>
+                <p className="text-xs sm:text-sm font-mono text-gray-900 font-semibold">{book.isbn_13}</p>
               </div>
             )}
             {book.publisher && (
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Éditeur</p>
-                <p className="text-sm text-gray-900">{book.publisher}</p>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Éditeur</p>
+                <p className="text-xs sm:text-sm text-gray-900 font-semibold">{book.publisher}</p>
               </div>
             )}
             {book.publication_date && (
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Date de publication</p>
-                <p className="text-sm text-gray-900">{new Date(book.publication_date).toLocaleDateString('fr-FR')}</p>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Date de publication</p>
+                <p className="text-xs sm:text-sm text-gray-900">{new Date(book.publication_date).toLocaleDateString("fr-FR")}</p>
               </div>
             )}
             {book.page_count && (
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Nombre de pages</p>
-                <p className="text-sm text-gray-900">{book.page_count} pages</p>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Pages</p>
+                <p className="text-xs sm:text-sm text-gray-900">{book.page_count} pages</p>
               </div>
             )}
           </div>
 
           {book.description && (
-            <div className="mb-8">
-              <h2 className="text-lg font-bold text-gray-900 mb-3">Résumé</h2>
-              <p className="text-gray-600 leading-relaxed text-sm sm:text-base whitespace-pre-line">
+            <div className="mb-6">
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-2">Résumé</h2>
+              <p className="text-gray-600 leading-relaxed text-xs sm:text-sm whitespace-pre-line max-h-48 overflow-y-auto pr-2">
                 {book.description}
               </p>
             </div>
           )}
 
-          <div className="mt-auto pt-6 border-t border-gray-100 flex flex-col sm:flex-row gap-4">
+          {/* Boutons d'action standards */}
+          <div className="mt-auto pt-6 border-t border-gray-100 flex flex-wrap items-center gap-3">
             <Link
               href={`/annonces?search=${encodeURIComponent(book.isbn_13 || book.title)}`}
-              className="flex-1 bg-[#1a0a40] hover:bg-[#6D28D9] text-white text-center font-bold py-4 px-6 rounded-xl transition-all shadow-sm"
+              className="px-4 py-2.5 bg-[#1a0a40] hover:bg-[#6D28D9] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5"
             >
-              Voir les annonces pour ce livre
+              <Layers className="w-4 h-4" />
+              Voir les annonces ({listingsCount})
             </Link>
+
+            <OrderBookButton bookId={book.id} />
           </div>
         </div>
       </div>
