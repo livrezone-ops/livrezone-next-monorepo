@@ -5,13 +5,15 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Search, Plus, Sparkles, ChevronLeft, ChevronRight, 
-  X, BookOpen, LayoutGrid, List as ListIcon 
+  X, BookOpen, LayoutGrid, List as ListIcon, Lock, Loader2 
 } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import DemandCard, { DemandItem } from "@/components/DemandCard";
 import FilterSidebar from "@/components/FilterSidebar";
 import type { CityRef } from "@/lib/listings-api";
 import { parseFilters, buildFilterQuery } from "@/lib/listings-filters";
+import api from "@/lib/axios";
+import { useAuth } from "@/hooks/useAuth";
 
 interface DemandesClientProps {
   initialDemandes: DemandItem[];
@@ -19,6 +21,12 @@ interface DemandesClientProps {
   initialPage: number;
   initialLastPage: number;
   initialSearch: string;
+  initialFacets?: {
+    categories?: Record<string, number>;
+    languages?: Record<string, number>;
+    cities?: Record<string, number>;
+  };
+  initialCanViewDemandes?: boolean;
   cities: CityRef[];
 }
 
@@ -28,10 +36,13 @@ export default function DemandesClient({
   initialPage,
   initialLastPage,
   initialSearch,
+  initialFacets,
+  initialCanViewDemandes = false,
   cities,
 }: DemandesClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAuthenticated } = useAuth();
 
   const [demandes, setDemandes] = useState<DemandItem[]>(initialDemandes);
   const [total, setTotal] = useState(initialTotal);
@@ -39,16 +50,60 @@ export default function DemandesClient({
   const [lastPage, setLastPage] = useState(initialLastPage);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [view, setView] = useState<"grid" | "list">("list");
+  const [canViewDemandes, setCanViewDemandes] = useState(initialCanViewDemandes);
+  const [clientLoaded, setClientLoaded] = useState(false);
 
   const filters = parseFilters((key) => searchParams.get(key));
 
+  // Synchronisation depuis le rendu serveur (visiteurs non authentifiés).
+  // Les utilisateurs connectés sont servis côté client (voir effet ci-dessous)
+  // afin de refléter leur abonnement réel via le flag can_view_demandes.
   useEffect(() => {
+    if (isAuthenticated) return;
     setDemandes(initialDemandes);
     setTotal(initialTotal);
     setPage(initialPage);
     setLastPage(initialLastPage);
     setSearchTerm(initialSearch);
-  }, [initialDemandes, initialTotal, initialPage, initialLastPage, initialSearch]);
+    setCanViewDemandes(initialCanViewDemandes);
+  }, [initialDemandes, initialTotal, initialPage, initialLastPage, initialSearch, initialCanViewDemandes, isAuthenticated]);
+
+  // Récupération côté client pour les utilisateurs connectés : la visibilité
+  // des demandes dépend de l'abonnement, connu uniquement via un appel authentifié.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let active = true;
+
+    const params: Record<string, string> = {
+      page: String(filters.page),
+      limit: "12",
+    };
+    if (filters.search) params.search = filters.search;
+    if (filters.categories.length) params.category = filters.categories.join(",");
+    if (filters.cities.length) params.city = filters.cities.join(",");
+    if (filters.languages.length) params.language = filters.languages.join(",");
+
+    api.get("/demandes", { params })
+      .then((res) => {
+        if (!active) return;
+        const d = res.data ?? {};
+        setDemandes(d.data ?? []);
+        setTotal(d.total ?? 0);
+        setPage(d.current_page ?? filters.page);
+        setLastPage(d.last_page ?? 1);
+        setCanViewDemandes(Boolean(d.can_view_demandes));
+      })
+      .catch(() => {
+        if (active) setDemandes([]);
+      })
+      .finally(() => {
+        if (active) setClientLoaded(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated, searchParams]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,6 +236,7 @@ export default function DemandesClient({
         {/* Sidebar des filtres */}
         <FilterSidebar
           cities={cities}
+          facets={initialFacets}
           sections={["categories", "languages", "cities"]}
           basePath="/demandes"
         />
@@ -231,7 +287,38 @@ export default function DemandesClient({
             </div>
           </div>
 
-          {demandes.length > 0 ? (
+          {isAuthenticated && !clientLoaded ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="animate-spin h-8 w-8 text-[#6D28D9]" />
+            </div>
+          ) : !canViewDemandes ? (
+            <div className="bg-white border border-gray-150 rounded-2xl p-12 text-center shadow-xs">
+              <div className="w-16 h-16 bg-violet-50 text-[#6D28D9] rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Lock className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-black text-gray-900 mb-2">Demandes réservées aux abonnés</h3>
+              <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto mb-6">
+                Passez à Pro ou Premium pour consulter les demandes de livres de la communauté et vendre plus vite.
+              </p>
+              <div className="flex flex-wrap justify-center gap-3">
+                <Link
+                  href="/tarification"
+                  className="px-5 py-2.5 bg-[#6D28D9] text-white rounded-xl font-bold text-xs hover:bg-violet-800 transition-all shadow-xs flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Voir les offres
+                </Link>
+                {!isAuthenticated && (
+                  <Link
+                    href="/login"
+                    className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-200 transition-colors"
+                  >
+                    Se connecter
+                  </Link>
+                )}
+              </div>
+            </div>
+          ) : demandes.length > 0 ? (
             <>
               {/* Grille ou Liste de DemandCard */}
               {view === "grid" ? (

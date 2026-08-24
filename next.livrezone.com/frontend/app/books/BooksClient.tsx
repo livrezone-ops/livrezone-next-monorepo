@@ -27,6 +27,11 @@ interface BooksClientProps {
   cities: CityRef[];
   sections?: BookSection[];
   isDefaultView?: boolean;
+  initialFacets?: {
+    categories?: Record<string, number>;
+    languages?: Record<string, number>;
+    levels?: Record<string, number>;
+  };
 }
 
 export default function BooksClient({
@@ -38,6 +43,7 @@ export default function BooksClient({
   cities,
   sections = [],
   isDefaultView = false,
+  initialFacets,
 }: BooksClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -336,6 +342,7 @@ export default function BooksClient({
           cities={cities}
           sections={["categories", "languages", "levels"]}
           basePath="/books"
+          facets={initialFacets}
         />
 
         {/* Contenu principal */}

@@ -262,7 +262,7 @@ class ProfileController extends Controller
     }
     public function getNotificationPreferences(Request $request): JsonResponse
     {
-        $prefs = \App\Models\NotificationPreference::where('user_id', $request->user()->id)->get();
+        $prefs = app(\App\Services\NotificationPreferenceService::class)->getForUser($request->user()->id);
         return response()->json(['preferences' => $prefs]);
     }
 
@@ -270,31 +270,72 @@ class ProfileController extends Controller
     {
         $validated = $request->validate([
             'preferences' => 'required|array',
-            'preferences.*.notification_type' => 'required|string',
-            'preferences.*.channel' => 'required|string',
+            'preferences.*.notification_type' => 'required|string|in:' . implode(',', \App\Services\NotificationPreferenceService::ALLOWED_TYPES),
+            'preferences.*.channel' => 'required|string|in:' . implode(',', \App\Services\NotificationPreferenceService::ALLOWED_CHANNELS),
             'preferences.*.is_enabled' => 'required|boolean',
             'preferences.*.filters' => 'nullable|array',
         ]);
 
-        $userId = $request->user()->id;
-
-        foreach ($validated['preferences'] as $pref) {
-            \App\Models\NotificationPreference::updateOrCreate(
-                [
-                    'user_id' => $userId,
-                    'notification_type' => $pref['notification_type'],
-                    'channel' => $pref['channel'],
-                ],
-                [
-                    'is_enabled' => $pref['is_enabled'],
-                    'filters' => $pref['filters'] ?? null,
-                ]
-            );
-        }
+        $prefs = app(\App\Services\NotificationPreferenceService::class)
+            ->updateForUser($request->user()->id, $validated['preferences']);
 
         return response()->json([
             'message' => 'Préférences mises à jour avec succès.',
-            'preferences' => \App\Models\NotificationPreference::where('user_id', $userId)->get()
+            'preferences' => $prefs
         ]);
+    }
+
+    /**
+     * Génère un token de liaison Telegram et renvoie le deep link /start <token>.
+     */
+    public function generateTelegramLink(Request $request): JsonResponse
+    {
+        if (! config('services.telegram.enabled', false)) {
+            return response()->json(['message' => 'La liaison Telegram est désactivée.'], 422);
+        }
+
+        $botUsername = config('services.telegram.bot_username');
+        if (! $botUsername) {
+            return response()->json(['message' => 'Configuration Telegram incomplète.'], 422);
+        }
+
+        $profile = $request->user()->profile;
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profil introuvable.'], 404);
+        }
+
+        $token = Str::random(40);
+        $profile->update([
+            'telegram_link_token' => $token,
+            'telegram_link_token_expires_at' => now()->addMinutes(30),
+        ]);
+
+        return response()->json([
+            'linked' => ! empty($profile->telegram_id),
+            'deep_link' => "https://t.me/{$botUsername}?start={$token}",
+            'token_expires_at' => $profile->telegram_link_token_expires_at?->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Retire la liaison Telegram du profil courant.
+     */
+    public function unlinkTelegram(Request $request): JsonResponse
+    {
+        $profile = $request->user()->profile;
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profil introuvable.'], 404);
+        }
+
+        $profile->update([
+            'telegram_id' => null,
+            'telegram_link_token' => null,
+            'telegram_link_token_expires_at' => null,
+            'telegram_linked_at' => null,
+        ]);
+
+        return response()->json(['message' => 'Telegram délié avec succès.', 'linked' => false]);
     }
 }

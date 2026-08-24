@@ -12,7 +12,7 @@ use App\Services\ImageUploadService;
 use App\Services\ListingProcessorService;
 use App\Services\BookDataFetcherService;
 use App\Services\ListingValidationService;
-use App\Services\TelegramNotificationService;
+use App\Services\SubscriptionService;
 
 class ListingManagerController extends Controller
 {
@@ -20,8 +20,7 @@ class ListingManagerController extends Controller
         protected ImageUploadService $imageUploadService,
         protected ListingProcessorService $listingProcessorService,
         protected BookDataFetcherService $bookDataFetcherService,
-        protected ListingValidationService $validationService,
-        protected TelegramNotificationService $telegramService
+        protected ListingValidationService $validationService
     ) {}
 
     public function show(Request $request, Listing $listing)
@@ -41,20 +40,12 @@ class ListingManagerController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
-        $promoProFree = filter_var(env('PROMO_PRO_FREE', false), FILTER_VALIDATE_BOOLEAN);
-        $maxFreeListings = (int) env('MAX_FREE_LISTINGS', 25);
-        $subscriptionType = $user->profile->subscription_type ?? 'free';
-        
-        if (!$promoProFree && $subscriptionType === 'free') {
-            $activeCount = Listing::where('user_id', $user->id)
-                                  ->whereIn('status', ['published', 'pending_admin', 'pending_stock'])
-                                  ->count();
-            
-            if ($activeCount >= $maxFreeListings) {
-                return response()->json([
-                    'message' => "Vous avez atteint la limite de {$maxFreeListings} annonces gratuites. Veuillez passer à l'offre Pro pour publier sans limites."
-                ], 403);
-            }
+        $subscriptionService = app(SubscriptionService::class);
+
+        if ($subscriptionService->hasReachedListingLimit($user->profile)) {
+            return response()->json([
+                'message' => "Vous avez atteint la limite de {$subscriptionService->getMaxListings($user->profile)} annonces gratuites. Veuillez passer à l'offre Pro pour publier sans limites."
+            ], 403);
         }
 
         $validated = $this->validateListing($request);
@@ -137,7 +128,7 @@ class ListingManagerController extends Controller
         $listing = Listing::create($payload);
 
         try {
-            $this->telegramService->sendNewListingNotification($listing);
+            app(\App\Services\TelegramNotificationService::class)->notifyAdminNewListing($listing);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Erreur envoi Telegram: ' . $e->getMessage());
         }
@@ -258,7 +249,7 @@ class ListingManagerController extends Controller
 
         if ($oldStatus === 'published' && $status === 'pending_admin') {
             try {
-                $this->telegramService->sendNewListingNotification($listing);
+                app(\App\Services\TelegramNotificationService::class)->notifyAdminNewListing($listing);
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Erreur envoi Telegram update: ' . $e->getMessage());
             }

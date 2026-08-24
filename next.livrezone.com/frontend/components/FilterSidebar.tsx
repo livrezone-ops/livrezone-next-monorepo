@@ -134,13 +134,15 @@ export default function FilterSidebar({
   const cityDropdownRef = useRef<HTMLDivElement>(null);
 
   const sortedLanguages = useMemo(() => {
-    return [...LANGUAGES].map(lang => ({
+    return LANGUAGES.map(lang => ({
       ...lang,
       count: facets?.languages?.[lang.code] || 0
-    })).sort((a, b) => {
-      if (b.count !== a.count) return b.count - a.count;
-      return a.code.localeCompare(b.code);
-    });
+    }))
+      .filter((lang) => lang.count > 0)
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.id - b.id;
+      });
   }, [facets?.languages]);
 
   const conditionsWithCount = useMemo(() => {

@@ -85,6 +85,8 @@ export default async function DemandesPage({ searchParams }: PageProps) {
       initialPage={demandesRes.current_page || 1}
       initialLastPage={demandesRes.last_page || 1}
       initialSearch={f.search}
+      initialFacets={demandesRes.facets || {}}
+      initialCanViewDemandes={Boolean(demandesRes.can_view_demandes)}
       cities={cities}
     />
   );

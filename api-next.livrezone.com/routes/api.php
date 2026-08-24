@@ -16,11 +16,18 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\HeroController;
 use App\Http\Controllers\Api\LibraryController;
 
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\TelegramWebhookController;
+
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     $user = $request->user()->load('profile');
     $user->is_online = $user->isOnline();
+    $user->unread_notifications_count = $user->notifications()->whereNull('read_at')->count();
     return $user;
 });
+
+// Webhook Telegram public (liaison via /start <token>)
+Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
 
 Route::prefix('auth')->group(function () {
     Route::get('/redirect/{provider}', [SocialAuthController::class, 'redirect']);
@@ -54,6 +61,14 @@ Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
     Route::post('/password', [AuthController::class, 'updatePassword']);
     Route::get('/notifications', [ProfileController::class, 'getNotificationPreferences']);
     Route::post('/notifications', [ProfileController::class, 'updateNotificationPreferences']);
+    Route::get('/telegram/link', [ProfileController::class, 'generateTelegramLink']);
+    Route::post('/telegram/unlink', [ProfileController::class, 'unlinkTelegram']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
 });
 
 Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
@@ -118,6 +133,7 @@ Route::get('/hero-messages', [HeroController::class, 'index']);
 Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
     Route::get('/users', [AdminController::class, 'users']);
     Route::post('/users/{user}/status', [AdminController::class, 'updateUserStatus']);
+    Route::post('/users/{user}/subscription', [AdminController::class, 'updateUserSubscription']);
 
     Route::get('/listings', [AdminController::class, 'listings']);
     Route::post('/listings/bulk-status', [AdminController::class, 'bulkListingStatus']);

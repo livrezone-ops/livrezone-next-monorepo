@@ -35,6 +35,11 @@ class User extends Authenticatable
         return $this->hasOne(Profile::class);
     }
 
+    public function notificationPreferences()
+    {
+        return $this->hasMany(NotificationPreference::class);
+    }
+
     // Un utilisateur est considéré « en ligne » si sa dernière ACTIVITÉ
     // (heartbeat sur les routes API authentifiées) remonte à moins de
     // ONLINE_WINDOW_SECONDS (5 minutes par défaut). Repli sur last_login_at

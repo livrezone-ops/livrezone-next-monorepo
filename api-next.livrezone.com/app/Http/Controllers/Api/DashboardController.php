@@ -143,12 +143,10 @@ class DashboardController extends Controller
         $newListing->deleted_at = null;
         $newListing->save();
 
-        if ($status === 'pending_admin') {
-            try {
-                app(\App\Services\TelegramNotificationService::class)->sendNewListingNotification($newListing);
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Erreur envoi Telegram republish: ' . $e->getMessage());
-            }
+        try {
+            app(\App\Services\TelegramNotificationService::class)->notifyAdminNewListing($newListing);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Erreur envoi Telegram republish: ' . $e->getMessage());
         }
 
         $message = ($status === 'published')

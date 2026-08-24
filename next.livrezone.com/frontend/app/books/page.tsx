@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getBooks, BookSearchItem } from "@/lib/books-api";
+import { getBooks, BookSearchItem, type BooksResult } from "@/lib/books-api";
 import { getReferenceData } from "@/lib/listings-api";
 import { parseFilters } from "@/lib/listings-filters";
 import BooksClient from "./BooksClient";
@@ -79,7 +79,8 @@ export default async function LivresPage({ searchParams }: PageProps) {
 
   // 1. Fetching logic
   let sections: BookSection[] = [];
-  let result = {
+  let facets: BooksResult['facets'];
+  let result: BooksResult = {
     ok: true,
     data: [] as BookSearchItem[],
     total: 0,
@@ -97,6 +98,7 @@ export default async function LivresPage({ searchParams }: PageProps) {
       const res = await getBooks({
         categories: cat.code,
         limit: 12, // Nombre de livres dans le slider horizontal
+        facets: false, // Les facettes sont récupérées une seule fois ci-dessous
       });
       return {
         code: cat.code,
@@ -104,8 +106,12 @@ export default async function LivresPage({ searchParams }: PageProps) {
         books: res.data || [],
       };
     });
-    const resolvedSections = await Promise.all(sectionPromises);
+    const [resolvedSections, facetsRes] = await Promise.all([
+      Promise.all(sectionPromises),
+      getBooks({ limit: 1 }), // Récupère les facettes du catalogue complet
+    ]);
     sections = resolvedSections.filter((s) => s.books.length > 0);
+    facets = facetsRes.facets;
   } else {
     // Mode Recherche / Filtre : pagination classique
     result = await getBooks({
@@ -116,6 +122,7 @@ export default async function LivresPage({ searchParams }: PageProps) {
       page: f.page,
       limit: 12,
     });
+    facets = result.facets;
   }
 
   const jsonLdItemList =
@@ -142,6 +149,7 @@ export default async function LivresPage({ searchParams }: PageProps) {
         cities={refData.cities || []}
         sections={sections}
         isDefaultView={isDefaultView}
+        initialFacets={facets}
       />
 
       {jsonLdItemList && (

@@ -1,0 +1,227 @@
+============================================================
+RESUME DIAGNOSTIC LIVREZONE
+Date : 23/08/2026
+============================================================
+
+OBJECTIF INITIAL
+----------------
+Comprendre les lenteurs observées sur :
+- /librairies : 2,7 à 3,6 s
+- /books : parfois jusqu'à 5 s
+- /api/reference-data : pic observé à 11 s
+
+Hypothèse initiale :
+- SSR Next.js lent
+- ou passage inutile par Cloudflare
+- ou problème Redis/MariaDB
+
+============================================================
+ARCHITECTURE CONFIRMEE
+============================================================
+
+Deux moteurs Docker distincts :
+
+1) Docker principal (root)
+--------------------------
+Conteneur frontend :
+- livrezone-next
+- Port 3000
+- Réseau bridge (172.17.x.x)
+
+VARIABLES :
+- INTERNAL_API_URL=https://api-next.livrezone.com
+- NODE_TLS_REJECT_UNAUTHORIZED=0
+
+2) Docker rootless (utilisateur livrezone)
+------------------------------------------
+Conteneurs :
+- Apache
+- PHP-FPM
+- MariaDB
+- Redis
+- Reverb
+
+Réseau applicatif :
+- livrezone_www
+
+Apache :
+- Nom Docker : 53c1a1666b5f_apache
+- IP réseau : 172.19.0.2
+
+============================================================
+TESTS RESEAU
+============================================================
+
+Depuis php-fpm :
+
+curl http://53c1a1666b5f_apache/api/books?limit=1
+
+Résultat :
+- HTTP 200
+- ~0,04 s
+
+Conclusion :
+- Apache interne répond très vite.
+- La cible HTTP correcte est :
+  http://53c1a1666b5f_apache
+
+============================================================
+MIGRATION TEST EFFECTUEE
+============================================================
+
+Image chargée dans le Docker rootless :
+
+livrezone-next:latest
+
+Conteneur test lancé :
+- livrezone-next-test
+- réseau : livrezone_www
+- port : 3001
+
+MAIS :
+
+La variable INTERNAL_API_URL a été polluée par du HTML lors du copier-coller :
+
+INTERNAL_API_URL=...http://53c1a1666b5f_apache</a>
+
+Le test rootless n'est donc PAS valide pour juger l'architecture finale.
+
+============================================================
+DECOUVERTE IMPORTANTE
+============================================================
+
+Depuis le conteneur de production :
+
+docker exec livrezone-next getent hosts api-next.livrezone.com
+
+Résultat :
+
+192.168.1.202 api-next.livrezone.com
+
+Conclusion :
+
+Le domaine api-next.livrezone.com est résolu vers une IP privée LAN.
+
+Donc l'hypothèse :
+
+"Next sort vers Internet puis revient par Cloudflare"
+
+n'est PAS démontrée.
+
+============================================================
+MESURES ACTUELLES
+============================================================
+
+PRODUCTION :
+
+curl http://127.0.0.1:3000/librairies
+
+Résultat :
+~0,038 s
+
+curl http://127.0.0.1:3000/books
+
+Résultat :
+~0,073 s
+
+TEST ROOTLESS :
+
+/librairies :
+~0,084 s
+
+/books :
+entre ~0,19 et ~1,09 s selon les essais
+
+============================================================
+CONSTAT PRINCIPAL
+============================================================
+
+Au moment des mesures :
+
+- SSR extrêmement rapide
+- aucune lenteur reproductible
+- aucun symptôme de 2 à 5 secondes
+- impossible actuellement d'attribuer les lenteurs à :
+  - Cloudflare
+  - SSR
+  - Docker
+  - Next.js
+
+============================================================
+CADDY
+============================================================
+
+Configuration trouvée :
+
+/etc/openpanel/caddy/domains/next.livrezone.com.conf
+
+Reverse proxy actuel :
+
+reverse_proxy http://127.0.0.1:3000
+
+Conclusion :
+
+La bascule vers un nouveau conteneur serait facile :
+il suffirait de continuer à fournir un service sur
+127.0.0.1:3000.
+
+============================================================
+ELEMENTS NON RESOLUS
+============================================================
+
+Le point le plus suspect reste :
+
+/api/reference-data
+=> pic historique observé à 11 s
+
+Un tel comportement peut être lié à :
+
+- Redis
+- MariaDB
+- cache Laravel
+- reconstruction de cache
+- requête SQL lente
+- contention temporaire
+
+Aucune preuve actuelle contre :
+- Redis
+- MariaDB
+
+============================================================
+ETAT FINAL DU DOSSIER
+============================================================
+
+CONFIRME :
+✓ Deux daemons Docker distincts
+✓ Apache interne très rapide (~40 ms)
+✓ Frontend actuellement très rapide
+✓ Caddy pointe sur 127.0.0.1:3000
+✓ api-next.livrezone.com résout vers 192.168.1.202
+✓ Les lenteurs ne sont plus reproductibles
+
+NON CONFIRME :
+✗ Cloudflare responsable
+✗ SSR responsable
+✗ Manque RAM
+✗ Manque CPU
+✗ Docker responsable
+
+POINT LE PLUS SUSPECT A SURVEILLER :
+→ /api/reference-data
+→ Redis
+→ MariaDB
+→ cache Laravel
+
+RECOMMANDATION
+--------------
+Ne pas migrer en production tant que le problème n'est plus reproductible.
+Conserver la procédure de migration prête.
+Lors de la prochaine apparition des lenteurs, mesurer immédiatement :
+- /api/reference-data
+- Redis
+- MariaDB
+- logs Laravel
+- charge système
+
+afin d'identifier la véritable cause.
+============================================================

@@ -11,6 +11,19 @@ class Order extends Model
 {
     use HasFactory, Searchable;
 
+    public function searchableAs(): string
+    {
+        return 'orders';
+    }
+
+    /**
+     * Seules les demandes publiées sont indexées dans l'annuaire public.
+     */
+    public function shouldBeSearchable(): bool
+    {
+        return $this->status === 'published';
+    }
+
     /**
      * Get the indexable data array for the model.
      *
@@ -24,6 +37,11 @@ class Order extends Model
             'author' => $this->author,
             'isbn' => $this->isbn,
             'comment' => $this->comment,
+            'status' => $this->status,
+            'category_id' => (int) $this->category_id,
+            'city_id' => (int) ($this->user?->profile?->city_id),
+            'language_id' => (int) ($this->book?->language_id),
+            'published_at' => $this->published_at?->timestamp,
         ];
     }
 

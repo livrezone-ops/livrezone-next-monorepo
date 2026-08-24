@@ -27,7 +27,14 @@ class ReferenceDataService
                 ->get();
                 
             $tree = $this->buildTree($categories, null);
-            
+
+            // 1b. Catégories parentes (L1) à plat, pour le filtre de notifications
+            $parentCategories = Category::whereNull('parent_id')
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get(['id', 'name_fr'])
+                ->toArray();
+
             // 2. Langues
             $languages = Language::where('is_active', true)
                 ->orderBy('name_fr')
@@ -46,17 +53,19 @@ class ReferenceDataService
             // 4. Villes
             $cities = City::orderBy('name')->get(['id', 'name'])->toArray();
 
-            // 5. Pricing / Configuration
+            // 5. Pricing / Configuration (délégué à SubscriptionService)
+            $subscription = app(SubscriptionService::class);
             $pricing = [
-                'max_free_listings' => (int) env('MAX_FREE_LISTINGS', 25),
-                'pro_price' => (float) env('PRO_PRICE', 30),
-                'premium_price' => (float) env('PREMIUM_PRICE', 50),
-                'promo_pro_free' => env('PROMO_PRO_FREE', false) === 'true' || env('PROMO_PRO_FREE', false) === true,
-                'pro_notification_delay_hours' => (int) env('PRO_NOTIFICATION_DELAY_HOURS', 3),
+                'max_free_listings' => $subscription->getMaxFreeListings(),
+                'pro_price' => $subscription->getProPrice(),
+                'premium_price' => $subscription->getPremiumPrice(),
+                'promo_pro_free' => $subscription->isPromoProFree(),
+                'pro_notification_delay_hours' => $subscription->getNotificationDelayHours(),
             ];
 
             return [
                 'categories' => $tree,
+                'parent_categories' => $parentCategories,
                 'languages' => $languages,
                 'levels' => $levels,
                 'cities' => $cities,

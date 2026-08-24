@@ -36,6 +36,7 @@ interface AdminUser {
   profile: {
     nickname?: string | null;
     logo?: string | null;
+    subscription_type?: string | null;
   } | null;
   listings_count: number;
   last_login_at?: string | null;
@@ -77,7 +78,7 @@ interface HeroMessage {
 }
 
 interface AdminClientProps {
-  user: { name: string; email: string; is_admin: boolean };
+  user: { id: number; name: string; email: string; is_admin: boolean };
   initialTab?: "users" | "listings" | "hero";
   initialListingsFilter?: string;
 }
@@ -159,7 +160,7 @@ export default function AdminClient({
         ))}
       </div>
 
-      {activeTab === "users" && <UsersTab pushToast={pushToast} />}
+      {activeTab === "users" && <UsersTab pushToast={pushToast} currentUserId={user.id} />}
       {activeTab === "listings" && <ListingsTab pushToast={pushToast} initialFilter={initialListingsFilter} />}
       {activeTab === "hero" && <HeroTab pushToast={pushToast} />}
 
@@ -172,13 +173,37 @@ export default function AdminClient({
 // Onglet Utilisateurs
 // ==================================================================
 
-function UsersTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void }) {
+function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: ToastType) => void; currentUserId?: number }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [connection, setConnection] = useState("all");
   const [page, setPage] = useState(1);
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
+
+  const subscriptionMutation = useMutation({
+    mutationFn: async ({ id, type }: { id: number; type: string }) => {
+      const { data } = await api.post(`/admin/users/${id}/subscription`, { subscription_type: type });
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "users"] }),
+  });
+
+  const changeSubscription = (id: number, type: string) => {
+    if (pendingIds.has(id)) return;
+    setPendingIds((prev) => new Set(prev).add(id));
+    subscriptionMutation
+      .mutateAsync({ id, type })
+      .then((res) => pushToast(res?.message || "Profil d'abonnement mis à jour"))
+      .catch((e) => pushToast(getApiErrorMessage(e, "Erreur lors de la mise à jour."), "warning"))
+      .finally(() => {
+        setPendingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      });
+  };
 
   const params: Record<string, string | number> = { limit: PAGE_SIZE, page };
   if (search.trim()) params.search = search.trim();
@@ -303,6 +328,7 @@ function UsersTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void
                 <th className="px-4 py-3">Connexion</th>
                 <th className="px-4 py-3">Dernière connexion</th>
                 <th className="px-4 py-3 text-center">Annonces</th>
+                <th className="px-4 py-3">Abonnement</th>
                 <th className="px-4 py-3">Inscrit</th>
                 <th className="px-4 py-3 text-right pr-4">Actions</th>
               </tr>
@@ -350,6 +376,23 @@ function UsersTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void
                       {formatDate(u.last_login_at)}
                     </td>
                     <td className="px-4 py-3 text-center">{u.listings_count}</td>
+                    <td className="px-4 py-3">
+                      {u.id === currentUserId ? (
+                        <span className="text-[10px] text-gray-400">—</span>
+                      ) : (
+                        <select
+                          value={u.profile?.subscription_type ?? "free"}
+                          disabled={pendingIds.has(u.id)}
+                          onChange={(e) => changeSubscription(u.id, e.target.value)}
+                          className="text-[11px] border border-gray-200 bg-white rounded-lg py-1.5 px-2 text-gray-600 shadow-xs cursor-pointer disabled:opacity-50"
+                          title="Changer le profil d'abonnement"
+                        >
+                          <option value="free">Gratuit</option>
+                          <option value="pro">Pro</option>
+                          <option value="premium">Premium</option>
+                        </select>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-400">{formatDate(u.created_at)}</td>
                     <td className="px-4 py-3 text-right pr-4">
                       <div className="flex gap-1.5 justify-end items-center">

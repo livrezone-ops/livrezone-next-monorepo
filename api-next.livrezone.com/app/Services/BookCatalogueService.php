@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Models\Book;
+use App\Models\Category;
+use App\Models\Language;
+use App\Models\Level;
 use Illuminate\Http\Request;
 
 class BookCatalogueService
@@ -28,49 +31,34 @@ class BookCatalogueService
         $search = trim($request->get('search', ''));
         $field = $request->get('field', 'all');
 
-        // --- 1. Requête pour les Facettes (sans le filtre catégorie) ---
-        $facetBuilder = Book::search($search, function ($meilisearch, $query, $options) {
-            $options['facets'] = ['default_category_id'];
-            $options['hitsPerPage'] = 0; // Optimisation : on ne veut que les facettes
-            return $meilisearch->search($query, $options);
-        });
+        // --- 1. Facettes : UNE seule requête Meilisearch calcule les 3 distributions,
+        //        SANS le filtre langue (pour garder la liste des langues complète), comme
+        //        /demandes. Les langues sont la seule facette filtrée par count > 0 côté
+        //        front, d'où l'auto-exclusion de la langue ; catégories et niveaux
+        //        s'affichent toujours (leurs comptes reflètent les filtres croisés).
+        $computeFacets = $request->get('facets', '1') !== '0';
 
-        if ($search !== '' && $field === 'isbn') {
-            $facetBuilder->where('isbn_13', str_replace(['-', ' '], '', $search));
+        if ($computeFacets) {
+            $facetBuilder = Book::search($search, function ($meilisearch, $query, $options) {
+                $options['facets'] = ['default_category_id', 'language_id', 'default_level_id'];
+                $options['hitsPerPage'] = 0; // On ne veut que les facettes
+                return $meilisearch->search($query, $options);
+            });
+            $this->applyCrossFilters($facetBuilder, $request, ['languages']);
+
+            $rawFacets = $facetBuilder->raw();
+            $categoryFacets = $rawFacets['facetDistribution']['default_category_id'] ?? [];
+            $languageFacets = $rawFacets['facetDistribution']['language_id'] ?? [];
+            $levelFacets    = $rawFacets['facetDistribution']['default_level_id'] ?? [];
+        } else {
+            $categoryFacets = [];
+            $languageFacets = [];
+            $levelFacets    = [];
         }
-
-        $languageIds = $this->filterService->resolveLanguageIds($request, ['languages', 'language', 'language_id', 'lang']);
-        if (!empty($languageIds)) {
-            $facetBuilder->whereIn('language_id', $languageIds);
-        }
-
-        $levelIds = $this->filterService->resolveLevelIds($request, ['levels', 'level', 'level_id']);
-        if (!empty($levelIds)) {
-            $facetBuilder->whereIn('default_level_id', $levelIds);
-        }
-
-        $rawFacets = $facetBuilder->raw();
-        $categoryFacets = $rawFacets['facetDistribution']['default_category_id'] ?? [];
 
         // --- 2. Requête principale (avec tous les filtres) ---
         $builder = Book::search($search);
-
-        if ($search !== '' && $field === 'isbn') {
-            $builder->where('isbn_13', str_replace(['-', ' '], '', $search));
-        }
-
-        $categoryIds = $this->filterService->resolveCategoryIds($request, ['categories', 'category', 'category_id', 'c']);
-        if (!empty($categoryIds)) {
-            $builder->whereIn('default_category_id', $categoryIds);
-        }
-
-        if (!empty($languageIds)) {
-            $builder->whereIn('language_id', $languageIds);
-        }
-
-        if (!empty($levelIds)) {
-            $builder->whereIn('default_level_id', $levelIds);
-        }
+        $this->applyCrossFilters($builder, $request);
 
         // Pagination via Meilisearch (total = estimatedTotalHits, aucun COUNT MySQL).
         $paginated = $builder->paginate($limit, 'page', $page);
@@ -112,20 +100,69 @@ class BookCatalogueService
 
         $response = $paginated->toArray();
 
-        // Map numeric category_id to string codes for the frontend
-        $categoryMap = \App\Models\Category::pluck('code', 'id')->toArray();
-        $mappedFacets = [];
+        // Map numeric IDs to string codes for the frontend (catégories, langues, niveaux).
+        $categoryMap = Category::pluck('code', 'id')->toArray();
+        $languageMap = Language::pluck('code', 'id')->toArray();
+        $levelMap    = Level::pluck('code', 'id')->toArray();
+
+        $mappedCategories = [];
         foreach ($categoryFacets as $id => $count) {
             $code = $categoryMap[$id] ?? $id;
-            // Accumulate counts for parent categories if needed? Meilisearch already handles specific book IDs.
-            // Wait, we just pass the count for each code.
-            $mappedFacets[$code] = $count;
+            $mappedCategories[$code] = ($mappedCategories[$code] ?? 0) + $count;
+        }
+        $mappedLanguages = [];
+        foreach ($languageFacets as $id => $count) {
+            $code = $languageMap[$id] ?? $id;
+            $mappedLanguages[$code] = ($mappedLanguages[$code] ?? 0) + $count;
+        }
+        $mappedLevels = [];
+        foreach ($levelFacets as $id => $count) {
+            $code = $levelMap[$id] ?? $id;
+            $mappedLevels[$code] = ($mappedLevels[$code] ?? 0) + $count;
         }
 
         $response['facets'] = [
-            'categories' => $mappedFacets
+            'categories' => $mappedCategories,
+            'languages'  => $mappedLanguages,
+            'levels'     => $mappedLevels,
         ];
 
         return $response;
+    }
+
+    /**
+     * Applique les filtres de recherche (recherche, catégorie, langue, niveau) à un
+     * builder Meilisearch, en excluant éventuellement une dimension (pour le calcul
+     * de sa propre facette).
+     */
+    private function applyCrossFilters($builder, Request $request, array $exclude = []): void
+    {
+        $search = trim($request->get('search', ''));
+        $field = $request->get('field', 'all');
+
+        if ($search !== '' && $field === 'isbn') {
+            $builder->where('isbn_13', str_replace(['-', ' '], '', $search));
+        }
+
+        if (!in_array('categories', $exclude, true)) {
+            $categoryIds = $this->filterService->resolveCategoryIds($request, ['categories', 'category', 'category_id', 'c']);
+            if (!empty($categoryIds)) {
+                $builder->whereIn('default_category_id', $categoryIds);
+            }
+        }
+
+        if (!in_array('languages', $exclude, true)) {
+            $languageIds = $this->filterService->resolveLanguageIds($request, ['languages', 'language', 'language_id', 'lang']);
+            if (!empty($languageIds)) {
+                $builder->whereIn('language_id', $languageIds);
+            }
+        }
+
+        if (!in_array('levels', $exclude, true)) {
+            $levelIds = $this->filterService->resolveLevelIds($request, ['levels', 'level', 'level_id']);
+            if (!empty($levelIds)) {
+                $builder->whereIn('default_level_id', $levelIds);
+            }
+        }
     }
 }

@@ -1,0 +1,132 @@
+Nous avons effectué plusieurs itérations et certaines règles métier ont changé en cours de route.
+
+Je souhaite que tu oublies les hypothèses précédentes et que tu réalises un audit complet du code actuel tel qu'il existe aujourd'hui.
+
+Objectifs :
+
+Lire l'ensemble des fichiers liés aux notifications, abonnements, demandes de livres, Telegram, Email, Jobs, Controllers, Services, Models, Policies, Middleware, Migrations et Front-end.
+
+Reconstruire les règles métier réelles actuellement implémentées dans le code.
+
+Comparer ces règles avec les exigences métier ci-dessous.
+
+Exigences métier officielles
+Abonnements
+
+Free
+
+Ne reçoit aucune notification.
+Ne peut pas consulter les demandes de livres.
+
+Pro
+
+Reçoit uniquement les notifications In-App.
+Peut consulter les demandes de livres.
+Les demandes deviennent visibles seulement après :
+Plain Text
+env n’est pas entièrement prise en charge. La coloration syntaxique est basée sur Plain Text.
+1
+PRO_NOTIFICATION_DELAY_HOURS=5
+Afficher plus de lignes
+
+heures suivant leur publication.
+
+Pas d'email.
+Pas de Telegram.
+
+Premium
+
+Reçoit les notifications immédiatement.
+Reçoit :
+In-App
+Email
+Telegram
+Voit les demandes immédiatement après publication.
+Notifications
+Les préférences utilisateur ne doivent être prises en compte que si le niveau d'abonnement autorise le canal.
+Un utilisateur Free ne doit jamais être notifié même si ses préférences sont activées.
+Les notifications In-App doivent pouvoir être lues et marquées comme lues.
+Un compteur de notifications non lues doit être disponible dans le Header.
+Telegram
+Le système doit utiliser un vrai telegram_id/chat_id.
+Le numéro de téléphone ne doit plus être utilisé comme fallback.
+Il faut vérifier si le mécanisme actuel est compatible avec un envoi individuel à chaque utilisateur.
+Email
+
+Vérifier que la configuration SMTP actuelle permet un envoi réel via la queue Laravel.
+
+Produire un rapport complet contenant :
+
+Ce qui est correct.
+
+Ce qui est partiellement implémenté.
+
+Ce qui est incorrect.
+
+Ce qui est devenu obsolète suite aux changements de spécifications.
+
+Les doublons, dead code et anciens mécanismes qui peuvent être supprimés.
+
+Fournir ensuite une proposition d'architecture cible et la liste exacte des fichiers à modifier.
+
+Je veux une analyse basée uniquement sur le code actuel, pas sur les anciennes discussions ou hypothèses.
+
+la liste des fichier modifiée est
+
+ouahib@casaos-server:/home/livrezone/docker-data/volumes/livrezone_html_data/_data$ git status
+Sur la branche main
+Votre branche est à jour avec 'origin/main'.
+
+Modifications qui ne seront pas validées :
+  (utilisez "git add <fichier>..." pour mettre à jour ce qui sera validé)
+  (utilisez "git restore <fichier>..." pour annuler les modifications dans le répertoire de travail)
+        modifié :         api-next.livrezone.com/.agents/AGENTS.md
+        modifié :         api-next.livrezone.com/.agents/meilisearch.md
+        modifié :         api-next.livrezone.com/app/Console/Commands/ProcessExpiredSubscriptions.php
+        modifié :         api-next.livrezone.com/app/Http/Controllers/Api/AdminController.php
+        modifié :         api-next.livrezone.com/app/Http/Controllers/Api/ListingManagerController.php
+        modifié :         api-next.livrezone.com/app/Http/Controllers/Api/OrderController.php
+        modifié :         api-next.livrezone.com/app/Http/Controllers/Api/ProfileController.php
+        modifié :         api-next.livrezone.com/app/Jobs/ProcessBookOrderNotifications.php
+        modifié :         api-next.livrezone.com/app/Models/Order.php
+        modifié :         api-next.livrezone.com/app/Models/Profile.php
+        modifié :         api-next.livrezone.com/app/Models/User.php
+        modifié :         api-next.livrezone.com/app/Services/BookCatalogueService.php
+        modifié :         api-next.livrezone.com/app/Services/OrderService.php
+        modifié :         api-next.livrezone.com/app/Services/ReferenceDataService.php
+        modifié :         api-next.livrezone.com/app/Services/TelegramNotificationService.php
+        modifié :         api-next.livrezone.com/config/services.php
+        modifié :         api-next.livrezone.com/routes/api.php
+        modifié :         next.livrezone.com/frontend/app/books/BooksClient.tsx
+        modifié :         next.livrezone.com/frontend/app/books/page.tsx
+        modifié :         next.livrezone.com/frontend/app/dashboard/notifications/page.tsx
+        modifié :         next.livrezone.com/frontend/app/demandes/DemandesClient.tsx
+        modifié :         next.livrezone.com/frontend/app/demandes/page.tsx
+        modifié :         next.livrezone.com/frontend/components/AdminClient.tsx
+        modifié :         next.livrezone.com/frontend/components/FilterSidebar.tsx
+        modifié :         next.livrezone.com/frontend/components/Header.tsx
+        modifié :         next.livrezone.com/frontend/hooks/useAuth.ts
+        modifié :         next.livrezone.com/frontend/lib/books-api.ts
+
+Fichiers non suivis:
+  (utilisez "git add <fichier>..." pour inclure dans ce qui sera validé)
+        api-next.livrezone.com/.agents/constats_lenteur.txt
+        api-next.livrezone.com/.agents/demandes-meilisearch.md
+        api-next.livrezone.com/.agents/notifications_subscription.md
+        api-next.livrezone.com/.agents/perf-lenteur-pages.md
+        api-next.livrezone.com/.agents/probeme facet meilisearch ville.txt
+        api-next.livrezone.com/.agents/session_resume.md
+        api-next.livrezone.com/app/Console/Commands/ConfigureDemandeSearch.php
+        api-next.livrezone.com/app/Http/Controllers/Api/NotificationController.php
+        api-next.livrezone.com/app/Http/Controllers/Api/TelegramWebhookController.php
+        api-next.livrezone.com/app/Notifications/
+        api-next.livrezone.com/app/Services/NotificationPreferenceService.php
+        api-next.livrezone.com/app/Services/SubscriptionService.php
+        api-next.livrezone.com/database/migrations/2026_08_24_100001_create_notifications_table.php
+        api-next.livrezone.com/database/migrations/2026_08_24_100002_add_telegram_id_to_profiles_table.php
+        api-next.livrezone.com/database/migrations/2026_08_24_100003_move_telegram_id_to_profiles.php
+        api-next.livrezone.com/database/migrations/2026_08_24_100004_add_telegram_link_token_to_profiles.php
+        api-next.livrezone.com/tests/Unit/SubscriptionServiceTest.php
+
+aucune modification n'a été ajoutée à la validation (utilisez "git add" ou "git commit -a")
+ouahib@casaos-server:/home/livrezone/docker-data/volumes/livrezone_html_data/_data$

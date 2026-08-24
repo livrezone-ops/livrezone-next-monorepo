@@ -8,7 +8,13 @@ use Illuminate\Support\Facades\Log;
 
 class TelegramNotificationService
 {
-    public function sendNewListingNotification(Listing $listing)
+    /**
+     * Notifie le chat administrateur (config `services.telegram.chat_id`) de la
+     * création / mise à jour d'une annonce. Diffusé vers un chat unique (admin),
+     * volontairement séparé du flux per-user (`sendToChat`) qui s'appuie sur le
+     * `telegram_id` lié par utilisateur.
+     */
+    public function notifyAdminNewListing(Listing $listing): void
     {
         if (!config('services.telegram.enabled', false)) {
             return;
@@ -18,7 +24,7 @@ class TelegramNotificationService
         $chatId = config('services.telegram.chat_id');
 
         if (!$botToken || !$chatId) {
-            Log::warning('Telegram Notification: Missing configuration.');
+            Log::warning('Telegram Notification: Missing configuration (admin listing).');
             return;
         }
 
@@ -39,10 +45,44 @@ class TelegramNotificationService
 
         try {
             $apiUrl = "https://api.telegram.org/bot{$botToken}/sendMessage";
-            
+
             $response = Http::post($apiUrl, [
                 'chat_id' => $chatId,
                 'text' => $message,
+            ]);
+
+            if ($response->failed()) {
+                Log::error('Telegram Notification failed: ' . $response->body());
+            }
+        } catch (\Exception $e) {
+            Log::error('Telegram Notification Exception: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Envoie un message texte à un chat Telegram spécifique (par utilisateur).
+     * Utilisé par le flux per-user des demandes de livre (telegram_id lié via webhook).
+     */
+    public function sendToChat(string $chatId, string $message): void
+    {
+        if (!config('services.telegram.enabled', false)) {
+            return;
+        }
+
+        $botToken = config('services.telegram.bot_token');
+
+        if (!$botToken || !$chatId) {
+            Log::warning('Telegram Notification: Missing configuration (sendToChat).');
+            return;
+        }
+
+        try {
+            $apiUrl = "https://api.telegram.org/bot{$botToken}/sendMessage";
+
+            $response = Http::post($apiUrl, [
+                'chat_id' => $chatId,
+                'text' => $message,
+                'parse_mode' => 'Markdown',
             ]);
 
             if ($response->failed()) {

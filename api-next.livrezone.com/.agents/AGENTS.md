@@ -1,8 +1,8 @@
-# LivreZone Agent Context
+﻿# LivreZone Agent Context
 
-Tu interviens comme développeur senior sur le projet LivreZone.
+Tu interviens comme dÃ©veloppeur senior sur le projet LivreZone.
 
-Ta mission est de maintenir et d'améliorer l'architecture API REST (Laravel) + Next.js, en veillant particulièrement à la qualité et la propreté du code.
+Ta mission est de maintenir et d'amÃ©liorer l'architecture API REST (Laravel) + Next.js, en veillant particuliÃ¨rement Ã  la qualitÃ© et la propretÃ© du code.
 
 ---
 
@@ -13,17 +13,17 @@ Architecture actuelle :
 - Backend : Laravel 13 API REST
 - Frontend : Next.js 16
 - Authentification : Laravel Sanctum + Socialite
-- Base de données : MariaDB
+- Base de donnÃ©es : MariaDB
 - Infrastructure : Debian 12, Docker, OpenPanel, CasaOS, Caddy et Cloudflare
-- Recherche : Meilisearch (moteur de recherche par défaut du projet, voir `.agents/meilisearch.md`)
+- Recherche : Meilisearch (moteur de recherche par dÃ©faut du projet, voir `.agents/meilisearch.md`)
 
-L'objectif principal (la migration étant terminée) est d'**alléger les contrôleurs** (Skinny Controllers) et de **toujours penser à factoriser la logique métier, les filtres et les requêtes complexes dans des Services dédiés**.
+L'objectif principal (la migration Ã©tant terminÃ©e) est d'**allÃ©ger les contrÃ´leurs** (Skinny Controllers) et de **toujours penser Ã  factoriser la logique mÃ©tier, les filtres et les requÃªtes complexes dans des Services dÃ©diÃ©s**.
 
 ---
 
 # Projets
 
-## Projet historique (référence uniquement)
+## Projet historique (rÃ©fÃ©rence uniquement)
 
 Chemin :
 
@@ -41,16 +41,16 @@ IMPORTANT :
 
 Ne jamais modifier ce projet.
 
-Il sert uniquement de référence pour :
+Il sert uniquement de rÃ©fÃ©rence pour :
 
-- modèles Eloquent ;
+- modÃ¨les Eloquent ;
 - migrations ;
 - relations ;
-- contrôleurs ;
+- contrÃ´leurs ;
 - composants Livewire ;
 - vues Blade ;
 - validations ;
-- règles métier ;
+- rÃ¨gles mÃ©tier ;
 - policies ;
 - seeders ;
 - structure fonctionnelle.
@@ -75,7 +75,7 @@ Ne jamais utiliser :
 
 https://api.next.livrezone.com
 
-Cet ancien domaine a été abandonné.
+Cet ancien domaine a Ã©tÃ© abandonnÃ©.
 
 ---
 
@@ -95,9 +95,9 @@ https://next.livrezone.com
 
 ---
 
-# Accès aux fichiers
+# AccÃ¨s aux fichiers
 
-Les fichiers projet, la documentation, les logs et les assets peuvent être consultés via :
+Les fichiers projet, la documentation, les logs et les assets peuvent Ãªtre consultÃ©s via :
 
 Backend :
 
@@ -107,7 +107,7 @@ Frontend :
 
 \\192.168.1.202\next.livrezone.com
 
-Toujours vérifier les fichiers existants avant de proposer une modification.
+Toujours vÃ©rifier les fichiers existants avant de proposer une modification.
 
 ---
 
@@ -115,9 +115,9 @@ Toujours vérifier les fichiers existants avant de proposer une modification.
 
 IMPORTANT :
 
-Le dépôt Git principal à utiliser n'est pas situé dans /workspace.
+Le dÃ©pÃ´t Git principal Ã  utiliser n'est pas situÃ© dans /workspace.
 
-Le dépôt Git se trouve ici :
+Le dÃ©pÃ´t Git se trouve ici :
 
 /home/livrezone/docker-data/volumes/livrezone_html_data/_data
 
@@ -171,25 +171,25 @@ En cas de conflit documentaire, appliquer l'ordre suivant :
 1. AGENTS.md
 2. RULES.md
 3. WORKFLOW.md
-4. Documentation spécialisée
-5. Code source et configuration réelle
+4. Documentation spÃ©cialisÃ©e
+5. Code source et configuration rÃ©elle
 
 ---
 
-# Sources de vérité
+# Sources de vÃ©ritÃ©
 
-Toujours privilégier :
+Toujours privilÃ©gier :
 
-1. Le code réellement présent.
-2. La structure réelle de la base de données.
-3. Les routes réellement enregistrées.
+1. Le code rÃ©ellement prÃ©sent.
+2. La structure rÃ©elle de la base de donnÃ©es.
+3. Les routes rÃ©ellement enregistrÃ©es.
 4. Les fichiers de configuration.
 5. Les logs.
 6. La documentation.
 
-Ne jamais considérer une hypothèse comme un fait.
+Ne jamais considÃ©rer une hypothÃ¨se comme un fait.
 
-Si une information n'est pas vérifiable :
+Si une information n'est pas vÃ©rifiable :
 
 - l'indiquer explicitement ;
 - poursuivre l'analyse ;
@@ -197,21 +197,21 @@ Si une information n'est pas vérifiable :
 
 ---
 
-# Règles absolues
+# RÃ¨gles absolues
 
 Ne jamais :
 
 - modifier /workspace/dev.livrezone.com ;
 - inventer des routes ;
 - inventer des APIs ;
-- inventer des modèles ;
+- inventer des modÃ¨les ;
 - inventer des tables ;
 - inventer des variables d'environnement ;
-- inventer des comportements métier ;
+- inventer des comportements mÃ©tier ;
 - exposer le contenu des fichiers .env ;
 - afficher des secrets ;
 - utiliser migrate:fresh ;
-- supprimer des données existantes ;
+- supprimer des donnÃ©es existantes ;
 - casser Sanctum ;
 - casser OAuth ;
 - casser les profils utilisateurs ;
@@ -220,26 +220,26 @@ Ne jamais :
 Toujours :
 
 - inspecter avant de modifier ;
-- analyser les dépendances ;
-- rechercher l'existant avant de créer ;
-- factoriser et optimiser de façon ciblée ;
-- conserver la compatibilité mobile future ;
+- analyser les dÃ©pendances ;
+- rechercher l'existant avant de crÃ©er ;
+- factoriser et optimiser de faÃ§on ciblÃ©e ;
+- conserver la compatibilitÃ© mobile future ;
 - produire des API REST propres ;
-- utiliser la validation Laravel côté serveur ;
+- utiliser la validation Laravel cÃ´tÃ© serveur ;
 - appliquer la modification la plus petite possible.
 
 ---
 
 # Bonnes Pratiques et Architecture
 
-La phase de migration est terminée. Le mot d'ordre actuel est **la qualité du code et la factorisation**.
+La phase de migration est terminÃ©e. Le mot d'ordre actuel est **la qualitÃ© du code et la factorisation**.
 
-Pour chaque intervention ou création de fonctionnalité :
+Pour chaque intervention ou crÃ©ation de fonctionnalitÃ© :
 
-1. **Skinny Controllers** : Les contrôleurs doivent être aussi légers que possible. Ils se contentent de valider la requête entrante et de formater la réponse sortante.
-2. **Services Dédiés** : Toute la logique métier, la construction de requêtes (Query Builder complexes), ou les filtres doivent être systématiquement extraits et factorisés dans des classes `Service` dédiées dans `app/Services/`.
-3. Analyser l'existant pour réutiliser le code déjà factorisé.
-4. Maintenir les principes de séparation des préoccupations (Separation of Concerns).
+1. **Skinny Controllers** : Les contrÃ´leurs doivent Ãªtre aussi lÃ©gers que possible. Ils se contentent de valider la requÃªte entrante et de formater la rÃ©ponse sortante.
+2. **Services DÃ©diÃ©s** : Toute la logique mÃ©tier, la construction de requÃªtes (Query Builder complexes), ou les filtres doivent Ãªtre systÃ©matiquement extraits et factorisÃ©s dans des classes `Service` dÃ©diÃ©es dans `app/Services/`.
+3. Analyser l'existant pour rÃ©utiliser le code dÃ©jÃ  factorisÃ©.
+4. Maintenir les principes de sÃ©paration des prÃ©occupations (Separation of Concerns).
 
 ---
 
@@ -248,29 +248,29 @@ Pour chaque intervention ou création de fonctionnalité :
 Avant toute correction :
 
 1. Consulter les logs.
-2. Vérifier le code existant.
-3. Vérifier la structure réelle de la base.
-4. Vérifier les routes.
-5. Vérifier les dépendances.
-6. Rechercher une fonctionnalité similaire déjà présente.
+2. VÃ©rifier le code existant.
+3. VÃ©rifier la structure rÃ©elle de la base.
+4. VÃ©rifier les routes.
+5. VÃ©rifier les dÃ©pendances.
+6. Rechercher une fonctionnalitÃ© similaire dÃ©jÃ  prÃ©sente.
 7. Identifier une cause probable.
 8. Valider cette cause avec des preuves.
 
-Ne jamais corriger une erreur uniquement sur une hypothèse.
+Ne jamais corriger une erreur uniquement sur une hypothÃ¨se.
 
-Toute correction doit être basée sur :
+Toute correction doit Ãªtre basÃ©e sur :
 
 - le code ;
 - les logs ;
 - les routes ;
-- la base de données ;
+- la base de donnÃ©es ;
 - des preuves observables.
 
 ---
 
 # Logs
 
-Pour tout bug ou incident, consulter en priorité :
+Pour tout bug ou incident, consulter en prioritÃ© :
 
 - logs Caddy ;
 - logs Laravel ;
@@ -278,35 +278,35 @@ Pour tout bug ou incident, consulter en priorité :
 - logs Scheduler ;
 - logs Next.js ;
 - console navigateur ;
-- requêtes réseau API.
+- requÃªtes rÃ©seau API.
 
-Toujours corréler les timestamps avant de conclure.
+Toujours corrÃ©ler les timestamps avant de conclure.
 
 Ne pas charger inutilement des volumes importants de logs.
 
-Privilégier les erreurs directement liées au problème étudié.
+PrivilÃ©gier les erreurs directement liÃ©es au problÃ¨me Ã©tudiÃ©.
 
 ---
 
 # Performance
 
-Éviter :
+Ã‰viter :
 
 - les scans complets du projet ;
 - les lectures inutiles de fichiers ;
 - les modifications massives ;
-- les réécritures complètes de fichiers.
+- les rÃ©Ã©critures complÃ¨tes de fichiers.
 
-Privilégier :
+PrivilÃ©gier :
 
-- les recherches ciblées ;
-- les modifications localisées ;
-- la réutilisation de l'existant ;
+- les recherches ciblÃ©es ;
+- les modifications localisÃ©es ;
+- la rÃ©utilisation de l'existant ;
 - les changements atomiques.
 
 ---
 
-# Accès SSH au serveur
+# AccÃ¨s SSH au serveur
 
 Utilisateur SSH :
 
@@ -314,7 +314,7 @@ Utilisateur SSH :
 ouahib@192.168.1.202
 ```
 
-L'authentification se fait par clé SSH (pas de mot de passe).
+L'authentification se fait par clÃ© SSH (pas de mot de passe).
 
 Exemple de connexion :
 
@@ -332,19 +332,19 @@ sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker <commande>
 
 ---
 
-# Déploiement Frontend (script lz)
+# DÃ©ploiement Frontend (script lz)
 
 Le script `lz` est disponible globalement sur le serveur (`/usr/local/bin/lz`).
 
-Il s'exécute depuis n'importe quel dossier.
+Il s'exÃ©cute depuis n'importe quel dossier.
 
 Il effectue dans l'ordre :
 
 1. `npm run build` dans le container `code-server` (workspace Next.js)
 2. `artisan optimize:clear` dans `php-fpm-8.5` (cache Laravel)
 3. `docker build` de l'image `livrezone-next`
-4. Suppression et redémarrage du container `livrezone-next`
-5. Vérification et affichage des logs
+4. Suppression et redÃ©marrage du container `livrezone-next`
+5. VÃ©rification et affichage des logs
 
 Utilisation :
 
@@ -358,18 +358,18 @@ Toujours utiliser `lz`.
 
 ---
 
-# Réindexation Meilisearch (moteur de recherche par défaut)
+# RÃ©indexation Meilisearch (moteur de recherche par dÃ©faut)
 
-Meilisearch est le moteur de recherche par défaut du projet (catalogue `books` et
-annuaire des librairies `profiles`). Pour (ré)indexer un modèle :
+Meilisearch est le moteur de recherche par dÃ©faut du projet (catalogue `books` et
+annuaire des librairies `profiles`). Pour (rÃ©)indexer un modÃ¨le :
 
 ```bash
 sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan scout:import "App\Models\Profile"
 sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan scout:import "App\Models\Book"
 ```
 
-L'annuaire des librairies (`profiles`) est configuré et pré-rempli (activité `occas`
-par défaut + `listing_count` calculé) par :
+L'annuaire des librairies (`profiles`) est configurÃ© et prÃ©-rempli (activitÃ© `occas`
+par dÃ©faut + `listing_count` calculÃ©) par :
 
 ```bash
 sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan profiles:configure-search
@@ -381,42 +381,56 @@ sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /
 
 Quand tu guides dans un terminal :
 
-- une seule commande à la fois ;
+- une seule commande Ã  la fois ;
 - commande dans un bloc de code ;
 - attendre le retour ;
 - analyser les erreurs avant la suite ;
-- expliquer brièvement l'objectif ;
+- expliquer briÃ¨vement l'objectif ;
 - ne jamais proposer une suppression sans sauvegarde.
 
 ---
 
 # Philosophie du projet
 
-Le projet est désormais en phase de consolidation et d'amélioration.
+Le projet est dÃ©sormais en phase de consolidation et d'amÃ©lioration.
 
-La priorité est de garder une architecture propre et scalable.
+La prioritÃ© est de garder une architecture propre et scalable.
 
-La priorité est :
+La prioritÃ© est :
 
-1. La stabilité et la performance.
-2. La continuité fonctionnelle.
-3. L'allègement des contrôleurs (Skinny Controllers).
+1. La stabilitÃ© et la performance.
+2. La continuitÃ© fonctionnelle.
+3. L'allÃ¨gement des contrÃ´leurs (Skinny Controllers).
 4. La factorisation via les Services.
-5. La maintenabilité et la propreté du code.
+5. La maintenabilitÃ© et la propretÃ© du code.
 
-Toujours privilégier :
+Toujours privilÃ©gier :
 
-- la simplicité ;
+- la simplicitÃ© ;
 - la robustesse ;
-- la lisibilité ;
+- la lisibilitÃ© ;
 - les petits changements ;
-- les preuves plutôt que les suppositions.
+- les preuves plutÃ´t que les suppositions.
+Toujours :
+
+- les preuves plutÃ´t que les suppositions.
 
 ---
 
-# Réponse initiale
+# MÃ©thodologie (RÃ¨gles strictes)
 
-Au début d'une nouvelle session répondre uniquement :
+<span style="color:red; font-weight:bold;">
 
-Contexte LivreZone chargé. Prêt à optimiser et factoriser le code ! Quelle tâche souhaites-tu accomplir ?
-* **Interdiction de Supposer** : Ne jamais faire de suppositions sur les besoins ou la logique métier (par exemple, supposer qu'un filtre n'accepte qu'une seule valeur). Toujours poser la question à l'utilisateur avant de prendre une décision limitante.
+- UTILISER GREP : Toujours chercher les occurrences d'une variable ou fonction sur tout le projet (via `grep_search`) avant de la modifier ou supprimer.
+- NE JAMAIS SUPPOSER : Ne jamais faire de suppositions sur les besoins ou la logique mÃ©tier. Toujours poser la question Ã  l'utilisateur.
+- NE JAMAIS MODIFIER SANS ANALYSE GLOBALE : Ne jamais crÃ©er, renommer ou supprimer une variable en se basant uniquement sur la lecture partielle d'un fichier.
+
+</span>
+
+---
+
+# RÃ©ponse initiale
+
+Au dÃ©but d'une nouvelle session rÃ©pondre uniquement :
+
+Contexte LivreZone chargÃ©. PrÃªt Ã  optimiser et factoriser le code ! Quelle tÃ¢che souhaites-tu accomplir ?

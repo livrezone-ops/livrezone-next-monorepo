@@ -1,0 +1,28 @@
+Résumé — Filtre villes / librairies (/librairies)
+Problème initial
+Aucune ville ne remontait dans le filtre de la page /librairies.
+
+Causes identifiées et corrections
+1. Bug de code (LibraryService.php)
+
+Bloc de facettes faisant référence à une variable indéfinie $cityId (code mort/erroné).
+2. Source des villes
+
+Décision : le filtre doit lister les villes ayant des annonces. Implémenté via l'index Meilisearch listings (facette city_id, status=published).
+Puis ajustement : le compte affiché doit être le nombre de librairies par ville, pas le nombre de listings. Intersection des deux index.
+3. Ville « Autre » manquante
+
+La règle « villes avec annonces » excluait la librairie par défaut Autre (sans annonce publiée).
+Correction : source du filtre ville repassée sur l'index profiles (librairies) → toutes les villes de librairies apparaissent, dont Autre, avec le compte de librairies.
+4. Libellés du filtre « Type d'activité »
+
+reference-data.ts : Neuf → Livres neufs, Occasion → Livres d'occasion (codes neuf/occas conservés).
+Fichiers modifiés
+api-next.livrezone.com/app/Services/LibraryService.php — logique des facettes (villes + conditions).
+next.livrezone.com/frontend/lib/reference-data.ts — libellés des conditions.
+Déploiement
+Index Meilisearch : listings:configure-search + scout:import Listing, profiles:configure-search + scout:import Profile.
+Frontend : lz (rebuild + clear cache Laravel).
+Résultat
+Filtre /librairies = villes de librairies avec compte de librairies (ex. Casablanca (2), Berkane (1), Autre (1)), et « Type d'activité » affiche « Livres neufs » / « Livres d'occasion ». Aucun commit effectué (selon les règles du projet).
+

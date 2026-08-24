@@ -40,6 +40,29 @@ class AdminController extends Controller
         ]);
     }
 
+    /**
+     * Changement du profil d'abonnement d'un utilisateur (free / pro / premium).
+     * Délègue la logique métier à SubscriptionService.
+     */
+    public function updateUserSubscription(Request $request, User $user)
+    {
+        if ($user->id === $request->user()->id) {
+            return response()->json(['message' => 'Vous ne pouvez pas modifier votre propre abonnement.'], 422);
+        }
+
+        $validated = $request->validate([
+            'subscription_type' => ['required', Rule::in(\App\Services\SubscriptionService::TYPES)],
+        ]);
+
+        $profile = app(\App\Services\SubscriptionService::class)
+            ->changeSubscription($user, $validated['subscription_type']);
+
+        return response()->json([
+            'message' => 'Profil d\'abonnement mis à jour.',
+            'profile' => $profile,
+        ]);
+    }
+
     // ------------------------------------------------------------------
     // Listings
     // ------------------------------------------------------------------

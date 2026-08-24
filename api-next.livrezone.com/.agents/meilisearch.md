@@ -51,6 +51,33 @@ Le `loadCount` sur `listings` a été retiré de `BookCatalogueService` et le ch
 n'existe **plus que sur la page détail**. Les cartes affichent uniquement le CTA
 « Demander ce livre ».
 
+### 7. Correction des facettes (catégories / langues / niveaux)
+Anciennement, `BookCatalogueService::search()` ne calculait que `facets.categories`
+(et y appliquait les filtres langue/niveau), jamais `facets.languages` ni
+`facets.levels`. Le frontend `BooksClient` ne transmettait par ailleurs **jamais**
+`facets` à `FilterSidebar` → la section « Langues » apparaissait vide (count = 0
+filtrait toutes les options), et « Niveau » n'affichait aucun compte.
+
+Corrections :
+- **Backend** : les 3 facettes (`default_category_id`, `language_id`,
+  `default_level_id`) sont calculées dans **UNE seule** requête Meilisearch
+  (helper `applyCrossFilters()`, auto-excluant le filtre langue pour garder la
+  liste des langues complète, comme `/demandes`). Les IDs numériques sont remappés
+  en codes (`Category`/`Language`/`Level`) → `facets.categories / languages / levels`.
+  Un param `facets=0` permet de sauter le calcul de facettes (appels par section).
+- **Frontend** : `page.tsx` récupère `result.facets` (et un appel `getBooks({limit:1})`
+  en vue par défaut) et le passe à `BooksClient` → `FilterSidebar` (`facets` prop).
+  Type `BooksResult.facets` étendu à `languages`/`levels`. Les appels par section
+  (vue Netflix) passent `facets:false` pour ne pas recalculer les facettes 6×.
+
+**Perf** : la 1ʳᵉ version calculait 3 facettes séparées (4 requêtes Meilisearch par
+`getBooks`) ; avec la vue par défaut (6 sections + 1), ça faisait ~28 requêtes au
+cache miss → lenteurs de navigation. Désormais 2 requêtes par `getBooks` (1 facette
+globale + 1 principale) et les sections skippent les facettes → ~8 requêtes.
+
+Aucun réindexation nécessaire (`language_id` et `default_level_id` sont déjà
+`filterable`). Déploiement front via `lz`.
+
 ---
 
 ## Commandes de déploiement

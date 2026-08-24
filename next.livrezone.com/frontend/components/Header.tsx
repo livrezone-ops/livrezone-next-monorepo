@@ -52,6 +52,8 @@ export default function Header() {
   });
 
   const unreadMessages = unreadCount ?? 0;
+  // Pastille de notifications in-app (compteur fourni par l'endpoint /user).
+  const unreadNotificationsCount = user?.unread_notifications_count ?? 0;
   // Pastille masquée uniquement quand une conversation de chat est ouverte.
   const chatActive = useSyncExternalStore(
     subscribeChatActive,
@@ -142,6 +144,20 @@ export default function Header() {
             {wishlistCount > 0 && (
               <span className="absolute -top-1 -right-1.5 bg-[#6D28D9] text-white text-[10px] font-black rounded-full h-4.5 w-4.5 flex items-center justify-center shadow-sm">
                 {wishlistCount}
+              </span>
+            )}
+          </Link>
+
+          {/* Notifications in-app */}
+          <Link
+            href="/dashboard/notifications"
+            className="relative text-black hover:text-[#6D28D9] transition-colors p-1"
+            aria-label="Notifications"
+          >
+            <Bell className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.75} />
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute -top-1 -right-1.5 bg-[#6D28D9] text-white text-[10px] font-black rounded-full h-4.5 w-4.5 flex items-center justify-center shadow-sm">
+                {unreadNotificationsCount}
               </span>
             )}
           </Link>

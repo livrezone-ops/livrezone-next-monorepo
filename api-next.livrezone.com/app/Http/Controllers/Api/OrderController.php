@@ -27,7 +27,7 @@ class OrderController extends Controller
         ]);
         $perPage = min(max((int) $request->get('limit', 12), 1), 50);
 
-        $demandes = $this->orderService->getPublicDemandes($filters, $perPage);
+        $demandes = $this->orderService->getPublicDemandes($filters, $perPage, $request->user());
 
         return response()->json($demandes);
     }

@@ -32,6 +32,8 @@ export interface BooksResult {
   currentPage: number;
   facets?: {
     categories?: Record<string, number>;
+    languages?: Record<string, number>;
+    levels?: Record<string, number>;
   };
 }
 
@@ -48,10 +50,12 @@ export async function getBooks(query: {
   levels?: string[] | string;
   page?: number;
   limit?: number;
+  facets?: boolean;
 }): Promise<BooksResult> {
   const params = new URLSearchParams();
   if (query.search) params.set("search", query.search);
   if (query.field) params.set("field", query.field);
+  if (query.facets === false) params.set("facets", "0");
   
   if (query.categories) {
     params.set("categories", Array.isArray(query.categories) ? query.categories.join(",") : query.categories);

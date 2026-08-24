@@ -44,6 +44,10 @@ class Profile extends Model
     protected $fillable = [
         'user_id',
         'phone',
+        'telegram_id',
+        'telegram_link_token',
+        'telegram_link_token_expires_at',
+        'telegram_linked_at',
         'has_whatsapp',
         'city_id',
         'profile_type',
@@ -63,6 +67,8 @@ class Profile extends Model
     protected $casts = [
         'has_whatsapp' => 'boolean',
         'listing_count' => 'integer',
+        'telegram_link_token_expires_at' => 'datetime',
+        'telegram_linked_at' => 'datetime',
     ];
 
     protected static function boot()

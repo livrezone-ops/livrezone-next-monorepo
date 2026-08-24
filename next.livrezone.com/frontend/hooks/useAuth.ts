@@ -17,6 +17,7 @@ export interface User {
     email: string;
     email_verified_at?: string | null;
     is_admin?: boolean;
+    unread_notifications_count?: number;
     profile: {
         nickname: string;
         logo: string | null;
