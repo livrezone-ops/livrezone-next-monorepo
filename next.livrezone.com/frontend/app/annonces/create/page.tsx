@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Component, ErrorInfo, ReactNode } from "react";
+import React, { Component, ErrorInfo, ReactNode, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ListingForm from "@/components/ListingForm";
 import { useAuth } from "@/hooks/useAuth";
@@ -47,9 +47,14 @@ export default function CreateListingPage() {
   const { user, isLoading } = useAuth();
   const { toasts, pushToast, dismissToast } = useToasts();
 
-  // Rediriger vers la connexion si non authentifié
+  // Rediriger vers la connexion si non authentifié (side-effect dans un effet, jamais au render)
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login");
+    }
+  }, [isLoading, user, router]);
+
   if (!isLoading && !user) {
-    router.push("/login");
     return null;
   }
 

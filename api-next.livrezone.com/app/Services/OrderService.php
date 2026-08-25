@@ -4,13 +4,16 @@ namespace App\Services;
 
 use App\Models\Book;
 use App\Models\Category;
+use App\Models\Language;
 use App\Models\Order;
 use App\Models\User;
 use App\Jobs\ProcessBookOrderNotifications;
 use App\Services\ImageUploadService;
 use App\Services\ReferenceFilterService;
 use App\Services\SubscriptionService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -286,48 +289,52 @@ class OrderService
             $coverPath = $book->cover_path;
         }
 
-        // Vérification des doublons
-        if ($bookId) {
-            $existing = Order::where('user_id', $user->id)
-                ->where('book_id', $bookId)
-                ->whereIn('status', ['published', 'pending_admin'])
-                ->first();
+        // Vérification des doublons (verrouillée pour éviter les doublons en cas de soumission concurrente)
+        $order = DB::transaction(function () use ($user, $bookId, $title, $author, $isbn, $categoryId, $coverPath, $data) {
+            if ($bookId) {
+                $existing = Order::where('user_id', $user->id)
+                    ->where('book_id', $bookId)
+                    ->whereIn('status', ['published', 'pending_admin'])
+                    ->lockForUpdate()
+                    ->first();
 
-            if ($existing) {
-                throw ValidationException::withMessages([
-                    'book_id' => 'Vous avez déjà une demande active pour ce livre.'
-                ]);
+                if ($existing) {
+                    throw ValidationException::withMessages([
+                        'book_id' => 'Vous avez déjà une demande active pour ce livre.'
+                    ]);
+                }
+            } elseif ($title) {
+                $existing = Order::where('user_id', $user->id)
+                    ->where('title', $title)
+                    ->whereIn('status', ['published', 'pending_admin'])
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing) {
+                    throw ValidationException::withMessages([
+                        'title' => 'Vous avez déjà une demande active pour ce titre.'
+                    ]);
+                }
             }
-        } elseif ($title) {
-            $existing = Order::where('user_id', $user->id)
-                ->where('title', $title)
-                ->whereIn('status', ['published', 'pending_admin'])
-                ->first();
 
-            if ($existing) {
-                throw ValidationException::withMessages([
-                    'title' => 'Vous avez déjà une demande active pour ce titre.'
-                ]);
-            }
-        }
+            // Règle de modération : catalogue = published direct, manuel = pending_admin
+            $isCatalogue = !empty($bookId);
+            $status = $isCatalogue ? 'published' : 'pending_admin';
+            $publishedAt = $isCatalogue ? now() : null;
 
-        // Règle de modération : catalogue = published direct, manuel = pending_admin
-        $isCatalogue = !empty($bookId);
-        $status = $isCatalogue ? 'published' : 'pending_admin';
-        $publishedAt = $isCatalogue ? now() : null;
-
-        $order = Order::create([
-            'user_id' => $user->id,
-            'book_id' => $bookId,
-            'title' => $title,
-            'author' => $author,
-            'isbn' => $isbn,
-            'category_id' => $categoryId,
-            'cover_path' => $coverPath,
-            'comment' => $data['comment'] ?? null,
-            'status' => $status,
-            'published_at' => $publishedAt,
-        ]);
+            return Order::create([
+                'user_id' => $user->id,
+                'book_id' => $bookId,
+                'title' => $title,
+                'author' => $author,
+                'isbn' => $isbn,
+                'category_id' => $categoryId,
+                'cover_path' => $coverPath,
+                'comment' => $data['comment'] ?? null,
+                'status' => $status,
+                'published_at' => $publishedAt,
+            ]);
+        });
 
         if ($order->status === 'published') {
             ProcessBookOrderNotifications::dispatch($order);

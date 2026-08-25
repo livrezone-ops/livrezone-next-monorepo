@@ -70,6 +70,11 @@ return new class extends Migration
                 'published',
                 'rejected',
                 'deleted',
+                'sold',
+                'active',
+                'archived',
+                'hidden',
+                'expired',
             ])->default('pending_admin');
 
             $table->timestamp('submitted_at')->nullable();

@@ -32,5 +32,7 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="PRO_NOTIFICATION_DELAY_HOURS" value="3"/>
+        <env name="MAX_FREE_LISTINGS" value="25"/>
     </php>
 </phpunit>

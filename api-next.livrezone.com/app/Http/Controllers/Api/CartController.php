@@ -11,6 +11,7 @@ use App\Models\CartItem;
 use App\Models\Listing;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CartController extends Controller
 {
@@ -144,37 +145,40 @@ class CartController extends Controller
         $merged = 0;
         $clamped = 0;
 
-        foreach ($request->input('items') as $row) {
-            $listingId = (int) $row['listing_id'];
-            $quantity = (int) ($row['quantity'] ?? 1);
+        DB::transaction(function () use ($request, $userId, &$merged, &$clamped) {
+            foreach ($request->input('items') as $row) {
+                $listingId = (int) $row['listing_id'];
+                $quantity = (int) ($row['quantity'] ?? 1);
 
-            // Stock disponible sur le listing, plafonné à 99.
-            $maxQty = $this->maxQuantityFor($listingId);
+                // Stock disponible sur le listing, plafonné à 99.
+                $maxQty = $this->maxQuantityFor($listingId);
 
-            $item = CartItem::query()
-                ->where('user_id', $userId)
-                ->where('listing_id', $listingId)
-                ->first();
+                $item = CartItem::query()
+                    ->where('user_id', $userId)
+                    ->where('listing_id', $listingId)
+                    ->lockForUpdate()
+                    ->first();
 
-            if ($item) {
-                $target = min($maxQty, $item->quantity + $quantity);
-                if ($target < $item->quantity + $quantity) {
-                    $clamped++;
+                if ($item) {
+                    $target = min($maxQty, $item->quantity + $quantity);
+                    if ($target < $item->quantity + $quantity) {
+                        $clamped++;
+                    }
+                    $item->update(['quantity' => $target]);
+                } else {
+                    $target = min($maxQty, $quantity);
+                    if ($target < $quantity) {
+                        $clamped++;
+                    }
+                    CartItem::create([
+                        'user_id' => $userId,
+                        'listing_id' => $listingId,
+                        'quantity' => $target,
+                    ]);
                 }
-                $item->update(['quantity' => $target]);
-            } else {
-                $target = min($maxQty, $quantity);
-                if ($target < $quantity) {
-                    $clamped++;
-                }
-                CartItem::create([
-                    'user_id' => $userId,
-                    'listing_id' => $listingId,
-                    'quantity' => $target,
-                ]);
+                $merged++;
             }
-            $merged++;
-        }
+        });
 
         $count = CartItem::query()->where('user_id', $userId)->sum('quantity');
 

@@ -57,7 +57,7 @@ export function useAuth() {
     });
 
     const loginWithProvider = async (provider: string) => {
-        await api.get('https://api-next.livrezone.com/sanctum/csrf-cookie', { baseURL: '' });
+        await ensureCsrf();
         const { data } = await api.get(`/auth/redirect/${provider}`);
         window.location.href = data.url;
     };

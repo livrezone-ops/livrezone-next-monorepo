@@ -3,6 +3,10 @@
 use App\Models\User;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
+
+// Expiration des abonnements (downgrade Free + désactivation des annonces excédentaires).
+Schedule::command('app:process-subscriptions')->dailyAt('03:00');
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

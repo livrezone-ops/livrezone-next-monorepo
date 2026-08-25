@@ -10,6 +10,7 @@ use App\Http\Requests\Api\ChatMessageStoreRequest;
 use App\Http\Requests\Api\ChatThreadStoreRequest;
 use App\Models\ChatMessage;
 use App\Models\ChatThread;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,8 +28,14 @@ class ChatController extends Controller
 
         $threads = ChatThread::query()
             ->with(['userOne.profile', 'userTwo.profile', 'latestMessage'])
-            ->where('user_one_id', $userId)
-            ->orWhere('user_two_id', $userId)
+            ->withCount(['messages as unread_count' => fn ($query) => $query
+                ->where('sender_id', '!=', $userId)
+                ->where('is_read', false),
+            ])
+            ->where(function (Builder $query) use ($userId) {
+                $query->where('user_one_id', $userId)
+                    ->orWhere('user_two_id', $userId);
+            })
             ->orderByDesc('last_message_at')
             ->get()
             ->filter(fn (ChatThread $thread) => ! $thread->isDeletedFor($userId))
@@ -51,7 +58,7 @@ class ChatController extends Controller
                     'created_at' => $thread->latestMessage->created_at?->toISOString(),
                 ] : null,
                 'last_message_at' => $thread->last_message_at?->toISOString(),
-                'unread_count' => $thread->unreadMessagesCountFor($userId),
+                'unread_count' => (int) $thread->unread_count,
             ];
         });
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\City;
 use App\Models\Listing;
 use App\Models\Profile;
 use App\Models\User;
@@ -16,10 +17,13 @@ class SubscriptionServiceTest extends TestCase
 
     private function makeProfile(User $user, string $type): Profile
     {
-        return Profile::withoutSyncingToSearch(function () use ($user, $type) {
+        $city = City::query()->firstOrCreate(['name' => 'Ville de test']);
+
+        return Profile::withoutSyncingToSearch(function () use ($user, $type, $city) {
             return Profile::create([
                 'user_id' => $user->id,
                 'subscription_type' => $type,
+                'city_id' => $city->id,
             ]);
         });
     }
@@ -115,7 +119,12 @@ class SubscriptionServiceTest extends TestCase
 
         $threshold = $service->getDemandesVisibilityThreshold($pro);
         $this->assertInstanceOf(Carbon::class, $threshold);
-        $this->assertTrue($threshold->equalTo(now()->subHours(3)));
+        // Comparaison à ±2 s : deux appels à now() ne tombent jamais sur la même microseconde.
+        $this->assertEqualsWithDelta(
+            now()->subHours($service->getNotificationDelayHours())->timestamp,
+            $threshold->timestamp,
+            2
+        );
 
         $this->assertNull($service->getDemandesVisibilityThreshold($premium));
     }
@@ -181,12 +190,12 @@ class SubscriptionServiceTest extends TestCase
             return $service->deactivateExcessFreeListings($profile);
         });
 
-        // 26 - 25 = 1 annonce excédentaire désactivée (soft).
+        // Le service désactive le surplus via le statut 'hidden' (soft).
         $this->assertSame(1, $deactivated);
         $this->assertDatabaseCount('listings', 26);
         $this->assertSame(
             1,
-            Listing::where('user_id', $user->id)->where('status', 'inactive')->count()
+            Listing::where('user_id', $user->id)->where('status', 'hidden')->count()
         );
         $this->assertSame(
             25,
