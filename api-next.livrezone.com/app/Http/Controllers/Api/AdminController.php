@@ -67,75 +67,24 @@ class AdminController extends Controller
     // Listings
     // ------------------------------------------------------------------
 
+    public function __construct(
+        protected \App\Services\ListingQueryService $listingQueryService,
+    ) {
+    }
+
     public function listings(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'filter' => ['nullable', Rule::in(['all', 'online', 'offline', 'pending', 'archived', 'deleted'])],
             'search' => 'nullable|string|max:100',
             'sort_by' => ['nullable', Rule::in(['created_at', 'price', 'title'])],
             'sort_dir' => ['nullable', Rule::in(['asc', 'desc'])],
+            'limit' => 'nullable|integer|min:1|max:100',
         ]);
 
-        $filter = $request->input('filter', 'all');
-        $query = Listing::query()->with(['book', 'category', 'user.profile']);
-
-        switch ($filter) {
-            case 'online':
-                $query->whereIn('status', ['published', 'active']);
-                break;
-            case 'offline':
-                $query->whereIn('status', ['hidden', 'expired', 'sold']);
-                break;
-            case 'pending':
-                $query->where('status', 'pending_admin');
-                break;
-            case 'archived':
-                $query->where('status', 'archived');
-                break;
-            case 'deleted':
-                $query->where('status', 'deleted');
-                break;
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('listings.title', 'like', "%{$search}%")
-                  ->orWhere('listings.isbn_13', 'like', "%{$search}%")
-                  ->orWhere('listings.author', 'like', "%{$search}%")
-                  ->orWhere('listings.publisher', 'like', "%{$search}%")
-                  ->orWhereHas('user.profile', function ($pq) use ($search) {
-                      $pq->where('nickname', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        if ($request->filled('sort_by')) {
-            $sortBy = $request->input('sort_by');
-            $sortDir = $request->input('sort_dir', 'desc');
-            $query->orderBy($sortBy, $sortDir);
-        } else {
-            $query->orderBy('created_at', 'desc');
-        }
-
-        $limit = $request->integer('limit', 20);
-        $listings = $query->paginate($limit);
-
-        return response()->json([
-            'listings' => $listings->items(),
-            'meta' => [
-                'current_page' => $listings->currentPage(),
-                'last_page' => $listings->lastPage(),
-                'total' => $listings->total(),
-                'status_counts' => [
-                    'online' => Listing::whereIn('status', ['published', 'active'])->count(),
-                    'offline' => Listing::whereIn('status', ['hidden', 'expired', 'sold'])->count(),
-                    'pending' => Listing::where('status', 'pending_admin')->count(),
-                    'archived' => Listing::where('status', 'archived')->count(),
-                    'deleted' => Listing::where('status', 'deleted')->count(),
-                ],
-            ],
-        ]);
+        return response()->json(
+            $this->listingQueryService->listForAdmin($validated)
+        );
     }
 
     public function updateListingStatus(Request $request, Listing $listing)
@@ -163,7 +112,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'ids' => 'required|array',
             'ids.*' => 'integer|exists:listings,id',
-            'action' => ['required', Rule::in(['activate', 'deactivate', 'delete'])],
+            'action' => ['required', Rule::in(\App\Services\ListingQueryService::ADMIN_ACTIONS)],
         ]);
 
         $newStatus = match ($validated['action']) {
@@ -172,9 +121,12 @@ class AdminController extends Controller
             'delete' => 'deleted',
         };
 
-        Listing::whereIn('id', $validated['ids'])->update(['status' => $newStatus]);
+        $updated = Listing::whereIn('id', $validated['ids'])->update(['status' => $newStatus]);
 
-        return response()->json(['message' => $this->actionMessage($validated['action'])]);
+        return response()->json([
+            'message' => $this->actionMessage($validated['action']),
+            'updated' => $updated,
+        ]);
     }
 
     // ------------------------------------------------------------------
