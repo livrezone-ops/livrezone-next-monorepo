@@ -81,6 +81,8 @@ interface AdminClientProps {
   user: { id: number; name: string; email: string; is_admin: boolean };
   initialTab?: "users" | "listings" | "hero";
   initialListingsFilter?: string;
+  /** Mode page dédiée : masque l'en-tête et la barre d'onglets internes (navigation gérée par l'AdminShell). */
+  singleTab?: boolean;
 }
 
 // ------------------------------------------------------------------
@@ -111,6 +113,7 @@ export default function AdminClient({
   user,
   initialTab = "users",
   initialListingsFilter = "all",
+  singleTab = false,
 }: AdminClientProps) {
   const [activeTab, setActiveTab] = useState<"users" | "listings" | "hero">(initialTab);
   const [toasts, setToasts] = useState<ToastData[]>([]);
@@ -135,30 +138,34 @@ export default function AdminClient({
 
   return (
     <div className="space-y-10 font-sans">
-      <div className="flex flex-col sm:flex-row items-center gap-4 justify-between border-b border-gray-100 pb-5">
-        <div>
-          <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-0.5">Administration</p>
-          <h1 className="text-2xl font-black text-gray-950 leading-tight">Espace administrateur</h1>
-          <p className="text-xs text-gray-500 font-medium mt-0.5">
-            Connecté en tant que {user.name} · {user.email}
-          </p>
-        </div>
-      </div>
+      {!singleTab && (
+        <>
+          <div className="flex flex-col sm:flex-row items-center gap-4 justify-between border-b border-gray-100 pb-5">
+            <div>
+              <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-0.5">Administration</p>
+              <h1 className="text-2xl font-black text-gray-950 leading-tight">Espace administrateur</h1>
+              <p className="text-xs text-gray-500 font-medium mt-0.5">
+                Connecté en tant que {user.name} · {user.email}
+              </p>
+            </div>
+          </div>
 
-      <div className="flex bg-gray-100 rounded-lg p-0.5 w-full">
-        {tabs.map((tab) => (
-          <button
-            key={tab.val}
-            onClick={() => setActiveTab(tab.val as typeof activeTab)}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
-              activeTab === tab.val ? "bg-white shadow-xs text-black" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <tab.icon className="w-3.5 h-3.5" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
+          <div className="flex bg-gray-100 rounded-lg p-0.5 w-full">
+            {tabs.map((tab) => (
+              <button
+                key={tab.val}
+                onClick={() => setActiveTab(tab.val as typeof activeTab)}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === tab.val ? "bg-white shadow-xs text-black" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                <tab.icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {activeTab === "users" && <UsersTab pushToast={pushToast} currentUserId={user.id} />}
       {activeTab === "listings" && <ListingsTab pushToast={pushToast} initialFilter={initialListingsFilter} />}

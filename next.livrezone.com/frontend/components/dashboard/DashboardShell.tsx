@@ -9,6 +9,7 @@ import {
   CreditCard,
   Heart,
   LayoutDashboard,
+  Lock,
   MessageSquare,
   Plus,
   Search,
@@ -51,8 +52,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   ];
 
   const secondaryNav: NavItem[] = [
-    { href: "/profile", label: "Mon profil", icon: UserIcon },
-    { href: "/favorites", label: "Mes favoris", icon: Heart },
+    { href: "/dashboard/profil", label: "Mon profil", icon: UserIcon },
+    { href: "/dashboard/securite", label: "Mot de passe", icon: Lock },
+    { href: "/dashboard/favoris", label: "Mes favoris", icon: Heart },
   ];
 
   if (user?.is_admin) {

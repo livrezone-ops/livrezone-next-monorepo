@@ -130,6 +130,47 @@ class AdminController extends Controller
     }
 
     // ------------------------------------------------------------------
+    // Demandes (book requests)
+    // ------------------------------------------------------------------
+
+    public function orders(Request $request)
+    {
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['all', 'pending_admin', 'published', 'fulfilled', 'cancelled', 'rejected'])],
+            'search' => 'nullable|string|max:100',
+            'sort_by' => ['nullable', Rule::in(['created_at', 'title'])],
+            'sort_dir' => ['nullable', Rule::in(['asc', 'desc'])],
+            'limit' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        return response()->json(
+            app(\App\Services\OrderService::class)->listForAdmin($validated)
+        );
+    }
+
+    public function updateOrderStatus(Request $request, \App\Models\Order $order)
+    {
+        $validated = $request->validate([
+            'action' => ['required', Rule::in(['publish', 'reject', 'fulfill'])],
+        ]);
+
+        match ($validated['action']) {
+            'publish' => $order->update(['status' => 'published', 'published_at' => now()]),
+            'reject' => $order->update(['status' => 'rejected']),
+            'fulfill' => $order->update(['status' => 'fulfilled']),
+        };
+
+        return response()->json([
+            'message' => match ($validated['action']) {
+                'publish' => 'Demande publiée.',
+                'reject' => 'Demande rejetée.',
+                'fulfill' => 'Demande marquée comme satisfaite.',
+            },
+            'order' => ['id' => $order->id, 'status' => $order->status],
+        ]);
+    }
+
+    // ------------------------------------------------------------------
     // Hero messages
     // ------------------------------------------------------------------
 

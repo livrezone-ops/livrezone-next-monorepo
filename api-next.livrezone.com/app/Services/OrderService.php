@@ -265,6 +265,90 @@ class OrderService
     }
 
     /**
+     * Liste paginée GLOBALE des demandes (admin uniquement).
+     *
+     * @return array{orders: array, meta: array}
+     */
+    public function listForAdmin(array $filters = []): array
+    {
+        $query = Order::query()->with(['book', 'category', 'user.profile']);
+
+        $status = $filters['status'] ?? 'all';
+        if ($status && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        if (! empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('orders.title', 'like', "%{$search}%")
+                  ->orWhere('orders.isbn', 'like', "%{$search}%")
+                  ->orWhere('orders.author', 'like', "%{$search}%")
+                  ->orWhereHas('user.profile', function ($pq) use ($search) {
+                      $pq->where('nickname', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $sortBy = in_array($filters['sort_by'] ?? null, ['created_at', 'title'], true)
+            ? $filters['sort_by']
+            : 'created_at';
+        $sortDir = ($filters['sort_dir'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+        $query->orderBy($sortBy, $sortDir);
+
+        $orders = $query->paginate(min((int) ($filters['limit'] ?? 20), 100));
+
+        return [
+            'orders' => collect($orders->items())
+                ->map(fn (Order $order) => $this->transformAdminOrder($order))
+                ->all(),
+            'meta' => [
+                'current_page' => $orders->currentPage(),
+                'last_page' => $orders->lastPage(),
+                'total' => $orders->total(),
+                'status_counts' => $this->adminStatusCounts(),
+            ],
+        ];
+    }
+
+    private function transformAdminOrder(Order $order): array
+    {
+        return [
+            'id' => $order->id,
+            'title' => $order->title,
+            'author' => $order->author,
+            'isbn' => $order->isbn,
+            'cover_url' => $order->cover_url,
+            'status' => $order->status,
+            'comment' => $order->comment,
+            'category' => $order->category?->name,
+            'user' => $order->user ? [
+                'id' => $order->user->id,
+                'email' => $order->user->email,
+                'nickname' => $order->user->profile?->nickname,
+            ] : null,
+            'created_at' => $order->created_at?->toISOString(),
+            'published_at' => $order->published_at?->toISOString(),
+        ];
+    }
+
+    private function adminStatusCounts(): array
+    {
+        $counts = Order::query()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        return [
+            'pending' => (int) ($counts['pending_admin'] ?? 0),
+            'published' => (int) ($counts['published'] ?? 0),
+            'fulfilled' => (int) ($counts['fulfilled'] ?? 0),
+            'cancelled' => (int) ($counts['cancelled'] ?? 0),
+            'rejected' => (int) ($counts['rejected'] ?? 0),
+        ];
+    }
+
+    /**
      * Crée une nouvelle demande (catalogue ou manuelle).
      */
     public function createOrder(User $user, array $data, ?UploadedFile $coverImage = null): Order

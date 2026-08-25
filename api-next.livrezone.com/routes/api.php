@@ -141,6 +141,9 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/listings/bulk-status', [AdminController::class, 'bulkListingStatus']);
     Route::post('/listings/{listing}/status', [AdminController::class, 'updateListingStatus']);
 
+    Route::get('/orders', [AdminController::class, 'orders']);
+    Route::post('/orders/{order}/status', [AdminController::class, 'updateOrderStatus']);
+
     Route::get('/hero-messages', [AdminController::class, 'hero']);
     Route::put('/hero-messages', [AdminController::class, 'storeHero']);
 });
