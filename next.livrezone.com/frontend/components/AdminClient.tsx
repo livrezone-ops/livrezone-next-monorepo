@@ -20,6 +20,7 @@ import {
 import api from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/api-error";
 import ToastContainer, { ToastData, ToastType } from "@/components/Toast";
+import SortableTh from "@/components/SortableTh";
 
 const PAGE_SIZE = 15;
 
@@ -186,7 +187,19 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
   const [status, setStatus] = useState("all");
   const [connection, setConnection] = useState("all");
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
+
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortDir("desc");
+    }
+    setPage(1);
+  };
 
   const subscriptionMutation = useMutation({
     mutationFn: async ({ id, type }: { id: number; type: string }) => {
@@ -212,7 +225,12 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
       });
   };
 
-  const params: Record<string, string | number> = { limit: PAGE_SIZE, page };
+  const params: Record<string, string | number> = {
+    limit: PAGE_SIZE,
+    page,
+    sort_by: sortBy,
+    sort_dir: sortDir,
+  };
   if (search.trim()) params.search = search.trim();
   if (status !== "all") params.status = status;
   if (connection !== "all") params.connection = connection;
@@ -330,13 +348,13 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
           <table className="w-full text-left text-xs border-collapse">
             <thead className="bg-gray-50 border-b border-gray-150 text-gray-500 uppercase text-[10px] font-bold">
               <tr>
-                <th className="px-4 py-3">Utilisateur</th>
+                <SortableTh label="Utilisateur" field="name" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                 <th className="px-4 py-3">Statut</th>
                 <th className="px-4 py-3">Connexion</th>
-                <th className="px-4 py-3">Dernière connexion</th>
+                <SortableTh label="Dernière connexion" field="last_activity" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                 <th className="px-4 py-3 text-center">Annonces</th>
                 <th className="px-4 py-3">Abonnement</th>
-                <th className="px-4 py-3">Inscrit</th>
+                <SortableTh label="Inscrit" field="created_at" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                 <th className="px-4 py-3 text-right pr-4">Actions</th>
               </tr>
             </thead>
@@ -446,10 +464,27 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState(initialFilter);
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
 
-  const params: Record<string, string | number> = { limit: PAGE_SIZE, page };
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortDir("desc");
+    }
+    setPage(1);
+  };
+
+  const params: Record<string, string | number> = {
+    limit: PAGE_SIZE,
+    page,
+    sort_by: sortBy,
+    sort_dir: sortDir,
+  };
   if (search.trim()) params.search = search.trim();
   if (filter !== "all") params.filter = filter;
 
@@ -630,11 +665,11 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
                 <th className="px-4 py-3 w-8">
                   <input type="checkbox" checked={selectedIds.length === listings.length && listings.length > 0} onChange={toggleSelectAll} className="rounded border-gray-300 text-[#6D28D9] focus:ring-[#6D28D9] cursor-pointer" />
                 </th>
-                <th className="px-4 py-3">Annonce</th>
+                <SortableTh label="Annonce" field="title" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                 <th className="px-4 py-3">Vendeur</th>
-                <th className="px-4 py-3">Prix</th>
+                <SortableTh label="Prix" field="price" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                 <th className="px-4 py-3">Statut</th>
-                <th className="px-4 py-3">Date</th>
+                <SortableTh label="Date" field="created_at" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                 <th className="px-4 py-3 text-right pr-4">Actions</th>
               </tr>
             </thead>

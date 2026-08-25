@@ -171,6 +171,100 @@ class AdminController extends Controller
     }
 
     // ------------------------------------------------------------------
+    // Paiements, échéances, promo, codes de réduction
+    // ------------------------------------------------------------------
+
+    public function payments(Request $request)
+    {
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['all', 'pending', 'paid', 'failed'])],
+            'type' => ['nullable', Rule::in(['all', 'pro', 'premium'])],
+            'expiring' => 'nullable|boolean',
+            'search' => 'nullable|string|max:100',
+            'sort_by' => ['nullable', Rule::in(['created_at', 'expires_at', 'amount'])],
+            'sort_dir' => ['nullable', Rule::in(['asc', 'desc'])],
+            'limit' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        return response()->json(
+            app(\App\Services\AdminPaymentService::class)->list($validated)
+        );
+    }
+
+    public function promoState(\App\Services\SubscriptionService $subscriptions)
+    {
+        return response()->json([
+            'promo_pro_free' => $subscriptions->isPromoProFree(),
+        ]);
+    }
+
+    public function togglePromo(Request $request, \App\Services\SubscriptionService $subscriptions)
+    {
+        $validated = $request->validate([
+            'active' => 'required|boolean',
+        ]);
+
+        $subscriptions->setPromoProFree($validated['active']);
+
+        return response()->json([
+            'message' => $validated['active']
+                ? 'Promo activée : les comptes free bénéficient des avantages Pro.'
+                : 'Promo désactivée.',
+            'promo_pro_free' => $validated['active'],
+        ]);
+    }
+
+    public function discountCodes()
+    {
+        return response()->json([
+            'codes' => app(\App\Services\AdminPaymentService::class)->listDiscountCodes(),
+        ]);
+    }
+
+    public function storeDiscountCode(Request $request)
+    {
+        $validated = $request->validate([
+            'code' => 'required|string|min:3|max:30|regex:/^[A-Za-z0-9_-]+$/',
+            'type' => ['required', Rule::in(['percent', 'fixed'])],
+            'value' => 'required|numeric|min:0.01',
+            'is_active' => 'nullable|boolean',
+            'expires_at' => 'nullable|date|after:now',
+            'max_uses' => 'nullable|integer|min:1',
+        ]);
+
+        try {
+            $code = app(\App\Services\AdminPaymentService::class)->createDiscountCode($validated);
+        } catch (\Illuminate\Database\QueryException) {
+            return response()->json(['message' => 'Ce code existe déjà.'], 422);
+        }
+
+        return response()->json(['message' => "Code {$code->code} créé.", 'code' => $code], 201);
+    }
+
+    public function updateDiscountCode(Request $request, \App\Models\DiscountCode $discountCode)
+    {
+        $validated = $request->validate([
+            'code' => 'sometimes|string|min:3|max:30|regex:/^[A-Za-z0-9_-]+$/',
+            'type' => ['sometimes', Rule::in(['percent', 'fixed'])],
+            'value' => 'sometimes|numeric|min:0.01',
+            'is_active' => 'sometimes|boolean',
+            'expires_at' => 'nullable|date',
+            'max_uses' => 'nullable|integer|min:1',
+        ]);
+
+        $code = app(\App\Services\AdminPaymentService::class)->updateDiscountCode($discountCode, $validated);
+
+        return response()->json(['message' => 'Code mis à jour.', 'code' => $code]);
+    }
+
+    public function destroyDiscountCode(\App\Models\DiscountCode $discountCode)
+    {
+        $discountCode->delete();
+
+        return response()->json(['message' => 'Code supprimé.']);
+    }
+
+    // ------------------------------------------------------------------
     // Hero messages
     // ------------------------------------------------------------------
 

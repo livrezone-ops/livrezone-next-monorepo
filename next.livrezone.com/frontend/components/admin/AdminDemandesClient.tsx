@@ -54,6 +54,8 @@ export default function AdminDemandesClient() {
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [lastPage, setLastPage] = useState(1);
@@ -78,7 +80,14 @@ export default function AdminDemandesClient() {
     (async () => {
       try {
         const res = await api.get("/admin/orders", {
-          params: { status, search: search || undefined, limit: PAGE_SIZE, page },
+          params: {
+            status,
+            search: search || undefined,
+            sort_by: sortBy,
+            sort_dir: sortDir,
+            limit: PAGE_SIZE,
+            page,
+          },
         });
         if (!cancelled) {
           setOrders(res.data.orders ?? []);
@@ -96,7 +105,7 @@ export default function AdminDemandesClient() {
     return () => {
       cancelled = true;
     };
-  }, [status, search, page, refreshKey]);
+  }, [status, search, sortBy, sortDir, page, refreshKey]);
 
   const setBusy = (id: number, busy: boolean) => {
     setBusyIds((prev) => {
@@ -159,19 +168,36 @@ export default function AdminDemandesClient() {
         ))}
       </div>
 
-      {/* Recherche */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <input
-          type="text"
-          value={search}
+      {/* Recherche + tri */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Titre, auteur, ISBN ou vendeur…"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/40 focus:border-[#6D28D9]"
+          />
+        </div>
+        <select
+          value={`${sortBy}:${sortDir}`}
           onChange={(e) => {
-            setSearch(e.target.value);
+            const [by, dir] = e.target.value.split(":");
+            setSortBy(by);
+            setSortDir(dir as "asc" | "desc");
             setPage(1);
           }}
-          placeholder="Titre, auteur, ISBN ou vendeur…"
-          className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/40 focus:border-[#6D28D9]"
-        />
+          className="bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-600 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#6D28D9]/40 cursor-pointer"
+        >
+          <option value="created_at:desc">Plus récentes</option>
+          <option value="created_at:asc">Plus anciennes</option>
+          <option value="title:asc">Titre A→Z</option>
+          <option value="title:desc">Titre Z→A</option>
+        </select>
       </div>
 
       {/* Liste */}

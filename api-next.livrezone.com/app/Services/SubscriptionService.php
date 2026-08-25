@@ -21,9 +21,29 @@ class SubscriptionService
 {
     public const TYPES = ['free', 'pro', 'premium'];
 
+    public const PROMO_CACHE_KEY = 'livrezone.promo_pro_free';
+
+    /**
+     * Promo « Pro offert pour les free » : pilotée depuis l'admin (cache),
+     * avec repli sur la variable d'environnement si aucun réglage admin.
+     */
     public function isPromoProFree(): bool
     {
+        $override = \Illuminate\Support\Facades\Cache::get(self::PROMO_CACHE_KEY);
+
+        if ($override !== null) {
+            return (bool) $override;
+        }
+
         return filter_var(env('PROMO_PRO_FREE', false), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Active/désactive la promo Pro gratuit (admin).
+     */
+    public function setPromoProFree(bool $active): void
+    {
+        \Illuminate\Support\Facades\Cache::forever(self::PROMO_CACHE_KEY, $active);
     }
 
     /**

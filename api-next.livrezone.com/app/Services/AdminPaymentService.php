@@ -1,0 +1,139 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\DiscountCode;
+use App\Models\Payment;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * Administration : paiements, échéances d'abonnement, promo et codes de réduction.
+ */
+class AdminPaymentService
+{
+    /**
+     * Liste paginée des paiements avec filtres et agrégats.
+     *
+     * @return array{payments: array, meta: array}
+     */
+    public function list(array $filters = []): array
+    {
+        $query = Payment::query()->with('user.profile');
+
+        $status = $filters['status'] ?? 'all';
+        if ($status && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        $type = $filters['type'] ?? 'all';
+        if ($type && $type !== 'all') {
+            $query->where('subscription_type', $type);
+        }
+
+        if (! empty($filters['expiring'])) {
+            $query->whereNotNull('expires_at')
+                ->whereBetween('expires_at', [now(), now()->addDays(30)]);
+        }
+
+        if (! empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('transaction_id', 'like', "%{$search}%")
+                  ->orWhereHas('user.profile', fn ($pq) => $pq->where('nickname', 'like', "%{$search}%"))
+                  ->orWhereHas('user', fn ($uq) => $uq->where('email', 'like', "%{$search}%"));
+            });
+        }
+
+        $sortBy = in_array($filters['sort_by'] ?? null, ['created_at', 'expires_at', 'amount'], true)
+            ? $filters['sort_by']
+            : 'created_at';
+        $sortDir = ($filters['sort_dir'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+        $query->orderBy($sortBy, $sortDir);
+
+        $payments = $query->paginate(min((int) ($filters['limit'] ?? 20), 100));
+
+        return [
+            'payments' => collect($payments->items())
+                ->map(fn (Payment $p) => $this->transformPayment($p))
+                ->all(),
+            'meta' => [
+                'current_page' => $payments->currentPage(),
+                'last_page' => $payments->lastPage(),
+                'total' => $payments->total(),
+                'stats' => $this->stats(),
+            ],
+        ];
+    }
+
+    private function transformPayment(Payment $p): array
+    {
+        return [
+            'id' => $p->id,
+            'user' => $p->user ? [
+                'id' => $p->user->id,
+                'email' => $p->user->email,
+                'nickname' => $p->user->profile?->nickname,
+            ] : null,
+            'amount' => (float) $p->amount,
+            'payment_method' => $p->payment_method,
+            'transaction_id' => $p->transaction_id,
+            'subscription_type' => $p->subscription_type,
+            'status' => $p->status,
+            'paid_at' => $p->paid_at?->toISOString(),
+            'expires_at' => $p->expires_at?->toISOString(),
+            'created_at' => $p->created_at?->toISOString(),
+        ];
+    }
+
+    private function stats(): array
+    {
+        return [
+            'revenue_paid' => (float) Payment::where('status', 'paid')->sum('amount'),
+            'count_paid' => Payment::where('status', 'paid')->count(),
+            'count_pending' => Payment::where('status', 'pending')->count(),
+            'count_failed' => Payment::where('status', 'failed')->count(),
+            // Échéances dans les 30 prochains jours
+            'expiring_soon' => Payment::where('status', 'paid')
+                ->whereNotNull('expires_at')
+                ->whereBetween('expires_at', [now(), now()->addDays(30)])
+                ->count(),
+        ];
+    }
+
+    // ------------------------------------------------------------------
+    // Codes de réduction
+    // ------------------------------------------------------------------
+
+    public function listDiscountCodes(): array
+    {
+        return DiscountCode::query()->orderByDesc('created_at')->get()->map(
+            fn (DiscountCode $c) => $c->toArray()
+        )->all();
+    }
+
+    public function createDiscountCode(array $data): DiscountCode
+    {
+        return DiscountCode::create([
+            'code' => strtoupper($data['code']),
+            'type' => $data['type'],
+            'value' => $data['value'],
+            'is_active' => $data['is_active'] ?? true,
+            'expires_at' => $data['expires_at'] ?? null,
+            'max_uses' => $data['max_uses'] ?? null,
+        ]);
+    }
+
+    public function updateDiscountCode(DiscountCode $code, array $data): DiscountCode
+    {
+        $code->update(collect($data)->only([
+            'code', 'type', 'value', 'is_active', 'expires_at', 'max_uses',
+        ])->filter(fn ($v) => $v !== null)->all());
+
+        return $code->fresh();
+    }
+
+    public function deleteDiscountCode(DiscountCode $code): void
+    {
+        $code->delete();
+    }
+}

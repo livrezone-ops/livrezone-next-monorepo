@@ -144,6 +144,14 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/orders', [AdminController::class, 'orders']);
     Route::post('/orders/{order}/status', [AdminController::class, 'updateOrderStatus']);
 
+    Route::get('/payments', [AdminController::class, 'payments']);
+    Route::get('/promo', [AdminController::class, 'promoState']);
+    Route::post('/promo/toggle', [AdminController::class, 'togglePromo']);
+    Route::get('/discount-codes', [AdminController::class, 'discountCodes']);
+    Route::post('/discount-codes', [AdminController::class, 'storeDiscountCode']);
+    Route::put('/discount-codes/{discountCode}', [AdminController::class, 'updateDiscountCode']);
+    Route::delete('/discount-codes/{discountCode}', [AdminController::class, 'destroyDiscountCode']);
+
     Route::get('/hero-messages', [AdminController::class, 'hero']);
     Route::put('/hero-messages', [AdminController::class, 'storeHero']);
 });
