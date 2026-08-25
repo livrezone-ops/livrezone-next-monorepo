@@ -106,7 +106,7 @@ export default function DemandesPage() {
   };
 
   return (
-    <div className="w-[92%] max-w-6xl mx-auto py-8">
+    <div className="py-4 lg:py-2">
       {/* En-tête */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

@@ -85,7 +85,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="w-[90%] max-w-7xl mx-auto py-8">
+    <div className="py-4 lg:py-2">
       <PendingAuthRedirect />
       <DashboardClient initialListings={listings} />
     </div>
