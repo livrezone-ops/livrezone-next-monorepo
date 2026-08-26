@@ -77,4 +77,30 @@ class AdminSettingsTest extends TestCase
             ->postJson('/api/admin/settings', ['max_free_listings' => 1])
             ->assertStatus(403);
     }
+
+    public function test_disabling_payment_method_persists_and_can_be_reenabled(): void
+    {
+        // Régression : désactiver un moyen stockait '' (chaîne vide), relu
+        // comme absent -> retombait sur la valeur par défaut (activé).
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $this->actingAs($admin)->postJson('/api/admin/settings', [
+            'method_cheque' => false,
+            'method_autre' => false,
+        ])->assertOk()
+          ->assertJsonPath('settings.method_cheque', 0)
+          ->assertJsonPath('settings.method_autre', 0);
+
+        Cache::flush(); // même après purge du cache
+
+        $service = new SubscriptionService();
+        $methods = $service->enabledPaymentMethods();
+        $this->assertNotContains('cheque', $methods);
+        $this->assertNotContains('autre', $methods);
+        $this->assertContains('virement', $methods);
+
+        // Réactivation
+        $this->actingAs($admin)->postJson('/api/admin/settings', ['method_cheque' => true])->assertOk();
+        $this->assertContains('cheque', (new SubscriptionService())->enabledPaymentMethods());
+    }
 }

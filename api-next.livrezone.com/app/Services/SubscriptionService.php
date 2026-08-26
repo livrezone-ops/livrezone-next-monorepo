@@ -102,7 +102,11 @@ class SubscriptionService
             throw new \InvalidArgumentException("Réglage non éditable : {$key}");
         }
 
-        \App\Models\Setting::updateOrCreate(['key' => $key], ['value' => (string) $value]);
+        // Les booléens doivent être stockés explicitement ('1'/'0') :
+        // (string) false donnerait '' et serait relu comme "absent".
+        $storedValue = is_bool($value) ? ($value ? '1' : '0') : (string) $value;
+
+        \App\Models\Setting::updateOrCreate(['key' => $key], ['value' => $storedValue]);
         \Illuminate\Support\Facades\Cache::forget("livrezone.setting.{$key}");
         // /reference-data (page tarification) embarque prix et délais : invalider.
         \Illuminate\Support\Facades\Cache::forget('reference_data');
