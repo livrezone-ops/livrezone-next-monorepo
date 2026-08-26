@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
 import FilterSidebar from "@/components/FilterSidebar";
+import { toJsonLd } from "@/lib/safe-json-ld";
 import ListingsSearch from "@/components/ListingsSearch";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import {
@@ -331,12 +332,12 @@ export default async function AnnoncesPage({ searchParams }: PageProps) {
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildBreadcrumbJsonLd(f)) }}
+        dangerouslySetInnerHTML={{ __html: toJsonLd(buildBreadcrumbJsonLd(f)) }}
       />
       {jsonLdItemList && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdItemList) }}
+          dangerouslySetInnerHTML={{ __html: toJsonLd(jsonLdItemList) }}
         />
       )}
     </div>

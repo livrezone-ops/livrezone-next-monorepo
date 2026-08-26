@@ -60,9 +60,9 @@ class Profile extends Model
         'logo',
         'avatar_mode',
         'avatar_upload',
-        'rating_average',
-        'rating_count',
-        'listing_count',
+        // rating_average / rating_count / listing_count : écrits uniquement
+        // par les services (RatingService, ProfileSearchService) — jamais via
+        // une requête utilisateur.
         'profile_book_conditions',
     ];
 

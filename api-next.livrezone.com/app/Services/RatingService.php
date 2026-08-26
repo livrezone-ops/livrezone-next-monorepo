@@ -35,10 +35,11 @@ class RatingService
         $average = Rating::where('profile_id', $profile->id)->avg('score') ?? 0;
         $count = Rating::where('profile_id', $profile->id)->count();
 
-        $profile->update([
-            'rating_average' => $average,
-            'rating_count' => $count,
-        ]);
+        // Mise à jour explicite (compteurs retirés de $fillable pour éviter
+        // tout mass assignment).
+        $profile->rating_average = $average;
+        $profile->rating_count = $count;
+        $profile->save();
 
         return $rating;
     }

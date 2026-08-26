@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { MapPin, X } from "lucide-react";
+import { toJsonLd } from "@/lib/safe-json-ld";import { MapPin, X } from "lucide-react";
 import FilterSidebar from "@/components/FilterSidebar";
 import ListingsSearch from "@/components/ListingsSearch";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -293,7 +293,7 @@ export default async function LibraryProfilePage({ params, searchParams }: PageP
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(buildBreadcrumbJsonLd(profile.nickname)),
+          __html: toJsonLd(buildBreadcrumbJsonLd(profile.nickname)),
         }}
       />
     </div>

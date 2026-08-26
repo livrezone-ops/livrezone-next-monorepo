@@ -4,6 +4,7 @@ import "./globals.css";
 import Providers from "./providers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { toJsonLd } from "@/lib/safe-json-ld";
 
 const notoSans = Noto_Sans({
   subsets: ["latin"],
@@ -111,7 +112,7 @@ export default function RootLayout({
       <body className={`${notoSans.variable} ${notoKufiArabic.variable} min-h-full flex flex-col bg-gray-50 text-gray-900`}>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: toJsonLd(jsonLd) }}
         />
         <Providers>
           <Header />

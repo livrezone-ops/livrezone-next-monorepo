@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ListingDetailFetcher from "./ListingDetailFetcher";
 import { getPublicListing } from "@/lib/listings-api";
+import { toJsonLd } from "@/lib/safe-json-ld";
 
 export const dynamic = 'force-dynamic';
 
@@ -209,13 +210,13 @@ export default async function ListingPage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(buildBreadcrumbJsonLd(listing, slug)),
+          __html: toJsonLd(buildBreadcrumbJsonLd(listing, slug)),
         }}
       />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(buildBookJsonLd(listing, slug)),
+          __html: toJsonLd(buildBookJsonLd(listing, slug)),
         }}
       />
     </>

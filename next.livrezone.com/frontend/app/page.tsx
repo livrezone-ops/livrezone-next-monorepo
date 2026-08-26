@@ -4,6 +4,7 @@ import Link from "next/link";
 import fs from "fs";
 import path from "path";
 import dynamic from "next/dynamic";
+import { toJsonLd } from "@/lib/safe-json-ld";
 import {
   BookOpen,
   Store,
@@ -451,7 +452,7 @@ export default async function Home() {
       {/* JSON-LD */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: toJsonLd(jsonLd) }}
       />
     </div>
   );

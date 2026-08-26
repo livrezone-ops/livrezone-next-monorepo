@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getLibraries, type LibraryItem } from "@/lib/libraries-api";
+import { toJsonLd } from "@/lib/safe-json-ld";
 import { getReferenceData, type CityRef } from "@/lib/listings-api";
 import LibrariesClient from "./LibrariesClient";
 
@@ -116,7 +117,7 @@ export default async function LibrairiesPage({ searchParams }: PageProps) {
       {jsonLd && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: toJsonLd(jsonLd) }}
         />
       )}
     </>

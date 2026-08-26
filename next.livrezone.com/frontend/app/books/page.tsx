@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getBooks, BookSearchItem, type BooksResult } from "@/lib/books-api";
+import { toJsonLd } from "@/lib/safe-json-ld";
 import { getReferenceData } from "@/lib/listings-api";
 import { parseFilters } from "@/lib/listings-filters";
 import BooksClient from "./BooksClient";
@@ -155,7 +156,7 @@ export default async function LivresPage({ searchParams }: PageProps) {
       {jsonLdItemList && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdItemList) }}
+          dangerouslySetInnerHTML={{ __html: toJsonLd(jsonLdItemList) }}
         />
       )}
     </>
