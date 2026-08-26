@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
-import { buildListingPath } from "@/lib/listings-api";
+import { buildListingPath, type ListingSummary } from "@/lib/listings-api";
 
 interface HeaderSearchProps {
   onCloseMobile?: () => void;
@@ -14,7 +14,7 @@ interface HeaderSearchProps {
 export default function HeaderSearch({ onCloseMobile, isMobile = false }: HeaderSearchProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<ListingSummary[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   
@@ -63,7 +63,7 @@ export default function HeaderSearch({ onCloseMobile, isMobile = false }: Header
     router.push(`/annonces?search=${encodeURIComponent(q)}`);
   };
 
-  const handleSuggestionClick = (listing: any) => {
+  const handleSuggestionClick = (listing: ListingSummary) => {
     setShowSuggestions(false);
     if (onCloseMobile) onCloseMobile();
     router.push(buildListingPath(listing));

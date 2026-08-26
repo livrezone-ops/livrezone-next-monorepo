@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class AuthController extends Controller
@@ -131,7 +132,7 @@ class AuthController extends Controller
 
         return redirect()->away(
             rtrim(env('FRONTEND_URL', 'http://localhost:3000'), '/')
-                . '/login?next=/profile/complete&verified=1'
+                .'/login?next=/profile/complete&verified=1'
         );
     }
 
@@ -149,8 +150,8 @@ class AuthController extends Controller
         if ($user) {
             $token = Password::getRepository()->create($user);
             $url = rtrim(env('FRONTEND_URL', 'http://localhost:3000'), '/')
-                . '/reset-password?token=' . $token
-                . '&email=' . urlencode($user->email);
+                .'/reset-password?token='.$token
+                .'&email='.urlencode($user->email);
 
             Mail::to($user->email)->send(new ResetPasswordMail($url, $user->name));
         }
@@ -181,7 +182,7 @@ class AuthController extends Controller
             function (User $user, string $password) {
                 $user->forceFill([
                     'password' => $password,
-                    'remember_token' => \Illuminate\Support\Str::random(60),
+                    'remember_token' => Str::random(60),
                 ])->save();
             }
         );

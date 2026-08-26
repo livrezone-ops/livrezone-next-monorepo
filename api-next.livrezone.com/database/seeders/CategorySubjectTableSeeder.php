@@ -14,7 +14,7 @@ class CategorySubjectTableSeeder extends Seeder
         $schoolSubjects = [
             'ARABE', 'FRANCAIS', 'ANGLAIS', 'ESPAGNOL', 'MATHEMATIQUES',
             'PHYSIQUE_CHIMIE', 'SVT', 'HISTOIRE_GEO', 'PHILOSOPHIE',
-            'INFORMATIQUE', 'EDUCATION_ISLAMIQUE', 'ARTS', 'EPS', 'AUTRE'
+            'INFORMATIQUE', 'EDUCATION_ISLAMIQUE', 'ARTS', 'EPS', 'AUTRE',
         ];
 
         $categorySubjects = [
@@ -71,14 +71,14 @@ class CategorySubjectTableSeeder extends Seeder
         foreach ($categorySubjects as $categoryCode => $subjects) {
             $categoryId = $categoryIds[$categoryCode] ?? null;
 
-            if (!$categoryId) {
+            if (! $categoryId) {
                 continue;
             }
 
             foreach ($subjects as $subjectCode) {
                 $subjectId = $subjectIds[$subjectCode] ?? null;
 
-                if (!$subjectId) {
+                if (! $subjectId) {
                     continue;
                 }
 

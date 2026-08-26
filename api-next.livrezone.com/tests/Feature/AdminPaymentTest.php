@@ -52,7 +52,7 @@ class AdminPaymentTest extends TestCase
     public function test_admin_can_toggle_promo_pro_free(): void
     {
         $admin = User::factory()->create(['is_admin' => true]);
-        $service = new SubscriptionService();
+        $service = new SubscriptionService;
 
         Cache::forget(SubscriptionService::PROMO_CACHE_KEY);
 
@@ -72,7 +72,7 @@ class AdminPaymentTest extends TestCase
         // Le réglage persiste en DB même après une purge du cache (optimize:clear).
         Cache::forget(SubscriptionService::PROMO_CACHE_KEY);
         $this->assertTrue(SubscriptionService::PROMO_CACHE_KEY !== null);
-        $this->assertFalse((new SubscriptionService())->isPromoProFree());
+        $this->assertFalse((new SubscriptionService)->isPromoProFree());
     }
 
     public function test_admin_can_create_and_delete_discount_code(): void

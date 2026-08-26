@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\HeroMessage;
+use App\Services\HeroMessageService;
 
 class HeroController extends Controller
 {
@@ -14,7 +15,7 @@ class HeroController extends Controller
     public function index()
     {
         return response()->json([
-            'messages' => app(\App\Services\HeroMessageService::class)->getActiveMessages()
+            'messages' => app(HeroMessageService::class)->getActiveMessages(),
         ]);
     }
 }

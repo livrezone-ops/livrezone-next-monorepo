@@ -29,7 +29,7 @@ return new class extends Migration
 
             $table->string('title', 255);
             $table->text('description')->nullable();
-            
+
             // État du livre (neuf ou occasion)
             $table->enum('book_condition', ['neuf', 'occas']);
 

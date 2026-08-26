@@ -22,13 +22,13 @@ class SubjectLevelTableSeeder extends Seeder
             'COMPTABILITE', 'AUDIT', 'ECONOMIE_GESTION', 'DROIT', 'MEDECINE_SANTE',
             'SCIENCES_HUMAINES', 'FORMATION_PRO', 'MATHEMATIQUES', 'PHYSIQUE_CHIMIE',
             'INFORMATIQUE', 'PHILOSOPHIE', 'ARABE', 'FRANCAIS', 'ANGLAIS', 'ESPAGNOL',
-            'AUTRE'
+            'AUTRE',
         ];
 
         $proBase = [
             'FORMATION_PRO', 'INFORMATIQUE', 'RESEAU', 'DATA_SCIENCE', 'BIG_DATA',
             'COMPTABILITE', 'AUDIT', 'ECONOMIE_GESTION', 'MEDECINE_SANTE',
-            'ARABE', 'FRANCAIS', 'ANGLAIS', 'ESPAGNOL', 'AUTRE'
+            'ARABE', 'FRANCAIS', 'ANGLAIS', 'ESPAGNOL', 'AUTRE',
         ];
 
         $subjectLevels = [
@@ -58,14 +58,14 @@ class SubjectLevelTableSeeder extends Seeder
         foreach ($subjectLevels as $levelCode => $subjects) {
             $levelId = $levelIds[$levelCode] ?? null;
 
-            if (!$levelId) {
+            if (! $levelId) {
                 continue;
             }
 
             foreach ($subjects as $subjectCode) {
                 $subjectId = $subjectIds[$subjectCode] ?? null;
 
-                if (!$subjectId) {
+                if (! $subjectId) {
                     continue;
                 }
 

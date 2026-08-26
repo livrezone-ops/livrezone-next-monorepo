@@ -28,8 +28,7 @@ class PaymentGatewayService
     public function __construct(
         protected AdminPaymentService $adminPaymentService,
         protected SubscriptionService $subscriptions,
-    ) {
-    }
+    ) {}
 
     /**
      * Liste des passerelles activées (réglage admin prioritaire, repli .env).

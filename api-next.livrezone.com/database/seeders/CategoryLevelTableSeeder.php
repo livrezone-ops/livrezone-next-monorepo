@@ -13,7 +13,7 @@ class CategoryLevelTableSeeder extends Seeder
 
         $schoolLevels = [
             'PRESCOLAIRE', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6',
-            '1AC', '2AC', '3AC', 'TRONC_COMMUN', '1BAC', '2BAC'
+            '1AC', '2AC', '3AC', 'TRONC_COMMUN', '1BAC', '2BAC',
         ];
 
         $uniLevels = ['LICENCE', 'MASTER', 'DOCTORAT', 'FORMATION_PRO'];
@@ -78,14 +78,14 @@ class CategoryLevelTableSeeder extends Seeder
         foreach ($categoryLevels as $categoryCode => $levels) {
             $categoryId = $categoryIds[$categoryCode] ?? null;
 
-            if (!$categoryId) {
+            if (! $categoryId) {
                 continue;
             }
 
             foreach ($levels as $levelCode) {
                 $levelId = $levelIds[$levelCode] ?? null;
 
-                if (!$levelId) {
+                if (! $levelId) {
                     continue;
                 }
 

@@ -154,7 +154,7 @@ export default function LibrariesClient({
                   onChange={handleSortChange}
                   className="w-full sm:w-auto h-[46px] rounded-xl border border-gray-300 bg-white pl-9 pr-8 text-xs sm:text-sm text-gray-900 focus:outline-none focus:border-[#6D28D9] cursor-pointer appearance-none shadow-xs"
                 >
-                  <option value="publications">Plus d'annonces</option>
+                  <option value="publications">Plus d’annonces</option>
                   <option value="rating">Mieux notées</option>
                 </select>
               </label>
@@ -212,7 +212,7 @@ export default function LibrariesClient({
               </div>
               <h3 className="text-lg font-black text-gray-900 mb-2">Aucune librairie trouvée</h3>
               <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto mb-6">
-                Aucune librairie ne correspond à vos critères de recherche. Essayez d'élargir vos filtres.
+                Aucune librairie ne correspond à vos critères de recherche. Essayez d’élargir vos filtres.
               </p>
               <button
                 type="button"

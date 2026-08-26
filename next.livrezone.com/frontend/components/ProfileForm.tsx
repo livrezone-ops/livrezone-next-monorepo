@@ -439,7 +439,6 @@ export default function ProfileForm({
                                         </div>
                                     )}
                                     {userAvatar ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
                                         <img
                                             src={userAvatar}
                                             alt="Google"
@@ -495,7 +494,6 @@ export default function ProfileForm({
                                         </div>
                                     )}
                                     {logoPreview ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
                                         <div className="relative group/avatar">
                                             <img
                                                 src={logoPreview}
@@ -507,7 +505,6 @@ export default function ProfileForm({
                                             </div>
                                         </div>
                                     ) : initialLogo && !initialLogo.startsWith('http') ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
                                         <div className="relative group/avatar">
                                             <img
                                                 src={`https://api-next.livrezone.com${initialLogo}`}
@@ -738,7 +735,7 @@ export default function ProfileForm({
                                     className="h-11 sm:h-12 w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-11 pr-8 text-sm text-slate-900 outline-none transition-all focus:border-[#6D28D9] focus:bg-white focus:ring-2 focus:ring-[#6D28D9]/20 cursor-pointer appearance-none"
                                 >
                                     <option value="neuf">Livres neufs</option>
-                                    <option value="occas">Livres d'occasion</option>
+                                    <option value="occas">Livres d’occasion</option>
                                 </select>
                                 <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
                                     ▼

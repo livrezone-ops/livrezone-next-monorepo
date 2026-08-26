@@ -6,13 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\Category;
 use App\Models\Listing;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use App\Services\BookDataFetcherService;
 use App\Services\ImageUploadService;
 use App\Services\ListingProcessorService;
-use App\Services\BookDataFetcherService;
 use App\Services\ListingValidationService;
 use App\Services\SubscriptionService;
+use App\Services\TelegramNotificationService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class ListingManagerController extends Controller
 {
@@ -28,7 +30,7 @@ class ListingManagerController extends Controller
         if ($listing->user_id !== $request->user()->id) {
             abort(403, 'Non autorisé');
         }
-        
+
         $listing->load(['book', 'category', 'level', 'subject', 'language']);
         if ($listing->book) {
             $listing->book->setAppends(['cover_url']);
@@ -44,7 +46,7 @@ class ListingManagerController extends Controller
 
         if ($subscriptionService->hasReachedListingLimit($user->profile)) {
             return response()->json([
-                'message' => "Vous avez atteint la limite de {$subscriptionService->getMaxListings($user->profile)} annonces gratuites. Veuillez passer à l'offre Pro pour publier sans limites."
+                'message' => "Vous avez atteint la limite de {$subscriptionService->getMaxListings($user->profile)} annonces gratuites. Veuillez passer à l'offre Pro pour publier sans limites.",
             ], 403);
         }
 
@@ -53,7 +55,7 @@ class ListingManagerController extends Controller
         // Résolution des relations catégorie / niveau / matière
         $category = Category::with(['levels', 'subjects'])->findOrFail($validated['category_id']);
         $this->listingProcessorService->validateCategoryParent($category, $request->input('parent_category_id'));
-        
+
         [$levelId, $subjectId] = $this->listingProcessorService->resolveLevelSubject(
             $category,
             $validated['level_id'] ?? null,
@@ -72,7 +74,7 @@ class ListingManagerController extends Controller
                 $bookCoverPath = $book->cover_path;
                 $bookCoverSourceUrl = $book->cover_source_url;
             }
-        } elseif (!empty($validated['isbn_13'])) {
+        } elseif (! empty($validated['isbn_13'])) {
             $book = $this->bookDataFetcherService->findBookByIsbn($validated['isbn_13']);
             if ($book) {
                 $bookId = $book->id;
@@ -128,14 +130,14 @@ class ListingManagerController extends Controller
         $listing = Listing::create($payload);
 
         try {
-            app(\App\Services\TelegramNotificationService::class)->notifyAdminNewListing($listing);
+            app(TelegramNotificationService::class)->notifyAdminNewListing($listing);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Erreur envoi Telegram: ' . $e->getMessage());
+            Log::error('Erreur envoi Telegram: '.$e->getMessage());
         }
 
         return response()->json([
             'message' => 'Annonce créée avec succès, en attente de validation',
-            'listing' => $listing
+            'listing' => $listing,
         ], 201);
     }
 
@@ -150,7 +152,7 @@ class ListingManagerController extends Controller
         // Résolution des relations catégorie / niveau / matière
         $category = Category::with(['levels', 'subjects'])->findOrFail($validated['category_id']);
         $this->listingProcessorService->validateCategoryParent($category, $request->input('parent_category_id'));
-        
+
         [$levelId, $subjectId] = $this->listingProcessorService->resolveLevelSubject(
             $category,
             $validated['level_id'] ?? null,
@@ -163,16 +165,16 @@ class ListingManagerController extends Controller
         $coverSourceUrl = $listing->cover_source_url;
         $book = null;
 
-        if (!empty($validated['book_id'])) {
+        if (! empty($validated['book_id'])) {
             $book = Book::find($validated['book_id']);
-        } elseif (!empty($validated['isbn_13'])) {
+        } elseif (! empty($validated['isbn_13'])) {
             $book = $this->bookDataFetcherService->findBookByIsbn($validated['isbn_13']);
         }
 
         if ($book) {
             $bookId = $book->id;
             // Si le listing n'a pas encore de couverture, utiliser celle du book catalogue
-            if (!$coverPath && !$request->hasFile('cover_image')) {
+            if (! $coverPath && ! $request->hasFile('cover_image')) {
                 $coverPath = $book->cover_path;
                 $coverSourceUrl = $book->cover_source_url;
             }
@@ -187,7 +189,7 @@ class ListingManagerController extends Controller
 
         // Upload d'une nouvelle couverture utilisateur (prioritaire)
         if ($request->hasFile('cover_image')) {
-            if ($coverPath && !str_starts_with($coverPath, 'http')) {
+            if ($coverPath && ! str_starts_with($coverPath, 'http')) {
                 Storage::disk('public')->delete($coverPath);
             }
             $coverPath = $this->imageUploadService->storeCover($request->file('cover_image'));
@@ -201,7 +203,7 @@ class ListingManagerController extends Controller
         } else {
             $normalizedTitle = mb_strtolower(trim($validated['title']));
             $normalizedOldTitle = mb_strtolower(trim($listing->title));
-            
+
             $normalizedDesc = mb_strtolower(trim($validated['description'] ?? ''));
             $normalizedOldDesc = mb_strtolower(trim($listing->description ?? ''));
 
@@ -249,15 +251,15 @@ class ListingManagerController extends Controller
 
         if ($oldStatus === 'published' && $status === 'pending_admin') {
             try {
-                app(\App\Services\TelegramNotificationService::class)->notifyAdminNewListing($listing);
+                app(TelegramNotificationService::class)->notifyAdminNewListing($listing);
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Erreur envoi Telegram update: ' . $e->getMessage());
+                Log::error('Erreur envoi Telegram update: '.$e->getMessage());
             }
         }
 
         return response()->json([
             'message' => 'Annonce mise à jour avec succès',
-            'listing' => $listing
+            'listing' => $listing,
         ]);
     }
 
@@ -280,7 +282,7 @@ class ListingManagerController extends Controller
             'language_id' => 'nullable|exists:languages,id',
             'isbn_13' => 'nullable|string|max:20',
             'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:4096',
-            'cover_source_url' => 'nullable|url'
+            'cover_source_url' => 'nullable|url',
         ]);
     }
 }

@@ -8,7 +8,6 @@ use App\Models\Listing;
 use App\Services\ListingQueryService;
 use App\Services\ListingValidationService;
 use App\Services\TelegramNotificationService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -19,8 +18,7 @@ class DashboardController extends Controller
         protected ListingQueryService $listingQueryService,
         protected ListingValidationService $validationService,
         protected TelegramNotificationService $telegram,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request)
     {
@@ -65,7 +63,7 @@ class DashboardController extends Controller
 
         // Un vendeur ne peut jamais publier/valider lui-même : statuts limités.
         $validated = $request->validate([
-            'status' => ['required', Rule::in(ListingQueryService::SELLER_STATUSES)]
+            'status' => ['required', Rule::in(ListingQueryService::SELLER_STATUSES)],
         ]);
 
         $status = $validated['status'];
@@ -122,7 +120,7 @@ class DashboardController extends Controller
         try {
             $this->telegram->notifyAdminNewListing($newListing);
         } catch (\Exception $e) {
-            Log::error('Erreur envoi Telegram republish: ' . $e->getMessage());
+            Log::error('Erreur envoi Telegram republish: '.$e->getMessage());
         }
 
         return response()->json([
@@ -154,7 +152,7 @@ class DashboardController extends Controller
         $validated = $request->validate([
             'ids' => 'required|array',
             'ids.*' => 'integer|exists:listings,id',
-            'discount_percentage' => 'required|numeric|min:1|max:99'
+            'discount_percentage' => 'required|numeric|min:1|max:99',
         ]);
 
         $updated = $this->listingQueryService->applyDiscountForSeller(

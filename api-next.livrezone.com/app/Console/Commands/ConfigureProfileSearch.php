@@ -10,6 +10,7 @@ use Meilisearch\Client;
 class ConfigureProfileSearch extends Command
 {
     protected $signature = 'profiles:configure-search';
+
     protected $description = 'Configure l\'index Meilisearch "profiles" (moteur de recherche par défaut) et recalcule le counter cache des publications.';
 
     public function handle(): int
@@ -19,6 +20,7 @@ class ConfigureProfileSearch extends Command
 
         if (empty($host)) {
             $this->error('Meilisearch non configuré (MEILISEARCH_HOST manquant).');
+
             return 1;
         }
 
@@ -39,7 +41,7 @@ class ConfigureProfileSearch extends Command
             'id',
         ]);
 
-        $this->info('Index Meilisearch « ' . (new Profile)->searchableAs() . ' » configuré (recherche stricte sur nickname).');
+        $this->info('Index Meilisearch « '.(new Profile)->searchableAs().' » configuré (recherche stricte sur nickname).');
 
         // Recalcule le counter cache sans synchroniser à chaque save (évite N écritures réseau).
         // Backfill : tout profil n'ayant pas déclaré son activité principale reçoit "occas".

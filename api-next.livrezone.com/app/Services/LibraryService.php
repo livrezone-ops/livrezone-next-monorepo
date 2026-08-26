@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Profile;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Log;
 
 class LibraryService
 {
@@ -34,7 +35,7 @@ class LibraryService
         // Annuaire des librairies : on ne liste que les profils de type librairie.
         $builder->where('profile_type', 'librairie');
 
-        if (!empty($cityIds)) {
+        if (! empty($cityIds)) {
             $builder->whereIn('city_id', $cityIds);
         }
 
@@ -46,7 +47,7 @@ class LibraryService
             $conditions = explode(',', $conditionsInput);
         }
         $validConditions = array_intersect($conditions, ['neuf', 'occas']);
-        if (!empty($validConditions)) {
+        if (! empty($validConditions)) {
             $builder->whereIn('profile_book_conditions', $validConditions);
         }
 
@@ -97,6 +98,7 @@ class LibraryService
             $libFacetBuilder = Profile::search('', function ($meilisearch, $query, $options) {
                 $options['facets'] = ['city_id'];
                 $options['hitsPerPage'] = 0;
+
                 return $meilisearch->search($query, $options);
             });
             $libFacetBuilder->where('profile_type', 'librairie');
@@ -104,17 +106,18 @@ class LibraryService
             $rawLibFacets = $libFacetBuilder->raw();
             $libFacetDistribution = $rawLibFacets['facetDistribution']['city_id'] ?? [];
             foreach ($libFacetDistribution as $id => $count) {
-                $facets['cities'][(string)$id] = $count;
+                $facets['cities'][(string) $id] = $count;
             }
 
             // Conditions : source = index "profiles" (librairies).
             $conditionFacetBuilder = Profile::search($search ?: '', function ($meilisearch, $query, $options) {
                 $options['facets'] = ['profile_book_conditions'];
                 $options['hitsPerPage'] = 0;
+
                 return $meilisearch->search($query, $options);
             });
             $conditionFacetBuilder->where('profile_type', 'librairie');
-            if (!empty($validConditions)) {
+            if (! empty($validConditions)) {
                 $conditionFacetBuilder->whereIn('profile_book_conditions', $validConditions);
             }
 
@@ -124,7 +127,7 @@ class LibraryService
                 $facets['conditions'][$code] = $count;
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Meilisearch Library facets failed: ' . $e->getMessage());
+            Log::warning('Meilisearch Library facets failed: '.$e->getMessage());
         }
 
         return [

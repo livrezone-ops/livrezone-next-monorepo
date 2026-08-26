@@ -42,6 +42,7 @@ class BookCatalogueService
             $facetBuilder = Book::search($search, function ($meilisearch, $query, $options) {
                 $options['facets'] = ['default_category_id', 'language_id', 'default_level_id'];
                 $options['hitsPerPage'] = 0; // On ne veut que les facettes
+
                 return $meilisearch->search($query, $options);
             });
             $this->applyCrossFilters($facetBuilder, $request, ['languages']);
@@ -49,11 +50,11 @@ class BookCatalogueService
             $rawFacets = $facetBuilder->raw();
             $categoryFacets = $rawFacets['facetDistribution']['default_category_id'] ?? [];
             $languageFacets = $rawFacets['facetDistribution']['language_id'] ?? [];
-            $levelFacets    = $rawFacets['facetDistribution']['default_level_id'] ?? [];
+            $levelFacets = $rawFacets['facetDistribution']['default_level_id'] ?? [];
         } else {
             $categoryFacets = [];
             $languageFacets = [];
-            $levelFacets    = [];
+            $levelFacets = [];
         }
 
         // --- 2. Requête principale (avec tous les filtres) ---
@@ -103,7 +104,7 @@ class BookCatalogueService
         // Map numeric IDs to string codes for the frontend (catégories, langues, niveaux).
         $categoryMap = Category::pluck('code', 'id')->toArray();
         $languageMap = Language::pluck('code', 'id')->toArray();
-        $levelMap    = Level::pluck('code', 'id')->toArray();
+        $levelMap = Level::pluck('code', 'id')->toArray();
 
         $mappedCategories = [];
         foreach ($categoryFacets as $id => $count) {
@@ -123,8 +124,8 @@ class BookCatalogueService
 
         $response['facets'] = [
             'categories' => $mappedCategories,
-            'languages'  => $mappedLanguages,
-            'levels'     => $mappedLevels,
+            'languages' => $mappedLanguages,
+            'levels' => $mappedLevels,
         ];
 
         return $response;
@@ -144,23 +145,23 @@ class BookCatalogueService
             $builder->where('isbn_13', str_replace(['-', ' '], '', $search));
         }
 
-        if (!in_array('categories', $exclude, true)) {
+        if (! in_array('categories', $exclude, true)) {
             $categoryIds = $this->filterService->resolveCategoryIds($request, ['categories', 'category', 'category_id', 'c']);
-            if (!empty($categoryIds)) {
+            if (! empty($categoryIds)) {
                 $builder->whereIn('default_category_id', $categoryIds);
             }
         }
 
-        if (!in_array('languages', $exclude, true)) {
+        if (! in_array('languages', $exclude, true)) {
             $languageIds = $this->filterService->resolveLanguageIds($request, ['languages', 'language', 'language_id', 'lang']);
-            if (!empty($languageIds)) {
+            if (! empty($languageIds)) {
                 $builder->whereIn('language_id', $languageIds);
             }
         }
 
-        if (!in_array('levels', $exclude, true)) {
+        if (! in_array('levels', $exclude, true)) {
             $levelIds = $this->filterService->resolveLevelIds($request, ['levels', 'level', 'level_id']);
-            if (!empty($levelIds)) {
+            if (! empty($levelIds)) {
                 $builder->whereIn('default_level_id', $levelIds);
             }
         }

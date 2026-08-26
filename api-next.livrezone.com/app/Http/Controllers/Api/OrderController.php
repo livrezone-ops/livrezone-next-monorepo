@@ -48,7 +48,7 @@ class OrderController extends Controller
      */
     public function show(Request $request, Order $order): JsonResponse
     {
-        if ($order->user_id !== $request->user()->id && !$request->user()->is_admin) {
+        if ($order->user_id !== $request->user()->id && ! $request->user()->is_admin) {
             abort(403, 'Non autorisé');
         }
 
@@ -73,13 +73,13 @@ class OrderController extends Controller
         $coverImage = $request->hasFile('cover_image') ? $request->file('cover_image') : null;
         $order = $this->orderService->createOrder($request->user(), $validated, $coverImage);
 
-        $message = !empty($validated['book_id'])
+        $message = ! empty($validated['book_id'])
             ? 'Votre demande a bien été enregistrée. Les vendeurs seront notifiés.'
             : 'Votre demande a été enregistrée et sera validée par un modérateur avant diffusion.';
 
         return response()->json([
             'message' => $message,
-            'order' => $order
+            'order' => $order,
         ], 201);
     }
 
@@ -106,7 +106,7 @@ class OrderController extends Controller
 
         return response()->json([
             'message' => 'Demande modifiée avec succès.',
-            'order' => $updatedOrder
+            'order' => $updatedOrder,
         ]);
     }
 
@@ -123,7 +123,7 @@ class OrderController extends Controller
 
         return response()->json([
             'message' => 'Demande annulée avec succès',
-            'order' => $cancelledOrder
+            'order' => $cancelledOrder,
         ]);
     }
 }

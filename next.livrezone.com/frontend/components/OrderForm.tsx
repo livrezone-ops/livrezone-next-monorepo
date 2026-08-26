@@ -5,8 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Upload, Loader2, X } from "lucide-react";
 import api from "@/lib/axios";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { useToast } from "@/components/Toast";
 import { useQuery } from "@tanstack/react-query";
+
+interface CategoryNode {
+  id: number;
+  name_fr: string;
+}
 
 export interface OrderFormData {
   id?: number;
@@ -108,9 +114,9 @@ export default function OrderForm({ initialData, isEditing = false }: OrderFormP
       }
 
       router.push("/dashboard/demandes");
-    } catch (err: any) {
+    } catch (err) {
       console.error("Erreur soumission demande:", err);
-      toastError(err.response?.data?.message || "Erreur lors de l'enregistrement de la demande.");
+      toastError(getApiErrorMessage(err, "Erreur lors de l'enregistrement de la demande."));
     } finally {
       setSubmitting(false);
     }
@@ -175,7 +181,7 @@ export default function OrderForm({ initialData, isEditing = false }: OrderFormP
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#6D28D9] focus:bg-white transition-colors text-gray-900 cursor-pointer"
             >
               <option value="">Sélectionner une catégorie</option>
-              {refData.categories.map((cat: any) => (
+              {refData.categories.map((cat: CategoryNode) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name_fr}
                 </option>

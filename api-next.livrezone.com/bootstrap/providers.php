@@ -1,10 +1,10 @@
 <?php
 
 use App\Providers\AppServiceProvider;
-use Laravel\Sanctum\SanctumServiceProvider;
-use Laravel\Socialite\SocialiteServiceProvider;
-use Laravel\Scout\ScoutServiceProvider;
 use Laravel\Reverb\ReverbServiceProvider;
+use Laravel\Sanctum\SanctumServiceProvider;
+use Laravel\Scout\ScoutServiceProvider;
+use Laravel\Socialite\SocialiteServiceProvider;
 
 return [
     AppServiceProvider::class,

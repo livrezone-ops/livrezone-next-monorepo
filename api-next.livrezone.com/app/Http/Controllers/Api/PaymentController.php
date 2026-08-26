@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DiscountCode;
 use App\Models\Payment;
 use App\Services\AdminPaymentService;
+use App\Services\PaymentGatewayService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -57,8 +58,8 @@ class PaymentController extends Controller
      */
     public function store(Request $request, SubscriptionService $subscriptions): JsonResponse
     {
-        /** @var \App\Services\PaymentGatewayService $gateways */
-        $gateways = app(\App\Services\PaymentGatewayService::class);
+        /** @var PaymentGatewayService $gateways */
+        $gateways = app(PaymentGatewayService::class);
         $onlineGateways = $gateways->enabled();
 
         $validated = $request->validate([
@@ -88,7 +89,7 @@ class PaymentController extends Controller
         // (initiate + webhook). Pour l'instant on informe proprement.
         if ($isGateway && ! config('livrezone.payment_simulator')) {
             throw ValidationException::withMessages([
-                'payment_method' => 'Le paiement en ligne via ' . ucfirst($validated['payment_method']) . ' sera bientôt disponible.',
+                'payment_method' => 'Le paiement en ligne via '.ucfirst($validated['payment_method']).' sera bientôt disponible.',
             ]);
         }
 
@@ -124,7 +125,7 @@ class PaymentController extends Controller
 
         // Code de paiement Fatourati : référence à communiquer lors du paiement.
         if ($validated['payment_method'] === 'fatourati') {
-            $code = 'FTR-' . str_pad((string) $payment->id, 6, '0', STR_PAD_LEFT);
+            $code = 'FTR-'.str_pad((string) $payment->id, 6, '0', STR_PAD_LEFT);
             $payment->update(['transaction_id' => $code]);
         }
 

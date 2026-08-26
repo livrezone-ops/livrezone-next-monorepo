@@ -2,13 +2,14 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Book;
+use Illuminate\Console\Command;
 use Meilisearch\Client;
 
 class ConfigureBookSearch extends Command
 {
     protected $signature = 'books:configure-search';
+
     protected $description = 'Configure les attributs filterable/sortable de l\'index Meilisearch "books" (requis pour filtrer par catégorie/langue/niveau sans scanner MySQL).';
 
     public function handle(): int
@@ -18,6 +19,7 @@ class ConfigureBookSearch extends Command
 
         if (empty($host)) {
             $this->error('Meilisearch non configuré (MEILISEARCH_HOST manquant).');
+
             return 1;
         }
 
@@ -36,7 +38,7 @@ class ConfigureBookSearch extends Command
             'id',
         ]);
 
-        $this->info('Index Meilisearch « ' . (new Book)->searchableAs() . ' » : filterable + sortable appliqués.');
+        $this->info('Index Meilisearch « '.(new Book)->searchableAs().' » : filterable + sortable appliqués.');
         $this->info('Ensuite, réindexez : php artisan scout:import "App\Models\Book"');
 
         return 0;

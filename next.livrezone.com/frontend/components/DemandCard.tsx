@@ -383,7 +383,7 @@ export default function DemandCard({ demand, view = "grid" }: DemandCardProps) {
                 Contact Téléphonique
               </h3>
               <p className="mb-6 text-xs text-gray-500 leading-normal">
-                Vous pouvez appeler l'acheteur directement sur son numéro de téléphone marocain :
+                Vous pouvez appeler l’acheteur directement sur son numéro de téléphone marocain :
               </p>
 
               <div className="text-xl font-black tracking-wider text-gray-900 mb-6 bg-gray-50 py-3 rounded-lg border border-gray-100 font-mono">

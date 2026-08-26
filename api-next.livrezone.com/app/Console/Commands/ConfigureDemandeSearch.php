@@ -9,6 +9,7 @@ use Meilisearch\Client;
 class ConfigureDemandeSearch extends Command
 {
     protected $signature = 'demandes:configure-search';
+
     protected $description = 'Configure les attributs filterable/sortable de l\'index Meilisearch "orders" (source unique du catalogue des demandes).';
 
     public function handle(): int
@@ -18,6 +19,7 @@ class ConfigureDemandeSearch extends Command
 
         if (empty($host)) {
             $this->error('Meilisearch non configuré (MEILISEARCH_HOST manquant).');
+
             return 1;
         }
 
@@ -36,7 +38,7 @@ class ConfigureDemandeSearch extends Command
             'id',
         ]);
 
-        $this->info('Index Meilisearch « ' . (new Order)->searchableAs() . ' » : filterable + sortable appliqués.');
+        $this->info('Index Meilisearch « '.(new Order)->searchableAs().' » : filterable + sortable appliqués.');
         $this->info('Ensuite, réindexez : php artisan scout:import "App\Models\Order"');
 
         return 0;

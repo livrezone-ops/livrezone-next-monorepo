@@ -90,7 +90,6 @@ export default function ListingsSearch({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     // Si c'est le premier montage et qu'on a des données serveur, on les utilise directement
     if (hydratedRef.current && initialListings !== undefined) {
@@ -139,7 +138,6 @@ export default function ListingsSearch({
       active = false;
     };
   }, [searchParams, userId, initialListings, initialLastPage, initialTotal]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Au changement de page/recherche, positionne le scroll en haut de la liste.
   const scrollToListTop = () => {

@@ -52,7 +52,7 @@ export default function Image() {
             marginBottom: "24px",
           }}
         >
-          Marketplace de livres neufs et d'occasion au Maroc
+          Marketplace de livres neufs et d’occasion au Maroc
         </div>
 
         <div

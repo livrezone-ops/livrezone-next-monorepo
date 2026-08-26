@@ -2,9 +2,13 @@
 
 namespace App\Services;
 
+use App\Mail\PaymentConfirmedMail;
 use App\Models\DiscountCode;
 use App\Models\Payment;
-use Illuminate\Validation\ValidationException;
+use App\Models\Profile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Administration : paiements, échéances d'abonnement, promo et codes de réduction.
@@ -39,8 +43,8 @@ class AdminPaymentService
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('transaction_id', 'like', "%{$search}%")
-                  ->orWhereHas('user.profile', fn ($pq) => $pq->where('nickname', 'like', "%{$search}%"))
-                  ->orWhereHas('user', fn ($uq) => $uq->where('email', 'like', "%{$search}%"));
+                    ->orWhereHas('user.profile', fn ($pq) => $pq->where('nickname', 'like', "%{$search}%"))
+                    ->orWhereHas('user', fn ($uq) => $uq->where('email', 'like', "%{$search}%"));
             });
         }
 
@@ -114,7 +118,7 @@ class AdminPaymentService
             return $payment;
         }
 
-        $updated = \Illuminate\Support\Facades\DB::transaction(function () use ($payment) {
+        $updated = DB::transaction(function () use ($payment) {
             $months = ($payment->period ?? 'monthly') === 'yearly' ? 12 : 1;
 
             $payment->update([
@@ -123,12 +127,12 @@ class AdminPaymentService
                 'expires_at' => now()->addMonths($months),
             ]);
 
-            \App\Models\Profile::where('user_id', $payment->user_id)
+            Profile::where('user_id', $payment->user_id)
                 ->update(['subscription_type' => $payment->subscription_type]);
 
             // Consomme le coupon utilisé, une seule fois.
             if ($payment->discount_code) {
-                \App\Models\DiscountCode::where('code', $payment->discount_code)
+                DiscountCode::where('code', $payment->discount_code)
                     ->increment('times_used');
             }
 
@@ -138,10 +142,10 @@ class AdminPaymentService
         // Email après commit : un échec d'envoi n'annule jamais l'activation.
         if ($updated->user?->email) {
             try {
-                \Illuminate\Support\Facades\Mail::to($updated->user->email)
-                    ->send(new \App\Mail\PaymentConfirmedMail($updated));
+                Mail::to($updated->user->email)
+                    ->send(new PaymentConfirmedMail($updated));
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Email de confirmation de paiement non envoyé : ' . $e->getMessage());
+                Log::error('Email de confirmation de paiement non envoyé : '.$e->getMessage());
             }
         }
 

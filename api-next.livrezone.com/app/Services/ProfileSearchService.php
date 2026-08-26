@@ -18,6 +18,7 @@ class ProfileSearchService
         if ($profile->user_id === null) {
             $profile->listing_count = 0;
             $profile->save();
+
             return;
         }
 

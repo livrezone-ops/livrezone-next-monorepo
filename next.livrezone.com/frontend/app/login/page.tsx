@@ -9,6 +9,7 @@ import {
     consumePendingPath,
     safeNextPath,
 } from '../../lib/auth-redirect';
+import { getApiErrorMessage } from '../../lib/api-error';
 import {
     BookOpen,
     LogIn,
@@ -115,10 +116,12 @@ function LoginForm() {
 
         try {
             await loginWithCredentials(email, password);
-        } catch (err: any) {
+        } catch (err) {
             setError(
-                err?.response?.data?.message ||
+                getApiErrorMessage(
+                    err,
                     'Identifiants invalides. Vérifiez votre email et mot de passe.',
+                ),
             );
         } finally {
             setPending(false);
@@ -159,10 +162,12 @@ function LoginForm() {
             setName('');
             setPassword('');
             setPasswordConfirmation('');
-        } catch (err: any) {
+        } catch (err) {
             setError(
-                err?.response?.data?.message ||
+                getApiErrorMessage(
+                    err,
                     'Impossible de créer le compte. Vérifiez les informations saisies.',
+                ),
             );
         } finally {
             setPending(false);
@@ -223,7 +228,7 @@ function LoginForm() {
                             <Logo size="lg" href="/" />
                         </div>
                         <p className="mt-2 text-xs sm:text-sm text-slate-500 font-medium">
-                            La plateforme d'achat et vente de livres d'occasion
+                            La plateforme d’achat et vente de livres d’occasion
                         </p>
                     </div>
 
@@ -356,7 +361,7 @@ function LoginForm() {
                                     Un lien de confirmation a été envoyé à <strong className="text-slate-900 font-semibold">{registeredEmail}</strong>.
                                 </p>
                                 <div className="mt-3 rounded-lg bg-amber-50/80 border border-amber-200/70 p-2.5 text-[11px] text-amber-800 text-left">
-                                    <span className="font-bold">⚠️ Conseil :</span> Si vous ne trouvez pas l'email dans quelques instants, vérifiez votre dossier <strong>Spams</strong> ou <strong>Courrier indésirable</strong>.
+                                    <span className="font-bold">⚠️ Conseil :</span> Si vous ne trouvez pas l’email dans quelques instants, vérifiez votre dossier <strong>Spams</strong> ou <strong>Courrier indésirable</strong>.
                                 </div>
                             </div>
 
@@ -378,7 +383,7 @@ function LoginForm() {
                                     ) : (
                                         <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
                                     )}
-                                    Renvoyer l'email de confirmation
+                                    Renvoyer l’email de confirmation
                                 </button>
 
                                 <button

@@ -30,7 +30,7 @@ class SubscriptionServiceTest extends TestCase
 
     public function test_default_configuration_values(): void
     {
-        $service = new SubscriptionService();
+        $service = new SubscriptionService;
 
         $this->assertSame(25, $service->getMaxFreeListings());
         $this->assertSame(30.0, $service->getProPrice());
@@ -48,7 +48,7 @@ class SubscriptionServiceTest extends TestCase
         $_ENV['PROMO_PRO_FREE'] = 'true';
 
         try {
-            $service = new SubscriptionService();
+            $service = new SubscriptionService;
             $freeProfile = $this->makeProfile(User::factory()->create(), 'free');
 
             $this->assertTrue($service->isPromoProFree());
@@ -72,7 +72,7 @@ class SubscriptionServiceTest extends TestCase
 
     public function test_can_view_demandes_per_subscription(): void
     {
-        $service = new SubscriptionService();
+        $service = new SubscriptionService;
 
         $free = $this->makeProfile(User::factory()->create(), 'free');
         $pro = $this->makeProfile(User::factory()->create(), 'pro');
@@ -85,7 +85,7 @@ class SubscriptionServiceTest extends TestCase
 
     public function test_can_receive_notifications_per_subscription(): void
     {
-        $service = new SubscriptionService();
+        $service = new SubscriptionService;
 
         $free = $this->makeProfile(User::factory()->create(), 'free');
         $pro = $this->makeProfile(User::factory()->create(), 'pro');
@@ -98,7 +98,7 @@ class SubscriptionServiceTest extends TestCase
 
     public function test_allowed_notification_channels_per_subscription(): void
     {
-        $service = new SubscriptionService();
+        $service = new SubscriptionService;
 
         $pro = $this->makeProfile(User::factory()->create(), 'pro');
         $premium = $this->makeProfile(User::factory()->create(), 'premium');
@@ -112,7 +112,7 @@ class SubscriptionServiceTest extends TestCase
 
     public function test_demandes_visibility_threshold(): void
     {
-        $service = new SubscriptionService();
+        $service = new SubscriptionService;
 
         $pro = $this->makeProfile(User::factory()->create(), 'pro');
         $premium = $this->makeProfile(User::factory()->create(), 'premium');
@@ -131,7 +131,7 @@ class SubscriptionServiceTest extends TestCase
 
     public function test_get_effective_subscription_without_promo(): void
     {
-        $service = new SubscriptionService();
+        $service = new SubscriptionService;
 
         $free = $this->makeProfile(User::factory()->create(), 'free');
         $pro = $this->makeProfile(User::factory()->create(), 'pro');
@@ -144,7 +144,7 @@ class SubscriptionServiceTest extends TestCase
 
     public function test_change_subscription_updates_type(): void
     {
-        $service = new SubscriptionService();
+        $service = new SubscriptionService;
         $user = User::factory()->create();
         $profile = $this->makeProfile($user, 'free');
 
@@ -161,7 +161,7 @@ class SubscriptionServiceTest extends TestCase
 
     public function test_has_reached_listing_limit_respects_unlimited_for_premium(): void
     {
-        $service = new SubscriptionService();
+        $service = new SubscriptionService;
         $premium = $this->makeProfile(User::factory()->create(), 'premium');
 
         $this->assertFalse($service->hasReachedListingLimit($premium));
@@ -169,7 +169,7 @@ class SubscriptionServiceTest extends TestCase
 
     public function test_deactivate_excess_free_listings_soft_deactivates_surplus(): void
     {
-        $service = new SubscriptionService();
+        $service = new SubscriptionService;
         $user = User::factory()->create();
         $profile = $this->makeProfile($user, 'free');
 
@@ -205,7 +205,7 @@ class SubscriptionServiceTest extends TestCase
 
     public function test_deactivate_excess_free_listings_unlimited_when_zero(): void
     {
-        $service = new SubscriptionService();
+        $service = new SubscriptionService;
         $user = User::factory()->create();
         $profile = $this->makeProfile($user, 'free');
 

@@ -2,13 +2,14 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Listing;
+use Illuminate\Console\Command;
 use Meilisearch\Client;
 
 class ConfigureListingSearch extends Command
 {
     protected $signature = 'listings:configure-search';
+
     protected $description = 'Configure les attributs filterable/sortable de l\'index Meilisearch "listings".';
 
     public function handle(): int
@@ -18,6 +19,7 @@ class ConfigureListingSearch extends Command
 
         if (empty($host)) {
             $this->error('Meilisearch non configuré (MEILISEARCH_HOST manquant).');
+
             return 1;
         }
 
@@ -43,7 +45,7 @@ class ConfigureListingSearch extends Command
             'id',
         ]);
 
-        $this->info('Index Meilisearch « ' . (new Listing)->searchableAs() . ' » : filterable + sortable appliqués.');
+        $this->info('Index Meilisearch « '.(new Listing)->searchableAs().' » : filterable + sortable appliqués.');
         $this->info('Ensuite, réindexez : php artisan scout:import "App\Models\Listing"');
 
         return 0;

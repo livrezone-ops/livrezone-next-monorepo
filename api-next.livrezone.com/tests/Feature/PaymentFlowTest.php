@@ -7,7 +7,6 @@ use App\Models\City;
 use App\Models\Payment;
 use App\Models\Profile;
 use App\Models\User;
-use App\Services\SubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
@@ -105,7 +104,7 @@ class PaymentFlowTest extends TestCase
         $this->assertSame('premium', $user->profile->fresh()->subscription_type);
 
         // L'email de confirmation part après l'activation effective.
-        Mail::assertSent(PaymentConfirmedMail::class);
+        Mail::assertQueued(PaymentConfirmedMail::class);
     }
 
     public function test_seller_cannot_mark_payments_paid(): void

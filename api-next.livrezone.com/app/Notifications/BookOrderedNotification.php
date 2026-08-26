@@ -49,9 +49,9 @@ class BookOrderedNotification extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject("Nouvelle demande de livre : {$order->title}")
             ->greeting("Bonjour {$notifiable->name},")
-            ->line("Un utilisateur cherche le livre suivant sur LivreZone :")
+            ->line('Un utilisateur cherche le livre suivant sur LivreZone :')
             ->line("**{$order->title}**")
-            ->line("Auteur : " . ($order->author ?? 'N/A'))
+            ->line('Auteur : '.($order->author ?? 'N/A'))
             ->line("Catégorie : {$category}")
             ->action('Voir la demande', url('/annonces'))
             ->line('Merci de votre confiance.');

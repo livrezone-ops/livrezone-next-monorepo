@@ -78,7 +78,7 @@ return [
             ),
             'url' => env(
                 'BOOK_COVERS_URL',
-                rtrim(env('APP_URL', 'http://localhost'), '/') . '/book-covers'
+                rtrim(env('APP_URL', 'http://localhost'), '/').'/book-covers'
             ),
             'visibility' => 'public',
             'throw' => true,

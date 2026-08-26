@@ -37,7 +37,7 @@ class ListingProcessorService
 
         if ($levelIsNA) {
             $levelId = $naLevel?->id ?? null;
-        } elseif ($levelId !== null && !in_array($levelId, $allowedLevels->pluck('id')->all(), true)) {
+        } elseif ($levelId !== null && ! in_array($levelId, $allowedLevels->pluck('id')->all(), true)) {
             throw ValidationException::withMessages([
                 'level_id' => 'Le niveau sélectionné n\'est pas autorisé pour cette catégorie.',
             ]);
@@ -48,7 +48,7 @@ class ListingProcessorService
 
         if ($subjectIsNA) {
             $subjectId = $naSubject?->id ?? null;
-        } elseif ($subjectId !== null && !in_array($subjectId, $allowedSubjects->pluck('id')->all(), true)) {
+        } elseif ($subjectId !== null && ! in_array($subjectId, $allowedSubjects->pluck('id')->all(), true)) {
             throw ValidationException::withMessages([
                 'subject_id' => 'La matière sélectionnée n\'est pas autorisée pour cette catégorie.',
             ]);
@@ -71,7 +71,7 @@ class ListingProcessorService
             $author = null;
             if ($book) {
                 $authors = is_array($book->authors) ? $book->authors : [];
-                if (!empty($authors)) {
+                if (! empty($authors)) {
                     $author = implode(', ', array_filter(array_map('trim', $authors)));
                 }
             }
@@ -80,7 +80,7 @@ class ListingProcessorService
         $publisher = $validated['publisher'] ?? null;
         if ($publisher === null || trim($publisher) === '') {
             $publisher = null;
-            if ($book && !empty($book->publisher)) {
+            if ($book && ! empty($book->publisher)) {
                 $publisher = $book->publisher;
             }
         }

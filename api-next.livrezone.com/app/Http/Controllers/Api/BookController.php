@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Book;
+use App\Services\BookAutocompleteService;
+use App\Services\BookCatalogueService;
 use App\Services\BookDetailService;
+use Illuminate\Http\Request;
 
 class BookController extends Controller
 {
@@ -15,8 +17,8 @@ class BookController extends Controller
     public function searchByIsbn(Request $request)
     {
         $isbn = $request->query('isbn');
-        
-        if (!$isbn) {
+
+        if (! $isbn) {
             return response()->json(['message' => 'Veuillez fournir un code ISBN'], 400);
         }
 
@@ -25,7 +27,7 @@ class BookController extends Controller
 
         $book = Book::where('isbn_13', $isbn)->first();
 
-        if (!$book) {
+        if (! $book) {
             return response()->json(['message' => 'Livre introuvable pour cet ISBN'], 404);
         }
 
@@ -39,7 +41,7 @@ class BookController extends Controller
     public function publicSearch(Request $request)
     {
         return response()->json(
-            app(\App\Services\BookCatalogueService::class)->search($request)
+            app(BookCatalogueService::class)->search($request)
         );
     }
 
@@ -49,7 +51,7 @@ class BookController extends Controller
     public function autocomplete(Request $request)
     {
         return response()->json(
-            app(\App\Services\BookAutocompleteService::class)->suggest($request)
+            app(BookAutocompleteService::class)->suggest($request)
         );
     }
 
@@ -60,7 +62,7 @@ class BookController extends Controller
     {
         $book = app(BookDetailService::class)->getByIdentifier((string) $identifier);
 
-        if (!$book) {
+        if (! $book) {
             return response()->json(['message' => 'Livre introuvable'], 404);
         }
 

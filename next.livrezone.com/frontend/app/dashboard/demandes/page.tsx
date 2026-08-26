@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/axios";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { 
   Loader2, Search, BookOpen, Clock, CheckCircle, XCircle, 
   Grid, List, Plus, Trash2, Edit, MessageSquare, Sparkles 
@@ -85,9 +86,9 @@ export default function DemandesPage() {
       success("Demande annulée avec succès.");
       setCancellingOrderId(null);
       fetchOrders();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Erreur annulation:", err);
-      toastError(err.response?.data?.message || "Erreur lors de l'annulation.");
+      toastError(getApiErrorMessage(err, "Erreur lors de l'annulation."));
     } finally {
       setIsCancelling(false);
     }
@@ -296,7 +297,7 @@ export default function DemandesPage() {
                 <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col gap-2">
                   {isCancellingThis ? (
                     <div className="bg-rose-50 border border-rose-200 rounded-xl p-2.5 flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold text-rose-800">Confirmer l'annulation ?</p>
+                      <p className="text-xs font-bold text-rose-800">Confirmer l’annulation ?</p>
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => setCancellingOrderId(null)}

@@ -2,12 +2,15 @@
 
 namespace App\Services;
 
-use Illuminate\Http\Request;
-use App\Models\Listing;
+use App\Models\Book;
 use App\Models\Category;
-use App\Models\Level;
-use App\Models\Subject;
 use App\Models\Language;
+use App\Models\Level;
+use App\Models\Listing;
+use App\Models\Subject;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class ListingSearchService
 {
@@ -17,9 +20,6 @@ class ListingSearchService
 
     /**
      * Search listings based on the request filters.
-     *
-     * @param Request $request
-     * @return array
      */
     public function search(Request $request): array
     {
@@ -32,10 +32,10 @@ class ListingSearchService
             $limit = $request->integer('limit', 12);
             $page = $request->integer('page', 1);
             $cacheKey = "listings_homepage_{$limit}_{$page}";
-            
+
             $ttl = config('livrezone.cache_ttl.homepage_listings', 600);
 
-            return \Illuminate\Support\Facades\Cache::remember($cacheKey, $ttl, function () use ($request) {
+            return Cache::remember($cacheKey, $ttl, function () use ($request) {
                 return $this->executeSearch($request);
             });
         }
@@ -53,7 +53,7 @@ class ListingSearchService
                     'book:id,authors,isbn_13,cover_path,cover_source_url', // Requis pour l'accesseur cover_url
                     'user:id',
                     'user.profile:id,user_id,nickname,city_id',
-                    'user.profile.city:id,name'
+                    'user.profile.city:id,name',
                 ]);
         } else {
             $query->with(['book', 'category', 'user.profile.city']);
@@ -61,13 +61,13 @@ class ListingSearchService
 
         // 1. Filtrer par Catégories : codes ou IDs avec inclusion des enfants + affinage.
         $categoryIds = $this->filterService->resolveCategoryIds($request);
-        if (!empty($categoryIds)) {
+        if (! empty($categoryIds)) {
             $query->whereIn('category_id', $categoryIds);
         }
 
         // 2. Filtrer par Niveaux (levels=A,B ou lvl=1,2)
         $levelIds = $this->filterService->resolveLevelIds($request);
-        if (!empty($levelIds)) {
+        if (! empty($levelIds)) {
             $query->whereIn('level_id', $levelIds);
         }
 
@@ -82,7 +82,7 @@ class ListingSearchService
 
         // 4. Filtrer par Langues (languages=fr,ar ou l=2,1)
         $languageIds = $this->filterService->resolveLanguageIds($request);
-        if (!empty($languageIds)) {
+        if (! empty($languageIds)) {
             $query->whereIn('language_id', $languageIds);
         }
 
@@ -92,7 +92,7 @@ class ListingSearchService
             array_map('strtolower', $conditions),
             ['neuf', 'occas']
         ));
-        if (!empty($conditions)) {
+        if (! empty($conditions)) {
             $query->whereIn('book_condition', $conditions);
         }
 
@@ -109,15 +109,15 @@ class ListingSearchService
             COALESCE(discount_price, price)';
 
         if ($minPrice !== null) {
-            $query->whereRaw($priceExpr . ' >= ?', [$minPrice]);
+            $query->whereRaw($priceExpr.' >= ?', [$minPrice]);
         }
         if ($maxPrice !== null) {
-            $query->whereRaw($priceExpr . ' <= ?', [$maxPrice]);
+            $query->whereRaw($priceExpr.' <= ?', [$maxPrice]);
         }
 
         // 6b. Filtrer par villes (city=1,2 ou city_id=1,2) — communes de l'annonceur
         $cityIds = $this->filterService->resolveCityIds($request);
-        if (!empty($cityIds)) {
+        if (! empty($cityIds)) {
             $query->whereHas('user.profile', function ($q) use ($cityIds) {
                 $q->whereIn('city_id', $cityIds);
             });
@@ -136,14 +136,14 @@ class ListingSearchService
         // 8. Recherche textuelle globale (via Meilisearch)
         if ($request->filled('search')) {
             $search = $request->get('search');
-            
+
             // On récupère d'abord les IDs correspondants très rapidement via Meilisearch
-            $listingIds = \App\Models\Listing::search($search)->take(200)->keys();
-            $bookIds = \App\Models\Book::search($search)->take(200)->keys();
-            
+            $listingIds = Listing::search($search)->take(200)->keys();
+            $bookIds = Book::search($search)->take(200)->keys();
+
             $query->where(function ($q) use ($listingIds, $bookIds) {
                 $q->whereIn('id', $listingIds)
-                  ->orWhereIn('book_id', $bookIds);
+                    ->orWhereIn('book_id', $bookIds);
             });
         }
 
@@ -171,6 +171,7 @@ class ListingSearchService
             if ($listing->book) {
                 $listing->book->setAppends(['cover_url']);
             }
+
             return $listing;
         });
 
@@ -203,23 +204,24 @@ class ListingSearchService
 
         if ($request->get('compact') != '1') {
             try {
-                $facetBuilder = \App\Models\Listing::search($request->get('search', ''), function ($meilisearch, $query, $options) {
+                $facetBuilder = Listing::search($request->get('search', ''), function ($meilisearch, $query, $options) {
                     $options['facets'] = ['category_id', 'language_id', 'book_condition', 'level_id', 'city_id'];
                     $options['hitsPerPage'] = 0;
+
                     return $meilisearch->search($query, $options);
                 });
 
                 $facetBuilder->where('status', 'published');
-                if (!empty($languageIds)) {
+                if (! empty($languageIds)) {
                     $facetBuilder->whereIn('language_id', $languageIds);
                 }
-                if (!empty($levelIds)) {
+                if (! empty($levelIds)) {
                     $facetBuilder->whereIn('level_id', $levelIds);
                 }
-                if (!empty($conditions)) {
+                if (! empty($conditions)) {
                     $facetBuilder->whereIn('book_condition', $conditions);
                 }
-                if (!empty($cityIds)) {
+                if (! empty($cityIds)) {
                     $facetBuilder->whereIn('city_id', $cityIds);
                 }
 
@@ -230,16 +232,16 @@ class ListingSearchService
                 $levelFacets = $rawFacets['facetDistribution']['level_id'] ?? [];
                 $cityFacets = $rawFacets['facetDistribution']['city_id'] ?? [];
 
-                $categoryMap = \Illuminate\Support\Facades\Cache::remember('category_code_map', 3600, function () {
-                    return \App\Models\Category::pluck('code', 'id')->toArray();
+                $categoryMap = Cache::remember('category_code_map', 3600, function () {
+                    return Category::pluck('code', 'id')->toArray();
                 });
-                
-                $languageMap = \Illuminate\Support\Facades\Cache::remember('language_code_map', 3600, function () {
-                    return \App\Models\Language::pluck('code', 'id')->toArray();
+
+                $languageMap = Cache::remember('language_code_map', 3600, function () {
+                    return Language::pluck('code', 'id')->toArray();
                 });
-                
-                $levelMap = \Illuminate\Support\Facades\Cache::remember('level_code_map', 3600, function () {
-                    return \App\Models\Level::pluck('code', 'id')->toArray();
+
+                $levelMap = Cache::remember('level_code_map', 3600, function () {
+                    return Level::pluck('code', 'id')->toArray();
                 });
 
                 $mappedCategories = [];
@@ -247,24 +249,24 @@ class ListingSearchService
                     $code = $categoryMap[$id] ?? $id;
                     $mappedCategories[$code] = $count;
                 }
-                
+
                 $mappedLanguages = [];
                 foreach ($languageFacets as $id => $count) {
                     $code = $languageMap[$id] ?? $id;
                     $mappedLanguages[$code] = $count;
                 }
-                
+
                 $mappedLevels = [];
                 foreach ($levelFacets as $id => $count) {
                     $code = $levelMap[$id] ?? $id;
                     $mappedLevels[$code] = $count;
                 }
-                
+
                 $mappedCities = [];
                 foreach ($cityFacets as $id => $count) {
-                    $mappedCities[(string)$id] = $count;
+                    $mappedCities[(string) $id] = $count;
                 }
-                
+
                 $mappedConditions = [];
                 foreach ($conditionFacets as $code => $count) {
                     $mappedConditions[$code] = $count;
@@ -278,7 +280,7 @@ class ListingSearchService
                     'cities' => $mappedCities,
                 ];
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('Meilisearch facets failed: ' . $e->getMessage());
+                Log::warning('Meilisearch facets failed: '.$e->getMessage());
             }
         }
 
@@ -290,9 +292,10 @@ class ListingSearchService
      */
     private function floatOrNull($value): ?float
     {
-        if ($value === null || $value === '' || !is_numeric($value)) {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
             return null;
         }
+
         return (float) $value;
     }
 }

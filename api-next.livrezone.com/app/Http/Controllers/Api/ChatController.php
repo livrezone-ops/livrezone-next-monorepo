@@ -13,6 +13,7 @@ use App\Models\ChatThread;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ChatController extends Controller
 {
@@ -48,7 +49,7 @@ class ChatController extends Controller
                 'id' => $thread->id,
                 'other_user' => [
                     'id' => $other->id,
-                    'nickname' => $other->profile?->nickname ?? 'utilisateur-' . $other->id,
+                    'nickname' => $other->profile?->nickname ?? 'utilisateur-'.$other->id,
                     'avatar' => $other->avatar ?? $other->profile?->logo,
                 ],
                 'last_message' => $thread->latestMessage ? [
@@ -126,7 +127,7 @@ class ChatController extends Controller
                 'id' => $thread->id,
                 'other_user' => [
                     'id' => $other->id,
-                    'nickname' => $other->profile?->nickname ?? 'utilisateur-' . $other->id,
+                    'nickname' => $other->profile?->nickname ?? 'utilisateur-'.$other->id,
                     'avatar' => $other->avatar ?? $other->profile?->logo,
                 ],
                 'messages' => $messages->getCollection()->reverse()->values(),
@@ -162,7 +163,7 @@ class ChatController extends Controller
         try {
             broadcast(new MessageSent($message))->toOthers();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Broadcast chat impossible', [
+            Log::warning('Broadcast chat impossible', [
                 'thread_id' => $thread->id,
                 'message_id' => $message->id,
                 'error' => $e->getMessage(),
@@ -200,7 +201,7 @@ class ChatController extends Controller
         try {
             broadcast(new MessageUpdated($message))->toOthers();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Broadcast chat update impossible', [
+            Log::warning('Broadcast chat update impossible', [
                 'thread_id' => $thread->id,
                 'message_id' => $message->id,
                 'error' => $e->getMessage(),
@@ -238,7 +239,7 @@ class ChatController extends Controller
         try {
             broadcast(new MessageDeleted($thread->id, $messageId))->toOthers();
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Broadcast chat delete impossible', [
+            Log::warning('Broadcast chat delete impossible', [
                 'thread_id' => $thread->id,
                 'message_id' => $messageId,
                 'error' => $e->getMessage(),

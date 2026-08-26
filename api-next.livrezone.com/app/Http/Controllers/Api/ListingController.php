@@ -3,12 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Listing;
-use App\Models\Category;
-use App\Models\Level;
-use App\Models\Subject;
-use App\Models\Language;
+use App\Services\ListingSearchService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class ListingController extends Controller
@@ -18,7 +15,7 @@ class ListingController extends Controller
      */
     public function index(Request $request)
     {
-        return response()->json(app(\App\Services\ListingSearchService::class)->search($request));
+        return response()->json(app(ListingSearchService::class)->search($request));
     }
 
     /**
@@ -32,14 +29,14 @@ class ListingController extends Controller
             'level',
             'subject',
             'book',
-            'language'
+            'language',
         ])->find($id);
 
-        if (!$listing) {
+        if (! $listing) {
             return response()->json(['message' => 'Annonce introuvable.'], 404);
         }
 
-        if (!Gate::allows('view', $listing)) {
+        if (! Gate::allows('view', $listing)) {
             return response()->json(['message' => 'Accès interdit.'], 403);
         }
 
@@ -51,14 +48,14 @@ class ListingController extends Controller
         $publishedAgo = null;
         if ($listing->published_at) {
             $days = (int) $listing->published_at->startOfDay()->diffInDays(now()->startOfDay());
-            $publishedAgo = $days === 0 ? "Aujourd'hui" : "Il y a {$days} jour" . ($days > 1 ? 's' : '');
+            $publishedAgo = $days === 0 ? "Aujourd'hui" : "Il y a {$days} jour".($days > 1 ? 's' : '');
         }
 
         $data = $listing->toArray();
         $data['published_ago'] = $publishedAgo;
 
         return response()->json([
-            'data' => $data
+            'data' => $data,
         ]);
     }
 
@@ -78,13 +75,11 @@ class ListingController extends Controller
                 'id' => $listing->id,
                 'title' => $listing->title,
                 'updated_at' => $listing->updated_at,
-                'nickname' => $listing->user->profile->nickname ?? 'utilisateur-' . $listing->user_id,
+                'nickname' => $listing->user->profile->nickname ?? 'utilisateur-'.$listing->user_id,
                 'isbn' => $listing->isbn_13 ?? $listing->book->isbn_13 ?? 'livre',
             ];
         });
 
         return response()->json(['data' => $data]);
     }
-
-
 }

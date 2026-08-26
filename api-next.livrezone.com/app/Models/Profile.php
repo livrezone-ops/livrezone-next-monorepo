@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 
 class Profile extends Model
@@ -80,12 +81,12 @@ class Profile extends Model
 
         static::saving(function ($profile) {
             // Détection automatique WhatsApp selon le type de numéro marocain (fixe vs portable)
-            if (!empty($profile->phone)) {
+            if (! empty($profile->phone)) {
                 $clean = preg_replace('/[^\d]/', '', $profile->phone);
                 // Si fixe marocain (commence par 05, 2125, ou 5 avec 9 chiffres)
                 if (preg_match('/^(?:05|2125|5\d{8})/', $clean)) {
                     $profile->has_whatsapp = false;
-                } elseif (!isset($profile->has_whatsapp)) {
+                } elseif (! isset($profile->has_whatsapp)) {
                     // Si portable (06, 07, 2126, 2127) et non défini explicitement
                     $profile->has_whatsapp = true;
                 }
@@ -93,13 +94,13 @@ class Profile extends Model
 
             if (empty($profile->nickname)) {
                 $user = $profile->user;
-                $baseNickname = $user ? \Illuminate\Support\Str::slug($user->name) : 'utilisateur-' . ($profile->user_id ?? rand(1000, 9999));
+                $baseNickname = $user ? Str::slug($user->name) : 'utilisateur-'.($profile->user_id ?? rand(1000, 9999));
                 if (empty(trim($baseNickname, '-'))) {
-                    $baseNickname = 'utilisateur-' . ($profile->user_id ?? rand(1000, 9999));
+                    $baseNickname = 'utilisateur-'.($profile->user_id ?? rand(1000, 9999));
                 }
                 $profile->nickname = $baseNickname;
             } else {
-                $profile->nickname = \Illuminate\Support\Str::slug($profile->nickname);
+                $profile->nickname = Str::slug($profile->nickname);
             }
 
             // Ensure uniqueness + éviter les nicknames réservés
@@ -111,7 +112,7 @@ class Profile extends Model
                 in_array($profile->nickname, $reserved, true) ||
                 static::where('nickname', $profile->nickname)->where('id', '!=', $profile->id)->exists()
             ) {
-                $profile->nickname = $originalNickname . '-' . $count++;
+                $profile->nickname = $originalNickname.'-'.$count++;
             }
         });
     }
@@ -176,5 +177,4 @@ class Profile extends Model
             'profile_book_conditions' => $this->profile_book_conditions,
         ];
     }
-
 }

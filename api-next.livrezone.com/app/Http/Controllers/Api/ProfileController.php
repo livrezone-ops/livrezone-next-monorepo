@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\City;
 use App\Models\Profile;
 use App\Models\Rating;
+use App\Services\ImageUploadService;
+use App\Services\NotificationPreferenceService;
+use App\Services\RatingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -81,7 +84,7 @@ class ProfileController extends Controller
     /**
      * Enregistre ou met à jour l'avis d'un acheteur sur un vendeur.
      */
-    public function storeRating(Request $request, string $nickname, \App\Services\RatingService $ratingService): JsonResponse
+    public function storeRating(Request $request, string $nickname, RatingService $ratingService): JsonResponse
     {
         $profile = Profile::query()
             ->where('nickname', $nickname)
@@ -122,7 +125,7 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function update(Request $request, \App\Services\ImageUploadService $imageUploadService): JsonResponse
+    public function update(Request $request, ImageUploadService $imageUploadService): JsonResponse
     {
         if ($request->filled('nickname')) {
             $request->merge([
@@ -200,7 +203,7 @@ class ProfileController extends Controller
                 160,
                 90
             );
-            
+
             $logoPath = '/storage/'.$relativePath;
             // Conserve le dernier logo importé pour pouvoir y revenir.
             $avatarUpload = $logoPath;
@@ -260,9 +263,11 @@ class ProfileController extends Controller
             'profile' => $profile->fresh()->load('city'),
         ]);
     }
+
     public function getNotificationPreferences(Request $request): JsonResponse
     {
-        $prefs = app(\App\Services\NotificationPreferenceService::class)->getForUser($request->user()->id);
+        $prefs = app(NotificationPreferenceService::class)->getForUser($request->user()->id);
+
         return response()->json(['preferences' => $prefs]);
     }
 
@@ -270,18 +275,18 @@ class ProfileController extends Controller
     {
         $validated = $request->validate([
             'preferences' => 'required|array',
-            'preferences.*.notification_type' => 'required|string|in:' . implode(',', \App\Services\NotificationPreferenceService::ALLOWED_TYPES),
-            'preferences.*.channel' => 'required|string|in:' . implode(',', \App\Services\NotificationPreferenceService::ALLOWED_CHANNELS),
+            'preferences.*.notification_type' => 'required|string|in:'.implode(',', NotificationPreferenceService::ALLOWED_TYPES),
+            'preferences.*.channel' => 'required|string|in:'.implode(',', NotificationPreferenceService::ALLOWED_CHANNELS),
             'preferences.*.is_enabled' => 'required|boolean',
             'preferences.*.filters' => 'nullable|array',
         ]);
 
-        $prefs = app(\App\Services\NotificationPreferenceService::class)
+        $prefs = app(NotificationPreferenceService::class)
             ->updateForUser($request->user()->id, $validated['preferences']);
 
         return response()->json([
             'message' => 'Préférences mises à jour avec succès.',
-            'preferences' => $prefs
+            'preferences' => $prefs,
         ]);
     }
 

@@ -21,13 +21,13 @@ class BookDetailService
             $leading = (int) explode('-', $identifier)[0];
             $book = $leading > 0 ? Book::find($leading) : null;
 
-            if (!$book) {
+            if (! $book) {
                 $book = Book::where('isbn_13', $identifier)->first()
                     ?? Book::where('title', $identifier)->first();
             }
         }
 
-        if (!$book) {
+        if (! $book) {
             return null;
         }
 

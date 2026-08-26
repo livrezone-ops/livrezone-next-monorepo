@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use Throwable;
@@ -35,7 +34,7 @@ class SocialAuthController extends Controller
         try {
             $socialUser = Socialite::driver($provider)->stateless()->user();
         } catch (Throwable $e) {
-            return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/login?error=auth_failed');
+            return redirect(env('FRONTEND_URL', 'http://localhost:3000').'/login?error=auth_failed');
         }
 
         $user = User::where('provider', $provider)
@@ -43,20 +42,21 @@ class SocialAuthController extends Controller
             ->first();
 
         if ($user) {
-            if (!$user->is_active) {
-                return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/login?error=account_disabled');
+            if (! $user->is_active) {
+                return redirect(env('FRONTEND_URL', 'http://localhost:3000').'/login?error=account_disabled');
             }
 
             $this->ensureProfileExists($user, $socialUser);
             $user->update(['last_login_at' => now()]);
             Auth::login($user);
-            return redirect()->intended(env('FRONTEND_URL', 'http://localhost:3000') . ($user->profile_completed ? '/dashboard' : '/profile/complete'));
+
+            return redirect()->intended(env('FRONTEND_URL', 'http://localhost:3000').($user->profile_completed ? '/dashboard' : '/profile/complete'));
         }
 
         // Vérification email existant (même logique que l'ancien projet)
         $email = $socialUser->getEmail();
         if ($email && User::where('email', $email)->exists()) {
-            return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/login?error=email_exists');
+            return redirect(env('FRONTEND_URL', 'http://localhost:3000').'/login?error=email_exists');
         }
 
         $user = User::create([
@@ -74,7 +74,7 @@ class SocialAuthController extends Controller
 
         Auth::login($user);
 
-        return redirect()->intended(env('FRONTEND_URL', 'http://localhost:3000') . ($user->profile_completed ? '/dashboard' : '/profile/complete'));
+        return redirect()->intended(env('FRONTEND_URL', 'http://localhost:3000').($user->profile_completed ? '/dashboard' : '/profile/complete'));
     }
 
     public function logout()
@@ -91,7 +91,9 @@ class SocialAuthController extends Controller
     {
         // En mode API on crée une table "profiles" factice ou on s'assure qu'elle existe.
         // Comme vous utilisez la même BD, le modèle Profile fonctionnera.
-        if ($user->profile()->exists()) return;
+        if ($user->profile()->exists()) {
+            return;
+        }
 
         $nickname = $socialUser
             ? ($socialUser->getName() ?: $socialUser->getNickname() ?: $user->name)
@@ -110,7 +112,7 @@ class SocialAuthController extends Controller
             'subscription_type' => 'free',
             'delivery_option' => 'selon destination',
             'nickname' => $nickname,
-            'logo' => $user->avatar, 
+            'logo' => $user->avatar,
         ]);
     }
 }

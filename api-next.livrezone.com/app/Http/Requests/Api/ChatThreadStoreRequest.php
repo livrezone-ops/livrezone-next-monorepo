@@ -24,7 +24,7 @@ class ChatThreadStoreRequest extends FormRequest
                 'required',
                 'integer',
                 'exists:users,id',
-                'not_in:' . $this->user()->id,
+                'not_in:'.$this->user()->id,
             ],
         ];
     }

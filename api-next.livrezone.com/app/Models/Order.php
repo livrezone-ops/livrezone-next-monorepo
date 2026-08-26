@@ -49,8 +49,11 @@ class Order extends Model
 
     public static function isUserUploadedCover(?string $coverPath): bool
     {
-        if ($coverPath === null) return false;
-        return str_starts_with($coverPath, self::USER_COVER_DIR . '/');
+        if ($coverPath === null) {
+            return false;
+        }
+
+        return str_starts_with($coverPath, self::USER_COVER_DIR.'/');
     }
 
     protected $fillable = [
@@ -85,13 +88,14 @@ class Order extends Model
             }
 
             if (self::isUserUploadedCover($path)) {
-                return asset('storage/' . $path);
+                return asset('storage/'.$path);
             }
 
             // Couverture catalogue : nom de fichier simple (ex: 9782723486705.webp)
             $cleanPath = ltrim(str_replace('originals/', '', $path), '/');
             $baseUrl = config('livrezone.book_covers_url', url('/book-cover-proxy'));
-            return rtrim($baseUrl, '/') . '/' . $cleanPath;
+
+            return rtrim($baseUrl, '/').'/'.$cleanPath;
         }
 
         return $this->book?->cover_url ?? null;
@@ -112,14 +116,15 @@ class Order extends Model
             }
 
             if (self::isUserUploadedCover($path)) {
-                return asset('storage/' . $path);
+                return asset('storage/'.$path);
             }
 
             // Miniature catalogue 160px
             $cleanPath = ltrim(str_replace('originals/', '', $path), '/');
             $cleanPathWebp = preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $cleanPath);
             $baseUrl = config('livrezone.book_covers_url', url('/book-cover-proxy'));
-            return rtrim($baseUrl, '/') . "/thumbnails/{$size}/" . $cleanPathWebp;
+
+            return rtrim($baseUrl, '/')."/thumbnails/{$size}/".$cleanPathWebp;
         }
 
         return $this->book?->cover_thumbnail_url ?? null;

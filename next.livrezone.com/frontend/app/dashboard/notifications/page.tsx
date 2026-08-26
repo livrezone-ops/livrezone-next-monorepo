@@ -16,9 +16,16 @@ interface CategoryNode {
 interface AppNotification {
   id: string;
   type: string;
-  data: Record<string, any>;
+  data: Record<string, string>;
   read_at: string | null;
   created_at: string;
+}
+
+interface NotificationPreference {
+  notification_type: string;
+  channel: string;
+  is_enabled: boolean;
+  filters?: Record<string, unknown> | null;
 }
 
 export default function NotificationsPage() {
@@ -26,7 +33,7 @@ export default function NotificationsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const [preferences, setPreferences] = useState<any[]>([]);
+  const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -369,7 +376,7 @@ export default function NotificationsPage() {
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
                 {telegram.linked && (
                   <p className="text-[11px] text-amber-700 mb-1">
-                    ⚠️ Ce nouveau lien remplacera l'ancienne liaison : l'ancien chat Telegram ne recevra plus vos notifications.
+                    ⚠️ Ce nouveau lien remplacera l’ancienne liaison : l’ancien chat Telegram ne recevra plus vos notifications.
                   </p>
                 )}
                 <p className="text-[11px] text-gray-500 mb-1">Ouvrez ce lien dans Telegram puis envoyez « /start » :</p>
@@ -395,7 +402,7 @@ export default function NotificationsPage() {
         <div className="bg-white rounded-xl border border-gray-150 p-6 shadow-sm">
           <div className="mb-4 pb-4 border-b border-gray-100">
             <h3 className="text-lg font-bold text-gray-900">Nouvelles demandes de livres</h3>
-            <p className="text-sm text-gray-500">Soyez alerté lorsqu'un utilisateur cherche un livre (Réservé aux comptes Pro/Premium).</p>
+            <p className="text-sm text-gray-500">Soyez alerté lorsqu’un utilisateur cherche un livre (Réservé aux comptes Pro/Premium).</p>
           </div>
 
           <div className="space-y-4">
@@ -415,7 +422,7 @@ export default function NotificationsPage() {
                 <div className="w-10 h-10 bg-violet-50 rounded-lg flex items-center justify-center text-violet-600"><MessageSquare className="w-5 h-5" /></div>
                 <div>
                   <p className="font-bold text-gray-900 text-sm">Messagerie interne</p>
-                  <p className="text-xs text-gray-500">Notification dans l'application.</p>
+                  <p className="text-xs text-gray-500">Notification dans l’application.</p>
                 </div>
               </div>
               <Toggle checked={getPref("book_orders", "in_app")} onChange={() => handleToggle("book_orders", "in_app")} />

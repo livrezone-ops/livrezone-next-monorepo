@@ -55,10 +55,10 @@ class TelegramWebhookController extends Controller
                     'telegram_linked_at' => now(),
                 ]);
 
-                $telegram->sendToChat((string) $chatId, "✅ Compte LivreZone lié avec succès ! Vous recevrez vos notifications ici.");
+                $telegram->sendToChat((string) $chatId, '✅ Compte LivreZone lié avec succès ! Vous recevrez vos notifications ici.');
             } else {
                 Log::info('Telegram webhook: token de liaison invalide ou expiré.');
-                $telegram->sendToChat((string) $chatId, "⚠️ Lien invalide ou expiré. Générez un nouveau lien depuis votre espace LivreZone.");
+                $telegram->sendToChat((string) $chatId, '⚠️ Lien invalide ou expiré. Générez un nouveau lien depuis votre espace LivreZone.');
             }
 
             return response()->json(['ok' => true]);
@@ -68,7 +68,7 @@ class TelegramWebhookController extends Controller
         if ($text === '/start') {
             $telegram->sendToChat(
                 (string) $chatId,
-                "👋 Bonjour ! Pour lier votre compte LivreZone, utilisez le lien présent dans vos paramètres de notifications."
+                '👋 Bonjour ! Pour lier votre compte LivreZone, utilisez le lien présent dans vos paramètres de notifications.'
             );
         }
 

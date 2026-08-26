@@ -16,15 +16,16 @@ class TelegramNotificationService
      */
     public function notifyAdminNewListing(Listing $listing): void
     {
-        if (!config('services.telegram.enabled', false)) {
+        if (! config('services.telegram.enabled', false)) {
             return;
         }
 
         $botToken = config('services.telegram.bot_token');
         $chatId = config('services.telegram.chat_id');
 
-        if (!$botToken || !$chatId) {
+        if (! $botToken || ! $chatId) {
             Log::warning('Telegram Notification: Missing configuration (admin listing).');
+
             return;
         }
 
@@ -35,13 +36,13 @@ class TelegramNotificationService
         $url = "https://next.livrezone.com/books/{$listing->id}";
 
         $message = "📚 *Nouvelle Annonce sur LivreZone !*\n"
-            . "━━━━━━━━━━━━━━━━━━\n"
-            . "📖 Titre : {$listing->title}\n"
-            . "💰 Prix : {$listing->price} MAD (État : {$listing->book_condition})\n"
-            . "👤 Vendeur : {$sellerName} ({$sellerPhone})\n"
-            . "🔢 ISBN : {$listing->isbn_13}\n"
-            . "⚡ Statut : {$statusText}\n"
-            . "🔗 Lien : {$url}";
+            ."━━━━━━━━━━━━━━━━━━\n"
+            ."📖 Titre : {$listing->title}\n"
+            ."💰 Prix : {$listing->price} MAD (État : {$listing->book_condition})\n"
+            ."👤 Vendeur : {$sellerName} ({$sellerPhone})\n"
+            ."🔢 ISBN : {$listing->isbn_13}\n"
+            ."⚡ Statut : {$statusText}\n"
+            ."🔗 Lien : {$url}";
 
         try {
             $apiUrl = "https://api.telegram.org/bot{$botToken}/sendMessage";
@@ -52,10 +53,10 @@ class TelegramNotificationService
             ]);
 
             if ($response->failed()) {
-                Log::error('Telegram Notification failed: ' . $response->body());
+                Log::error('Telegram Notification failed: '.$response->body());
             }
         } catch (\Exception $e) {
-            Log::error('Telegram Notification Exception: ' . $e->getMessage());
+            Log::error('Telegram Notification Exception: '.$e->getMessage());
         }
     }
 
@@ -65,14 +66,15 @@ class TelegramNotificationService
      */
     public function sendToChat(string $chatId, string $message): void
     {
-        if (!config('services.telegram.enabled', false)) {
+        if (! config('services.telegram.enabled', false)) {
             return;
         }
 
         $botToken = config('services.telegram.bot_token');
 
-        if (!$botToken || !$chatId) {
+        if (! $botToken || ! $chatId) {
             Log::warning('Telegram Notification: Missing configuration (sendToChat).');
+
             return;
         }
 
@@ -86,10 +88,10 @@ class TelegramNotificationService
             ]);
 
             if ($response->failed()) {
-                Log::error('Telegram Notification failed: ' . $response->body());
+                Log::error('Telegram Notification failed: '.$response->body());
             }
         } catch (\Exception $e) {
-            Log::error('Telegram Notification Exception: ' . $e->getMessage());
+            Log::error('Telegram Notification Exception: '.$e->getMessage());
         }
     }
 }

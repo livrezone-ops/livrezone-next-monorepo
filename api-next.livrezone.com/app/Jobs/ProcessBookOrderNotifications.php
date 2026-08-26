@@ -12,7 +12,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 class ProcessBookOrderNotifications implements ShouldQueue
 {
@@ -44,12 +43,12 @@ class ProcessBookOrderNotifications implements ShouldQueue
 
         foreach ($sellers as $profile) {
             $user = $profile->user;
-            if (!$user) {
+            if (! $user) {
                 continue;
             }
 
             // Free (hors promo) : aucune notification
-            if (!$subscriptionService->canReceiveNotifications($profile)) {
+            if (! $subscriptionService->canReceiveNotifications($profile)) {
                 continue;
             }
 
@@ -60,7 +59,7 @@ class ProcessBookOrderNotifications implements ShouldQueue
             $wantsInApp = $prefs->where('channel', 'in_app')->first()?->is_enabled ?? true;
             $wantsTelegram = $prefs->where('channel', 'telegram')->first()?->is_enabled ?? false;
 
-            if (!$wantsEmail && !$wantsInApp && !$wantsTelegram) {
+            if (! $wantsEmail && ! $wantsInApp && ! $wantsTelegram) {
                 continue; // L'utilisateur a tout désactivé
             }
 
@@ -73,7 +72,7 @@ class ProcessBookOrderNotifications implements ShouldQueue
                 $filters = $firstActivePref ? $firstActivePref->filters : null;
 
                 if (is_array($filters) && isset($filters['categories']) && count($filters['categories']) > 0) {
-                    if (!in_array($categoryId, $filters['categories'])) {
+                    if (! in_array($categoryId, $filters['categories'])) {
                         continue; // Ce vendeur ne veut pas être notifié pour cette catégorie
                     }
                 }
@@ -119,14 +118,14 @@ class ProcessBookOrderNotifications implements ShouldQueue
     protected function buildTelegramMessage(): string
     {
         $order = $this->order;
-        $url = "https://next.livrezone.com/annonces";
+        $url = 'https://next.livrezone.com/annonces';
         $category = $order->category?->name_fr ?? ($order->book?->defaultCategory?->name_fr ?? 'N/A');
 
         return "📚 *Nouvelle demande de livre sur LivreZone !*\n"
-            . "━━━━━━━━━━━━━━━━━━\n"
-            . "📖 Titre : {$order->title}\n"
-            . "✍️ Auteur : " . ($order->author ?? 'N/A') . "\n"
-            . "🏷️ Catégorie : {$category}\n"
-            . "🔗 Lien : {$url}";
+            ."━━━━━━━━━━━━━━━━━━\n"
+            ."📖 Titre : {$order->title}\n"
+            .'✍️ Auteur : '.($order->author ?? 'N/A')."\n"
+            ."🏷️ Catégorie : {$category}\n"
+            ."🔗 Lien : {$url}";
     }
 }

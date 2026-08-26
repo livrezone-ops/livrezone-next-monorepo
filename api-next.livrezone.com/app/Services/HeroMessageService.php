@@ -9,12 +9,11 @@ class HeroMessageService
 {
     /**
      * Get active hero messages, cached for 24 hours.
-     *
-     * @return array
      */
     public function getActiveMessages(): array
     {
         $ttl = config('livrezone.cache_ttl.hero_messages', 86400);
+
         return Cache::remember('hero_messages_active', $ttl, function () {
             return HeroMessage::query()
                 ->where('is_active', true)

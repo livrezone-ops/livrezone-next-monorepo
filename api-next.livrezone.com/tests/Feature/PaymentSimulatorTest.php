@@ -88,7 +88,7 @@ class PaymentSimulatorTest extends TestCase
         $this->assertSame('paid', $payment->status);
         $this->assertNotNull($payment->expires_at);
         $this->assertSame('pro', $user->profile->fresh()->subscription_type);
-        Mail::assertSent(PaymentConfirmedMail::class);
+        Mail::assertQueued(PaymentConfirmedMail::class);
     }
 
     public function test_coupon_discount_applied_and_consumed_on_confirmation(): void

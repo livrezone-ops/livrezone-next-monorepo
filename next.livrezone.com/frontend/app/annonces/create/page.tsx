@@ -8,8 +8,12 @@ import { Loader2, AlertTriangle } from "lucide-react";
 import ToastContainer from "@/components/Toast";
 import { useToasts } from "@/hooks/useToasts";
 
-class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null, info: ErrorInfo | null}> {
-  constructor(props: any) {
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, {hasError: boolean, error: Error | null, info: ErrorInfo | null}> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null, info: null };
   }

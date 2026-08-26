@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Lock, Loader2, CheckCircle2 } from 'lucide-react';
 import api from '@/lib/axios';
-import { getApiErrorStatus } from '@/lib/api-error';
+import { getApiErrorStatus, getApiFieldErrors } from '@/lib/api-error';
 import { useToast } from '@/components/Toast';
 
 export default function PasswordForm() {
@@ -40,9 +40,10 @@ export default function PasswordForm() {
             setNewPassword('');
             setConfirmPassword('');
             success('Mot de passe mis à jour avec succès');
-        } catch (error: any) {
-            if (error.response?.status === 422 && error.response.data?.errors) {
-                setErrors(error.response.data.errors);
+        } catch (error) {
+            const fieldErrors = getApiFieldErrors(error);
+            if (getApiErrorStatus(error) === 422 && Object.keys(fieldErrors).length > 0) {
+                setErrors(fieldErrors);
             } else {
                 showError('Erreur lors de la mise à jour du mot de passe');
             }
@@ -61,7 +62,7 @@ export default function PasswordForm() {
                         Modifier le mot de passe
                     </h2>
                     <p className="mt-1.5 text-sm text-slate-500">
-                        Assurez-vous d'utiliser un mot de passe long et sécurisé.
+                        Assurez-vous d’utiliser un mot de passe long et sécurisé.
                     </p>
                 </div>
 

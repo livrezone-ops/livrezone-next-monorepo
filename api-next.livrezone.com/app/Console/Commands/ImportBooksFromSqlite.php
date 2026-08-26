@@ -2,14 +2,14 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Models\Language;
 use App\Models\Category;
+use App\Models\Language;
 use App\Models\Level;
 use App\Models\Subject;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 
 class ImportBooksFromSqlite extends Command
 {
@@ -34,8 +34,9 @@ class ImportBooksFromSqlite extends Command
     {
         $sqlitePath = $this->option('path') ?: base_path('nextlivrezonedb.db');
 
-        if (!file_exists($sqlitePath)) {
+        if (! file_exists($sqlitePath)) {
             $this->error("Le fichier SQLite est introuvable à ce chemin : {$sqlitePath}");
+
             return Command::FAILURE;
         }
 
@@ -46,20 +47,23 @@ class ImportBooksFromSqlite extends Command
             $sqlite->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
             $sqlite->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
         } catch (\PDOException $e) {
-            $this->error("Impossible de se connecter à SQLite : " . $e->getMessage());
+            $this->error('Impossible de se connecter à SQLite : '.$e->getMessage());
+
             return Command::FAILURE;
         }
 
         // Récupérer le nombre total de livres
         try {
-            $total = $sqlite->query("SELECT COUNT(*) FROM books")->fetchColumn();
+            $total = $sqlite->query('SELECT COUNT(*) FROM books')->fetchColumn();
         } catch (\Exception $e) {
-            $this->error("Erreur lors de la lecture de la table books dans SQLite : " . $e->getMessage());
+            $this->error('Erreur lors de la lecture de la table books dans SQLite : '.$e->getMessage());
+
             return Command::FAILURE;
         }
 
         if ($total == 0) {
-            $this->warn("La table books de SQLite est vide.");
+            $this->warn('La table books de SQLite est vide.');
+
             return Command::SUCCESS;
         }
 
@@ -79,7 +83,7 @@ class ImportBooksFromSqlite extends Command
         $bar = $this->output->createProgressBar($total);
         $bar->start();
 
-        $stmt = $sqlite->prepare("SELECT * FROM books LIMIT :limit OFFSET :offset");
+        $stmt = $sqlite->prepare('SELECT * FROM books LIMIT :limit OFFSET :offset');
 
         while ($offset < $total) {
             $stmt->bindValue(':limit', $chunkSize, \PDO::PARAM_INT);
@@ -101,7 +105,7 @@ class ImportBooksFromSqlite extends Command
 
                 // Formater la date de publication
                 $pubDate = null;
-                if (!empty($row['publication_date'])) {
+                if (! empty($row['publication_date'])) {
                     try {
                         $pubDate = Carbon::parse($row['publication_date'])->toDateString();
                     } catch (\Exception $e) {
@@ -111,7 +115,7 @@ class ImportBooksFromSqlite extends Command
 
                 // S'assurer que les auteurs sont bien stockés sous forme de chaîne JSON brute
                 $authorsJson = null;
-                if (!empty($row['authors'])) {
+                if (! empty($row['authors'])) {
                     $decoded = json_decode($row['authors'], true);
                     $authorsJson = is_array($decoded) ? json_encode($decoded) : json_encode([$row['authors']]);
                 }
@@ -143,7 +147,7 @@ class ImportBooksFromSqlite extends Command
             $retryCount = 0;
             $success = false;
 
-            while ($retryCount < $maxRetries && !$success) {
+            while ($retryCount < $maxRetries && ! $success) {
                 try {
                     DB::table('books')->insertOrIgnore($batch);
                     $importedCount += count($batch);
@@ -157,15 +161,17 @@ class ImportBooksFromSqlite extends Command
                     } else {
                         // Pour tout autre type d'erreur de requête, on arrête
                         $this->newLine();
-                        $this->error("Erreur de requête SQL : " . $e->getMessage());
+                        $this->error('Erreur de requête SQL : '.$e->getMessage());
+
                         return Command::FAILURE;
                     }
                 }
             }
 
-            if (!$success) {
+            if (! $success) {
                 $this->newLine();
                 $this->error("Échec d'insertion du lot après {$maxRetries} tentatives de résolution de deadlock.");
+
                 return Command::FAILURE;
             }
 

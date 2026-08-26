@@ -11,18 +11,13 @@ class RatingService
     /**
      * Enregistre ou met à jour un avis et recalcule les statistiques du profil.
      *
-     * @param User $user
-     * @param Profile $profile
-     * @param int $score
-     * @param string|null $comment
-     * @return Rating
      * @throws ValidationException
      */
     public function storeRating(User $user, Profile $profile, int $score, ?string $comment = null): Rating
     {
         // Interdiction de l'auto-évaluation
         if ($profile->user_id === $user->id) {
-            abort(403, "Vous ne pouvez pas évaluer votre propre profil.");
+            abort(403, 'Vous ne pouvez pas évaluer votre propre profil.');
         }
 
         // Sauvegarde de l'avis

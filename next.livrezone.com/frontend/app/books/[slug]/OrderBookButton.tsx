@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import api from "@/lib/axios";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { Bell, Loader2, Check } from "lucide-react";
@@ -26,8 +27,8 @@ export default function OrderBookButton({ bookId }: { bookId: number }) {
       await api.post("/orders", { book_id: bookId });
       success("Votre demande a bien été enregistrée ! Les vendeurs Pro/Premium seront alertés.");
       setOrdered(true);
-    } catch (error: any) {
-      const msg = error.response?.data?.message || "Erreur lors de la création de la demande.";
+    } catch (error) {
+      const msg = getApiErrorMessage(error, "Erreur lors de la création de la demande.");
       toastError(msg);
     } finally {
       setLoading(false);

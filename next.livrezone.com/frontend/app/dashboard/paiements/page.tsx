@@ -7,10 +7,19 @@ import { Loader2, CreditCard, Receipt } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+interface PaymentRow {
+  id: number;
+  paid_at: string | null;
+  subscription_type: string;
+  amount: string | number;
+  expires_at: string | null;
+  status: string;
+}
+
 export default function PaiementsPage() {
     const { isAuthenticated, isLoading: authLoading } = useAuth();
     const router = useRouter();
-    const [payments, setPayments] = useState<any[]>([]);
+    const [payments, setPayments] = useState<PaymentRow[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -50,7 +59,7 @@ export default function PaiementsPage() {
                     <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
                         <CreditCard className="w-6 h-6 text-[#6D28D9]" /> Historique des paiements
                     </h1>
-                    <p className="text-sm text-gray-500 mt-1">Consultez l'historique de vos abonnements et factures.</p>
+                    <p className="text-sm text-gray-500 mt-1">Consultez l’historique de vos abonnements et factures.</p>
                 </div>
                 <Link href="/tarification" className="px-4 py-2 bg-[#6D28D9] text-white rounded-lg font-bold text-sm hover:bg-violet-800 transition-colors shadow-sm">
                     Voir les offres
@@ -65,7 +74,7 @@ export default function PaiementsPage() {
                                 <th className="px-6 py-4">Date de paiement</th>
                                 <th className="px-6 py-4">Service (Offre)</th>
                                 <th className="px-6 py-4">Montant</th>
-                                <th className="px-6 py-4">Date d'expiration</th>
+                                <th className="px-6 py-4">Date d’expiration</th>
                                 <th className="px-6 py-4">Statut</th>
                             </tr>
                         </thead>
@@ -75,8 +84,8 @@ export default function PaiementsPage() {
                                     <td colSpan={5} className="px-6 py-16 text-center text-gray-500">
                                         <div className="flex flex-col items-center justify-center">
                                             <Receipt className="w-12 h-12 text-gray-300 mb-3" />
-                                            <p className="text-base font-bold text-gray-700">Vous n'avez aucun paiement.</p>
-                                            <p className="text-xs text-gray-400 mt-1">Les abonnements Pro et Premium s'afficheront ici.</p>
+                                            <p className="text-base font-bold text-gray-700">Vous n’avez aucun paiement.</p>
+                                            <p className="text-xs text-gray-400 mt-1">Les abonnements Pro et Premium s’afficheront ici.</p>
                                         </div>
                                     </td>
                                 </tr>

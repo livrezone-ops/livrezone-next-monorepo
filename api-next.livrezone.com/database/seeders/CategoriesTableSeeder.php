@@ -89,7 +89,7 @@ class CategoriesTableSeeder extends Seeder
         $codeToId = DB::table('categories')->pluck('id', 'code');
 
         foreach ($categories as $category) {
-            if (!$category['parent_code']) {
+            if (! $category['parent_code']) {
                 continue;
             }
 
@@ -99,7 +99,7 @@ class CategoriesTableSeeder extends Seeder
                 ->where('code', $category['code'])
                 ->update([
                     'parent_id' => $parentId,
-                    'updated_at' => $now
+                    'updated_at' => $now,
                 ]);
         }
     }

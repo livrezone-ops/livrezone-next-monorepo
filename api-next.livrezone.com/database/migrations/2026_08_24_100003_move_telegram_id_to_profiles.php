@@ -13,7 +13,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (Schema::hasTable('profiles') && !Schema::hasColumn('profiles', 'telegram_id')) {
+        if (Schema::hasTable('profiles') && ! Schema::hasColumn('profiles', 'telegram_id')) {
             Schema::table('profiles', function (Blueprint $table) {
                 $table->string('telegram_id')->nullable()->after('phone');
             });
@@ -28,7 +28,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (Schema::hasTable('users') && !Schema::hasColumn('users', 'telegram_id')) {
+        if (Schema::hasTable('users') && ! Schema::hasColumn('users', 'telegram_id')) {
             Schema::table('users', function (Blueprint $table) {
                 $table->string('telegram_id')->nullable()->after('avatar');
             });

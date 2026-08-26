@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\PaymentGatewayService;
 use App\Services\SubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
 /**
@@ -21,7 +23,7 @@ class AdminSettingsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new SubscriptionService();
+        $this->service = new SubscriptionService;
         Cache::flush();
     }
 
@@ -88,12 +90,12 @@ class AdminSettingsTest extends TestCase
             'method_cheque' => false,
             'method_autre' => false,
         ])->assertOk()
-          ->assertJsonPath('settings.method_cheque', 0)
-          ->assertJsonPath('settings.method_autre', 0);
+            ->assertJsonPath('settings.method_cheque', 0)
+            ->assertJsonPath('settings.method_autre', 0);
 
         Cache::flush(); // même après purge du cache
 
-        $service = new SubscriptionService();
+        $service = new SubscriptionService;
         $methods = $service->enabledPaymentMethods();
         $this->assertNotContains('cheque', $methods);
         $this->assertNotContains('autre', $methods);
@@ -101,14 +103,14 @@ class AdminSettingsTest extends TestCase
 
         // Réactivation
         $this->actingAs($admin)->postJson('/api/admin/settings', ['method_cheque' => true])->assertOk();
-        $this->assertContains('cheque', (new SubscriptionService())->enabledPaymentMethods());
+        $this->assertContains('cheque', (new SubscriptionService)->enabledPaymentMethods());
     }
 
     public function test_admin_can_toggle_payment_gateways(): void
     {
         Config::set('livrezone.payment_simulator', false);
         $admin = User::factory()->create(['is_admin' => true]);
-        $service = app(\App\Services\PaymentGatewayService::class);
+        $service = app(PaymentGatewayService::class);
 
         // Réglages absents -> repli .env (false dans les tests).
         $this->assertNotContains('cmi', $service->enabled());
@@ -122,7 +124,7 @@ class AdminSettingsTest extends TestCase
         $this->assertSame(1, $settings['gateway_cmi']);
         $this->assertSame(0, $settings['gateway_fatourati']);
 
-        $gateways = app(\App\Services\PaymentGatewayService::class);
+        $gateways = app(PaymentGatewayService::class);
         $this->assertContains('cmi', $gateways->enabled());
         $this->assertNotContains('fatourati', $gateways->enabled());
 

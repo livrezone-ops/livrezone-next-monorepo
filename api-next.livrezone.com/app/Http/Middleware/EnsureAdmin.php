@@ -12,11 +12,11 @@ class EnsureAdmin
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Non authentifié.'], 401);
         }
 
-        if (!$user->is_admin) {
+        if (! $user->is_admin) {
             return response()->json(['message' => 'Accès interdit.'], 403);
         }
 

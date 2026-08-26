@@ -1,28 +1,31 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\Auth\SocialAuthController;
+use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\Auth\AuthController;
-use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\ListingManagerController;
-use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\Auth\SocialAuthController;
 use App\Http\Controllers\Api\BookController;
-use App\Http\Controllers\Api\ReferenceDataController;
-use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ChatController;
-use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\HeroController;
 use App\Http\Controllers\Api\LibraryController;
-
+use App\Http\Controllers\Api\ListingController;
+use App\Http\Controllers\Api\ListingManagerController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ReferenceDataController;
 use App\Http\Controllers\Api\TelegramWebhookController;
+use App\Http\Controllers\Api\WishlistController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     $user = $request->user()->load('profile');
     $user->is_online = $user->isOnline();
     $user->unread_notifications_count = $user->notifications()->whereNull('read_at')->count();
+
     return $user;
 });
 
@@ -32,7 +35,7 @@ Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
 Route::prefix('auth')->group(function () {
     Route::get('/redirect/{provider}', [SocialAuthController::class, 'redirect']);
     Route::get('/callback/{provider}', [SocialAuthController::class, 'callback'])
-    ->middleware('web');
+        ->middleware('web');
 
     // Auth classique (email + mot de passe)
     Route::post('/register', [AuthController::class, 'register']);
@@ -72,28 +75,28 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
-    Route::get('/', [\App\Http\Controllers\Api\OrderController::class, 'index']);
-    Route::post('/', [\App\Http\Controllers\Api\OrderController::class, 'store']);
-    Route::get('/{order}', [\App\Http\Controllers\Api\OrderController::class, 'show']);
-    Route::post('/{order}', [\App\Http\Controllers\Api\OrderController::class, 'update']);
-    Route::put('/{order}', [\App\Http\Controllers\Api\OrderController::class, 'update']);
-    Route::post('/{order}/cancel', [\App\Http\Controllers\Api\OrderController::class, 'cancel']);
+    Route::get('/', [OrderController::class, 'index']);
+    Route::post('/', [OrderController::class, 'store']);
+    Route::get('/{order}', [OrderController::class, 'show']);
+    Route::post('/{order}', [OrderController::class, 'update']);
+    Route::put('/{order}', [OrderController::class, 'update']);
+    Route::post('/{order}/cancel', [OrderController::class, 'cancel']);
 });
 
 Route::middleware('auth:sanctum')->prefix('payments')->group(function () {
-    Route::get('/', [\App\Http\Controllers\Api\PaymentController::class, 'index']);
-    Route::post('/preview', [\App\Http\Controllers\Api\PaymentController::class, 'preview']);
-    Route::post('/', [\App\Http\Controllers\Api\PaymentController::class, 'store']);
-    Route::post('/{payment}/simulate-confirm', [\App\Http\Controllers\Api\PaymentController::class, 'simulateConfirm']);
+    Route::get('/', [PaymentController::class, 'index']);
+    Route::post('/preview', [PaymentController::class, 'preview']);
+    Route::post('/', [PaymentController::class, 'store']);
+    Route::post('/{payment}/simulate-confirm', [PaymentController::class, 'simulateConfirm']);
 });
 
 // Public Listings Routes
-Route::get('/listings', [\App\Http\Controllers\Api\ListingController::class, 'index']);
-Route::get('/listings/{id}', [\App\Http\Controllers\Api\ListingController::class, 'show']);
-Route::get('/sitemap/listings', [\App\Http\Controllers\Api\ListingController::class, 'sitemap']);
+Route::get('/listings', [ListingController::class, 'index']);
+Route::get('/listings/{id}', [ListingController::class, 'show']);
+Route::get('/sitemap/listings', [ListingController::class, 'sitemap']);
 
 // Public Demandes (Book Requests) Routes
-Route::get('/demandes', [\App\Http\Controllers\Api\OrderController::class, 'publicDemandes']);
+Route::get('/demandes', [OrderController::class, 'publicDemandes']);
 
 // Public Library (seller profile)
 Route::get('/profiles/{nickname}', [ProfileController::class, 'publicLibrary']);
@@ -110,10 +113,10 @@ Route::get('/reference-data', [ReferenceDataController::class, 'index']);
 
 // Public Books Catalogue Routes
 Route::middleware('throttle:catalogue')->group(function () {
-    Route::get('/books', [\App\Http\Controllers\Api\BookController::class, 'publicSearch']);
-    Route::get('/books/autocomplete', [\App\Http\Controllers\Api\BookController::class, 'autocomplete']);
-    Route::get('/books/search', [\App\Http\Controllers\Api\BookController::class, 'searchByIsbn']);
-    Route::get('/books/{identifier}', [\App\Http\Controllers\Api\BookController::class, 'show']);
+    Route::get('/books', [BookController::class, 'publicSearch']);
+    Route::get('/books/autocomplete', [BookController::class, 'autocomplete']);
+    Route::get('/books/search', [BookController::class, 'searchByIsbn']);
+    Route::get('/books/{identifier}', [BookController::class, 'show']);
 });
 
 // Wishlist (Favorites) - Authenticated

@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Category;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 
 class Listing extends Model
@@ -47,7 +49,7 @@ class Listing extends Model
     public static function isUserUploadedCover(?string $coverPath): bool
     {
         return $coverPath !== null
-            && str_starts_with($coverPath, self::USER_COVER_DIR . '/');
+            && str_starts_with($coverPath, self::USER_COVER_DIR.'/');
     }
 
     protected static function boot(): void
@@ -129,94 +131,94 @@ class Listing extends Model
         return $this->belongsTo(Book::class);
     }
 
-public function category()
-{
-    return $this->belongsTo(Category::class);
-}
-
-/**
- * Filtre les listings d'une catégorie et de ses sous-catégories.
- */
-public function scopeInCategory(
-    Builder $query,
-    string $category
-): Builder {
-    $selectedCategory = Category::query()
-        ->with('childrenRecursive')
-        ->where(function (Builder $categoryQuery) use ($category) {
-            $categoryQuery
-                ->where('code', $category)
-                ->orWhere('slug', $category)
-                ->orWhere('name_fr', $category);
-        })
-        ->where('is_active', true)
-        ->first();
-
-    if (!$selectedCategory) {
-        return $query->whereRaw('1 = 0');
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
     }
 
-    return $query->whereIn(
-        'category_id',
-        $selectedCategory->selfAndDescendantIds()
-    );
-}
+    /**
+     * Filtre les listings d'une catégorie et de ses sous-catégories.
+     */
+    public function scopeInCategory(
+        Builder $query,
+        string $category
+    ): Builder {
+        $selectedCategory = Category::query()
+            ->with('childrenRecursive')
+            ->where(function (Builder $categoryQuery) use ($category) {
+                $categoryQuery
+                    ->where('code', $category)
+                    ->orWhere('slug', $category)
+                    ->orWhere('name_fr', $category);
+            })
+            ->where('is_active', true)
+            ->first();
 
-/**
- * Retourne aléatoirement des listings d'une catégorie.
- */
-public static function latestByCategory(
-    string $category,
-    int $limit = 6
-) {
-    $cacheKey = "latest_listings_ids_" . md5($category) . "_{$limit}";
+        if (! $selectedCategory) {
+            return $query->whereRaw('1 = 0');
+        }
 
-    $cacheTtl = (int) env('REDIS_CACHE_TIMING', 60);
-    $ids = \Illuminate\Support\Facades\Cache::remember($cacheKey, $cacheTtl, function () use ($category, $limit) {
-        return self::where('status', 'published')
-            ->inCategory($category)
-            ->latest('published_at')
+        return $query->whereIn(
+            'category_id',
+            $selectedCategory->selfAndDescendantIds()
+        );
+    }
+
+    /**
+     * Retourne aléatoirement des listings d'une catégorie.
+     */
+    public static function latestByCategory(
+        string $category,
+        int $limit = 6
+    ) {
+        $cacheKey = 'latest_listings_ids_'.md5($category)."_{$limit}";
+
+        $cacheTtl = (int) env('REDIS_CACHE_TIMING', 60);
+        $ids = Cache::remember($cacheKey, $cacheTtl, function () use ($category, $limit) {
+            return self::where('status', 'published')
+                ->inCategory($category)
+                ->latest('published_at')
+                ->limit($limit)
+                ->pluck('id')
+                ->toArray();
+        });
+
+        if (empty($ids)) {
+            return collect();
+        }
+
+        return self::with(['book', 'category', 'user.profile.city'])
+            ->whereIn('id', $ids)
+            // whereIn ne préserve pas l'ordre, on le refait en PHP
+            ->get()
+            ->sortByDesc('published_at')
+            ->values();
+    }
+
+    /**
+     * Filtre les listings appartenant à un utilisateur.
+     */
+    public function scopeForUser(
+        Builder $query,
+        int $userId
+    ): Builder {
+        return $query->where('user_id', $userId);
+    }
+
+    /**
+     * Retourne les dernières publications d'un utilisateur.
+     */
+    public static function latestByUser(
+        int $userId,
+        int $limit = 6
+    ): Collection {
+        return static::query()
+            ->with(['category'])
+            ->forUser($userId)
+            ->latest('created_at')
             ->limit($limit)
-            ->pluck('id')
-            ->toArray();
-    });
-
-    if (empty($ids)) {
-        return collect();
+            ->get();
     }
-
-    return self::with(['book', 'category', 'user.profile.city'])
-        ->whereIn('id', $ids)
-        // whereIn ne préserve pas l'ordre, on le refait en PHP
-        ->get()
-        ->sortByDesc('published_at')
-        ->values();
-}
-
-/**
- * Filtre les listings appartenant à un utilisateur.
- */
-public function scopeForUser(
-    \Illuminate\Database\Eloquent\Builder $query,
-    int $userId
-): \Illuminate\Database\Eloquent\Builder {
-    return $query->where('user_id', $userId);
-}
-
-/**
- * Retourne les dernières publications d'un utilisateur.
- */
-public static function latestByUser(
-    int $userId,
-    int $limit = 6
-): \Illuminate\Database\Eloquent\Collection {
-    return static::query()
-        ->with(['category'])
-        ->forUser($userId)
-        ->latest('created_at')
-        ->limit($limit)
-        ->get();
-}
 
     public function level()
     {
@@ -253,14 +255,16 @@ public static function latestByUser(
 
     public function getUrlAttribute()
     {
-        $nickname = $this->user->profile->nickname ?? 'utilisateur-' . $this->user_id;
-        $slug = \Illuminate\Support\Str::slug($this->isbn_13 . '-' . $this->title);
+        $nickname = $this->user->profile->nickname ?? 'utilisateur-'.$this->user_id;
+        $slug = Str::slug($this->isbn_13.'-'.$this->title);
+
         return url("/{$nickname}/{$this->id}-{$slug}");
     }
 
     public function getSellerUrlAttribute()
     {
-        $nickname = $this->user->profile->nickname ?? 'utilisateur-' . $this->user_id;
+        $nickname = $this->user->profile->nickname ?? 'utilisateur-'.$this->user_id;
+
         // Optionnel : Vous vouliez /nickname/profile ou juste /nickname/ ? J'utilise /nickname comme vous l'avez suggéré
         return url("/{$nickname}");
     }
@@ -305,18 +309,19 @@ public static function latestByUser(
         $path = trim((string) ($this->cover_path ?? ''));
 
         if ($path !== '') {
-            if (\Illuminate\Support\Str::startsWith($path, ['http://', 'https://'])) {
+            if (Str::startsWith($path, ['http://', 'https://'])) {
                 return $path;
             }
 
             if (self::isUserUploadedCover($path)) {
-                return asset('storage/' . $path);
+                return asset('storage/'.$path);
             }
 
             // Couverture catalogue : nom de fichier simple (9782294788222.jpg)
             $cleanPath = ltrim(str_replace('originals/', '', $path), '/');
             $baseUrl = env('BOOK_COVERS_URL', url('/book-cover-proxy'));
-            return rtrim($baseUrl, '/') . '/' . $cleanPath;
+
+            return rtrim($baseUrl, '/').'/'.$cleanPath;
         }
 
         $external = trim((string) ($this->cover_source_url ?? ''));
@@ -334,24 +339,26 @@ public static function latestByUser(
         $path = trim((string) ($this->cover_path ?? ''));
 
         if ($path !== '') {
-            if (\Illuminate\Support\Str::startsWith($path, ['http://', 'https://'])) {
+            if (Str::startsWith($path, ['http://', 'https://'])) {
                 return $path;
             }
 
             if (self::isUserUploadedCover($path)) {
                 $filename = basename($path);
-                $thumbPath = 'book-covers/user-uploads/thumbnails/' . $size . '/' . $filename;
+                $thumbPath = 'book-covers/user-uploads/thumbnails/'.$size.'/'.$filename;
                 // If it doesn't exist, we fallback to the original user upload (though ThumbnailService should ensure it)
                 if (file_exists(public_path($thumbPath))) {
                     return asset($thumbPath);
                 }
+
                 return asset($path);
             }
 
             $cleanPath = ltrim(str_replace('originals/', '', $path), '/');
             $cleanPathWebp = preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $cleanPath);
             $baseUrl = env('BOOK_COVERS_URL', url('/book-cover-proxy'));
-            return rtrim($baseUrl, '/') . "/thumbnails/{$size}/" . $cleanPathWebp;
+
+            return rtrim($baseUrl, '/')."/thumbnails/{$size}/".$cleanPathWebp;
         }
 
         $external = trim((string) ($this->cover_source_url ?? ''));

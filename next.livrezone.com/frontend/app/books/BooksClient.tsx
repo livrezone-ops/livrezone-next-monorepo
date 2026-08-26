@@ -9,6 +9,7 @@ import {
   Loader2, Plus, ArrowRight
 } from "lucide-react";
 import api from "@/lib/axios";
+import { getApiErrorMessage } from "@/lib/api-error";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import FilterSidebar from "@/components/FilterSidebar";
 import BookCatalogCard from "@/components/BookCatalogCard";
@@ -17,6 +18,15 @@ import type { CityRef } from "@/lib/listings-api";
 import { parseFilters, buildFilterQuery } from "@/lib/listings-filters";
 import { useToast } from "@/components/Toast";
 import type { BookSection } from "./page";
+
+interface BookSuggestion {
+  id?: number;
+  title?: string;
+  isbn_13?: string;
+  cover_thumbnail_url?: string | null;
+  cover_url?: string | null;
+  authors?: string[] | string | null;
+}
 
 interface BooksClientProps {
   initialBooks: BookSearchItem[];
@@ -57,7 +67,7 @@ export default function BooksClient({
   const [view, setView] = useState<"grid" | "list">("list");
 
   // Autocomplete state
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<BookSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -96,7 +106,7 @@ export default function BooksClient({
     const timer = setTimeout(async () => {
       try {
         const { data } = await api.get(`/books/autocomplete?q=${encodeURIComponent(term)}&limit=6`);
-        setSuggestions(Array.isArray(data) ? data : []);
+        setSuggestions(Array.isArray(data) ? (data as BookSuggestion[]) : []);
         setShowSuggestions(true);
       } catch {
         setSuggestions([]);
@@ -135,7 +145,7 @@ export default function BooksClient({
     router.push(qs ? `/books?${qs}` : "/books");
   };
 
-  const handleSuggestionClick = (item: any) => {
+  const handleSuggestionClick = (item: BookSuggestion) => {
     setShowSuggestions(false);
     if (item.id) {
       router.push(`/books/${item.id}`);
@@ -176,8 +186,8 @@ export default function BooksClient({
     try {
       await api.post("/orders", { book_id: book.id });
       success("Votre demande a bien été enregistrée ! Les vendeurs Pro/Premium seront alertés.");
-    } catch (err: any) {
-      toastError(err.response?.data?.message || "Erreur lors de la création de la demande.");
+    } catch (err) {
+      toastError(getApiErrorMessage(err, "Erreur lors de la création de la demande."));
     }
   };
 
@@ -211,7 +221,7 @@ export default function BooksClient({
 
           <p className="text-sm sm:text-base text-violet-100/90 leading-relaxed mb-6 font-normal">
             Explorez le catalogue par titre ou par auteur et déposez une demande pour les livres que vous cherchez. 
-            Vous recevrez une alerte dès qu'un vendeur les proposera sur la plateforme.
+            Vous recevrez une alerte dès qu’un vendeur les proposera sur la plateforme.
           </p>
 
           <div className="flex flex-wrap items-center gap-3">

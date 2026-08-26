@@ -13,19 +13,18 @@ class ReferenceDataService
     /**
      * Get all reference data (categories, languages, levels, cities)
      * Cached in Redis for 24 hours.
-     *
-     * @return array
      */
     public function getAll(): array
     {
         $ttl = config('livrezone.cache_ttl.reference_data', 86400);
+
         return Cache::remember('reference_data', $ttl, function () {
             // 1. Catégories hiérarchiques (L1 avec leurs enfants L2 et L3)
             $categories = Category::with(['levels', 'subjects'])
                 ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->get();
-                
+
             $tree = $this->buildTree($categories, null);
 
             // 1b. Catégories parentes (L1) à plat, pour le filtre de notifications
@@ -40,7 +39,7 @@ class ReferenceDataService
                 ->orderBy('name_fr')
                 ->get(['id', 'name_fr', 'code'])
                 ->toArray();
-                
+
             // 3. Niveaux et matières
             $levels = Level::where('is_active', true)
                 ->with(['subjects' => function ($query) {
@@ -63,7 +62,7 @@ class ReferenceDataService
                 'premium_price_yearly' => $subscription->getPremiumPriceYearly(),
                 'promo_pro_free' => $subscription->isPromoProFree(),
                 'pro_notification_delay_hours' => $subscription->getNotificationDelayHours(),
-                'payment_gateways' => app(\App\Services\PaymentGatewayService::class)->enabled(),
+                'payment_gateways' => app(PaymentGatewayService::class)->enabled(),
                 'subscriptions_disabled' => $subscription->areSubscriptionsDisabled(),
                 'payment_methods' => $subscription->enabledPaymentMethods(),
             ];
@@ -78,15 +77,15 @@ class ReferenceDataService
             ];
         });
     }
-    
+
     private function buildTree($elements, $parentId = null)
     {
         $branch = [];
-        
+
         foreach ($elements as $element) {
             if ($element->parent_id == $parentId) {
                 $children = $this->buildTree($elements, $element->id);
-                
+
                 $node = [
                     'id' => $element->id,
                     'name' => $element->name_fr,
@@ -99,15 +98,15 @@ class ReferenceDataService
                         ->map(fn ($s) => ['id' => $s->id, 'code' => $s->code, 'name_fr' => $s->name_fr])
                         ->values()->toArray(),
                 ];
-                
+
                 if ($children) {
                     $node['children'] = $children;
                 }
-                
+
                 $branch[] = $node;
             }
         }
-        
+
         return $branch;
     }
 }

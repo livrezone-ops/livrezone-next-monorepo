@@ -38,8 +38,8 @@ class BookAutocompleteService
             $books = Book::query()
                 ->where(function ($q) use ($query, $cleanIsbn) {
                     $q->where('title', 'like', "%{$query}%")
-                      ->orWhere('authors', 'like', "%{$query}%")
-                      ->orWhere('isbn_13', 'like', "%{$cleanIsbn}%");
+                        ->orWhere('authors', 'like', "%{$query}%")
+                        ->orWhere('isbn_13', 'like', "%{$cleanIsbn}%");
                 })
                 ->take($limit)
                 ->get();

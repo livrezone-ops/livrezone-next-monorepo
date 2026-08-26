@@ -3,10 +3,11 @@
 namespace App\Services;
 
 use App\Models\Listing;
-use App\Models\Payment;
 use App\Models\Profile;
+use App\Models\Setting;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -23,6 +24,7 @@ class SubscriptionService
     public const TYPES = ['free', 'pro', 'premium'];
 
     public const PROMO_CACHE_KEY = 'livrezone.promo_pro_free';
+
     public const PROMO_SETTING_KEY = 'promo_pro_free';
 
     /** Réglages modifiables depuis l'admin : clé de réglage => clé .env de repli. */
@@ -80,9 +82,9 @@ class SubscriptionService
      */
     public function setting(string $key, string $envKey, mixed $default): mixed
     {
-        return \Illuminate\Support\Facades\Cache::rememberForever("livrezone.setting.{$key}", function () use ($key, $envKey, $default) {
+        return Cache::rememberForever("livrezone.setting.{$key}", function () use ($key, $envKey, $default) {
             try {
-                $setting = \App\Models\Setting::find($key);
+                $setting = Setting::find($key);
             } catch (\Throwable) {
                 return $default;
             }
@@ -108,10 +110,10 @@ class SubscriptionService
         // (string) false donnerait '' et serait relu comme "absent".
         $storedValue = is_bool($value) ? ($value ? '1' : '0') : (string) $value;
 
-        \App\Models\Setting::updateOrCreate(['key' => $key], ['value' => $storedValue]);
-        \Illuminate\Support\Facades\Cache::forget("livrezone.setting.{$key}");
+        Setting::updateOrCreate(['key' => $key], ['value' => $storedValue]);
+        Cache::forget("livrezone.setting.{$key}");
         // /reference-data (page tarification) embarque prix et délais : invalider.
-        \Illuminate\Support\Facades\Cache::forget('reference_data');
+        Cache::forget('reference_data');
     }
 
     /**
@@ -132,8 +134,8 @@ class SubscriptionService
             'method_especes' => (int) in_array('especes', $this->enabledPaymentMethods(), true),
             'method_cheque' => (int) in_array('cheque', $this->enabledPaymentMethods(), true),
             'method_autre' => (int) in_array('autre', $this->enabledPaymentMethods(), true),
-            'gateway_cmi' => (int) app(\App\Services\PaymentGatewayService::class)->isEnabled('cmi'),
-            'gateway_fatourati' => (int) app(\App\Services\PaymentGatewayService::class)->isEnabled('fatourati'),
+            'gateway_cmi' => (int) app(PaymentGatewayService::class)->isEnabled('cmi'),
+            'gateway_fatourati' => (int) app(PaymentGatewayService::class)->isEnabled('fatourati'),
         ];
     }
 
@@ -168,9 +170,9 @@ class SubscriptionService
      */
     public function isPromoProFree(): bool
     {
-        return \Illuminate\Support\Facades\Cache::rememberForever(self::PROMO_CACHE_KEY, function () {
+        return Cache::rememberForever(self::PROMO_CACHE_KEY, function () {
             try {
-                $setting = \App\Models\Setting::find(self::PROMO_SETTING_KEY);
+                $setting = Setting::find(self::PROMO_SETTING_KEY);
             } catch (\Throwable) {
                 $setting = null;
             }
@@ -190,14 +192,14 @@ class SubscriptionService
      */
     public function setPromoProFree(bool $active): void
     {
-        \App\Models\Setting::updateOrCreate(
+        Setting::updateOrCreate(
             ['key' => self::PROMO_SETTING_KEY],
             ['value' => $active ? '1' : '0']
         );
 
-        \Illuminate\Support\Facades\Cache::forget(self::PROMO_CACHE_KEY);
+        Cache::forget(self::PROMO_CACHE_KEY);
         // La page tarification lit la promo via /reference-data (cache 24 h).
-        \Illuminate\Support\Facades\Cache::forget('reference_data');
+        Cache::forget('reference_data');
     }
 
     /**
@@ -283,7 +285,7 @@ class SubscriptionService
         }
 
         $userId = $profile?->user_id;
-        if (!$userId) {
+        if (! $userId) {
             return false;
         }
 
@@ -359,13 +361,13 @@ class SubscriptionService
      */
     public function changeSubscription(User $user, string $type): Profile
     {
-        if (!in_array($type, self::TYPES, true)) {
+        if (! in_array($type, self::TYPES, true)) {
             throw new \InvalidArgumentException("Type d'abonnement invalide : {$type}");
         }
 
         $profile = $user->profile;
 
-        if (!$profile) {
+        if (! $profile) {
             throw new \RuntimeException('Profil introuvable pour cet utilisateur.');
         }
 
@@ -456,7 +458,7 @@ class SubscriptionService
         foreach ($activeProfiles as $profile) {
             $lastPayment = $this->getLatestPaidPayment($profile->user_id);
 
-            if (!$lastPayment || Carbon::parse($lastPayment->expires_at)->isPast()) {
+            if (! $lastPayment || Carbon::parse($lastPayment->expires_at)->isPast()) {
                 $profile->update(['subscription_type' => 'free']);
             }
         }

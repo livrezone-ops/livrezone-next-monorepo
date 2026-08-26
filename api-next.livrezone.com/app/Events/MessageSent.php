@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Models\ChatMessage;
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -26,12 +27,12 @@ class MessageSent implements ShouldBroadcastNow
     /**
      * Get the channels the event should broadcast on.
      *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
+     * @return array<int, Channel>
      */
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('chat.thread.' . $this->message->chat_thread_id),
+            new PrivateChannel('chat.thread.'.$this->message->chat_thread_id),
         ];
     }
 
@@ -52,7 +53,7 @@ class MessageSent implements ShouldBroadcastNow
             'chat_thread_id' => $this->message->chat_thread_id,
             'sender_id' => $this->message->sender_id,
             'sender_nickname' => $this->message->sender?->profile?->nickname
-                ?? 'utilisateur-' . $this->message->sender_id,
+                ?? 'utilisateur-'.$this->message->sender_id,
             'message' => $this->message->message,
             'is_read' => $this->message->is_read,
             'created_at' => $this->message->created_at?->toISOString(),

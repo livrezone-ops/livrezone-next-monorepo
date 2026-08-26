@@ -3,21 +3,29 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\DiscountCode;
 use App\Models\HeroMessage;
 use App\Models\Listing;
+use App\Models\Order;
+use App\Models\Payment;
 use App\Models\User;
+use App\Services\AdminDashboardService;
+use App\Services\AdminPaymentService;
+use App\Services\ListingQueryService;
+use App\Services\OrderService;
+use App\Services\SubscriptionService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
-
     // ------------------------------------------------------------------
     // Utilisateurs
     // ------------------------------------------------------------------
 
-    public function users(Request $request, \App\Services\AdminDashboardService $adminService)
+    public function users(Request $request, AdminDashboardService $adminService)
     {
         return response()->json($adminService->getUsersList($request->all()));
     }
@@ -51,10 +59,10 @@ class AdminController extends Controller
         }
 
         $validated = $request->validate([
-            'subscription_type' => ['required', Rule::in(\App\Services\SubscriptionService::TYPES)],
+            'subscription_type' => ['required', Rule::in(SubscriptionService::TYPES)],
         ]);
 
-        $profile = app(\App\Services\SubscriptionService::class)
+        $profile = app(SubscriptionService::class)
             ->changeSubscription($user, $validated['subscription_type']);
 
         return response()->json([
@@ -68,9 +76,8 @@ class AdminController extends Controller
     // ------------------------------------------------------------------
 
     public function __construct(
-        protected \App\Services\ListingQueryService $listingQueryService,
-    ) {
-    }
+        protected ListingQueryService $listingQueryService,
+    ) {}
 
     public function listings(Request $request)
     {
@@ -112,7 +119,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'ids' => 'required|array',
             'ids.*' => 'integer|exists:listings,id',
-            'action' => ['required', Rule::in(\App\Services\ListingQueryService::ADMIN_ACTIONS)],
+            'action' => ['required', Rule::in(ListingQueryService::ADMIN_ACTIONS)],
         ]);
 
         $newStatus = match ($validated['action']) {
@@ -144,11 +151,11 @@ class AdminController extends Controller
         ]);
 
         return response()->json(
-            app(\App\Services\OrderService::class)->listForAdmin($validated)
+            app(OrderService::class)->listForAdmin($validated)
         );
     }
 
-    public function updateOrderStatus(Request $request, \App\Models\Order $order)
+    public function updateOrderStatus(Request $request, Order $order)
     {
         $validated = $request->validate([
             'action' => ['required', Rule::in(['publish', 'reject', 'fulfill'])],
@@ -187,25 +194,25 @@ class AdminController extends Controller
         ]);
 
         return response()->json(
-            app(\App\Services\AdminPaymentService::class)->list($validated)
+            app(AdminPaymentService::class)->list($validated)
         );
     }
 
-    public function promoState(\App\Services\SubscriptionService $subscriptions)
+    public function promoState(SubscriptionService $subscriptions)
     {
         return response()->json([
             'promo_pro_free' => $subscriptions->isPromoProFree(),
         ]);
     }
 
-    public function settings(\App\Services\SubscriptionService $subscriptions)
+    public function settings(SubscriptionService $subscriptions)
     {
         return response()->json([
             'settings' => $subscriptions->getEditableSettings(),
         ]);
     }
 
-    public function updateSettings(Request $request, \App\Services\SubscriptionService $subscriptions)
+    public function updateSettings(Request $request, SubscriptionService $subscriptions)
     {
         $validated = $request->validate([
             'max_free_listings' => 'nullable|integer|min:0|max:10000',
@@ -229,7 +236,7 @@ class AdminController extends Controller
             foreach ($methods as $m) {
                 if (! array_key_exists($m, $validated)) {
                     // Champs non envoyés : conserver l'état actuel (DB, sinon .env).
-                    $envKey = \App\Services\SubscriptionService::EDITABLE_SETTINGS[$m] ?? strtoupper($m);
+                    $envKey = SubscriptionService::EDITABLE_SETTINGS[$m] ?? strtoupper($m);
                     $current = (int) (bool) $subscriptions->setting($m, $envKey, true);
                     $validated[$m] = (bool) $current;
                 }
@@ -252,7 +259,7 @@ class AdminController extends Controller
         ]);
     }
 
-    public function togglePromo(Request $request, \App\Services\SubscriptionService $subscriptions)
+    public function togglePromo(Request $request, SubscriptionService $subscriptions)
     {
         $validated = $request->validate([
             'active' => 'required|boolean',
@@ -271,7 +278,7 @@ class AdminController extends Controller
     public function discountCodes()
     {
         return response()->json([
-            'codes' => app(\App\Services\AdminPaymentService::class)->listDiscountCodes(),
+            'codes' => app(AdminPaymentService::class)->listDiscountCodes(),
         ]);
     }
 
@@ -287,15 +294,15 @@ class AdminController extends Controller
         ]);
 
         try {
-            $code = app(\App\Services\AdminPaymentService::class)->createDiscountCode($validated);
-        } catch (\Illuminate\Database\QueryException) {
+            $code = app(AdminPaymentService::class)->createDiscountCode($validated);
+        } catch (QueryException) {
             return response()->json(['message' => 'Ce code existe déjà.'], 422);
         }
 
         return response()->json(['message' => "Code {$code->code} créé.", 'code' => $code], 201);
     }
 
-    public function updateDiscountCode(Request $request, \App\Models\DiscountCode $discountCode)
+    public function updateDiscountCode(Request $request, DiscountCode $discountCode)
     {
         $validated = $request->validate([
             'code' => 'sometimes|string|min:3|max:30|regex:/^[A-Za-z0-9_-]+$/',
@@ -306,19 +313,19 @@ class AdminController extends Controller
             'max_uses' => 'nullable|integer|min:1',
         ]);
 
-        $code = app(\App\Services\AdminPaymentService::class)->updateDiscountCode($discountCode, $validated);
+        $code = app(AdminPaymentService::class)->updateDiscountCode($discountCode, $validated);
 
         return response()->json(['message' => 'Code mis à jour.', 'code' => $code]);
     }
 
-    public function destroyDiscountCode(\App\Models\DiscountCode $discountCode)
+    public function destroyDiscountCode(DiscountCode $discountCode)
     {
         $discountCode->delete();
 
         return response()->json(['message' => 'Code supprimé.']);
     }
 
-    public function pauseSubscription(Request $request, User $user, \App\Services\SubscriptionService $subscriptions)
+    public function pauseSubscription(Request $request, User $user, SubscriptionService $subscriptions)
     {
         $profile = $subscriptions->pauseSubscription($user);
 
@@ -328,23 +335,23 @@ class AdminController extends Controller
         ]);
     }
 
-    public function resumeSubscription(Request $request, User $user, \App\Services\SubscriptionService $subscriptions)
+    public function resumeSubscription(Request $request, User $user, SubscriptionService $subscriptions)
     {
         $profile = $subscriptions->resumeSubscription($user);
 
         return response()->json([
-            'message' => 'Abonnement repris : ' . strtoupper($profile->subscription_type) . '.',
+            'message' => 'Abonnement repris : '.strtoupper($profile->subscription_type).'.',
             'profile' => ['id' => $profile->id, 'subscription_type' => $profile->subscription_type, 'paused_from_type' => null],
         ]);
     }
 
-    public function markPaymentPaid(Request $request, \App\Models\Payment $payment)
+    public function markPaymentPaid(Request $request, Payment $payment)
     {
-        $updated = app(\App\Services\AdminPaymentService::class)->markPaid($payment);
+        $updated = app(AdminPaymentService::class)->markPaid($payment);
 
         return response()->json([
-            'message' => 'Paiement validé. Abonnement ' . $updated->subscription_type . ' actif jusqu\'au ' .
-                ($updated->expires_at?->format('d/m/Y') ?? '—') . '.',
+            'message' => 'Paiement validé. Abonnement '.$updated->subscription_type.' actif jusqu\'au '.
+                ($updated->expires_at?->format('d/m/Y') ?? '—').'.',
             'payment' => [
                 'id' => $updated->id,
                 'status' => $updated->status,
@@ -426,6 +433,4 @@ class AdminController extends Controller
             'delete' => 'Annonce supprimée.',
         };
     }
-
-
 }

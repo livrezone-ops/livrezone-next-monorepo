@@ -25,7 +25,7 @@ export default function UpdateDemandePage({ params }: PageProps) {
       try {
         const { data } = await api.get(`/orders/${resolvedParams.id}`);
         setOrder(data.order || null);
-      } catch (err: any) {
+      } catch (err) {
         console.error("Erreur chargement demande:", err);
         toastError("Impossible de charger cette demande.");
         router.push("/dashboard/demandes");

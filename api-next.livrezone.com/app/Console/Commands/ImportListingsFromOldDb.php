@@ -4,8 +4,6 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use App\Models\Listing;
-use App\Models\Book;
 
 class ImportListingsFromOldDb extends Command
 {
@@ -52,13 +50,14 @@ class ImportListingsFromOldDb extends Command
             DB::connection('old_db')->getPdo();
             $this->info("Connexion établie avec succès à l'ancienne base !");
         } catch (\Exception $e) {
-            $this->error("Erreur de connexion à l'ancienne base de données : " . $e->getMessage());
+            $this->error("Erreur de connexion à l'ancienne base de données : ".$e->getMessage());
             $this->warn("Vérifiez les paramètres réseau de votre Docker. Si nécessaire, passez l'option --host= avec l'IP du serveur host.");
+
             return Command::FAILURE;
         }
 
         // 1. Charger la table de correspondance (mapping) pour éviter les décalages d'IDs
-        $this->info("Chargement des tables de correspondance par code...");
+        $this->info('Chargement des tables de correspondance par code...');
 
         // Catégories
         $oldCategories = DB::connection('old_db')->table('categories')->pluck('code', 'id')->toArray();
@@ -81,12 +80,13 @@ class ImportListingsFromOldDb extends Command
         $this->info("Nombre total d'annonces à importer : {$totalListings}");
 
         if ($totalListings === 0) {
-            $this->warn("Aucune annonce trouvée dans la base source.");
+            $this->warn('Aucune annonce trouvée dans la base source.');
+
             return Command::SUCCESS;
         }
 
         // Vider la table actuelle pour éviter les doublons ou conflits de clés primaires
-        $this->warn("Vider la table listings existante...");
+        $this->warn('Vider la table listings existante...');
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         DB::table('listings')->truncate();
 
@@ -118,15 +118,16 @@ class ImportListingsFromOldDb extends Command
 
                 // Résoudre le book_id en cherchant par isbn_13 dans la nouvelle table books
                 $newBookId = null;
-                if (!empty($row->isbn_13)) {
+                if (! empty($row->isbn_13)) {
                     $newBookId = DB::table('books')->where('isbn_13', $row->isbn_13)->value('id');
                 }
 
                 // Vérifier si l'utilisateur existe dans la nouvelle table pour éviter les violations FK
                 $userExists = DB::table('users')->where('id', $row->user_id)->exists();
-                if (!$userExists) {
+                if (! $userExists) {
                     // Ignorer les annonces sans utilisateur valide dans la nouvelle base
                     $bar->advance();
+
                     continue;
                 }
 
@@ -167,7 +168,7 @@ class ImportListingsFromOldDb extends Command
                 ];
             }
 
-            if (!empty($batch)) {
+            if (! empty($batch)) {
                 DB::table('listings')->insert($batch);
                 $bar->advance(count($batch));
             }
@@ -176,7 +177,7 @@ class ImportListingsFromOldDb extends Command
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
         $bar->finish();
         $this->newLine();
-        $this->info("Importation et mapping des annonces terminés avec succès !");
+        $this->info('Importation et mapping des annonces terminés avec succès !');
 
         return Command::SUCCESS;
     }

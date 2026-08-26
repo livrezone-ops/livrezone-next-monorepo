@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Listing;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -56,14 +57,14 @@ class AdminDashboardService
             );
         }
 
-        if (!empty($data['search'])) {
+        if (! empty($data['search'])) {
             $search = $data['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('users.name', 'like', "%{$search}%")
-                  ->orWhere('users.email', 'like', "%{$search}%")
-                  ->orWhereHas('profile', function ($pq) use ($search) {
-                      $pq->where('nickname', 'like', "%{$search}%");
-                  });
+                    ->orWhere('users.email', 'like', "%{$search}%")
+                    ->orWhereHas('profile', function ($pq) use ($search) {
+                        $pq->where('nickname', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -74,7 +75,7 @@ class AdminDashboardService
         // le heartbeat et la dernière connexion.
         if ($sortBy === 'last_activity') {
             $query->orderByRaw(
-                'COALESCE(last_activity_at, last_login_at) ' . ($sortDir === 'asc' ? 'ASC' : 'DESC')
+                'COALESCE(last_activity_at, last_login_at) '.($sortDir === 'asc' ? 'ASC' : 'DESC')
             );
         } else {
             $query->orderBy($sortBy, $sortDir);
@@ -115,7 +116,7 @@ class AdminDashboardService
 
         // Compteurs agrégés : une seule requête + cache court (30 s) car ces
         // scans full-table (COALESCE) sont coûteux et appelés à chaque filtre.
-        $counts = \Illuminate\Support\Facades\Cache::remember('livrezone.admin.user_counts', 30, function () {
+        $counts = Cache::remember('livrezone.admin.user_counts', 30, function () {
             return [
                 'active' => User::where('is_active', true)->count(),
                 'inactive' => User::where('is_active', false)->count(),

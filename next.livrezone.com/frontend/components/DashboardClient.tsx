@@ -823,7 +823,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
               {pageListings.map((l) => (
                 <DashboardListingCard
                   key={l.id}
-                  listing={l as any}
+                  listing={l}
                   isSelected={selectedIds.includes(l.id)}
                   onToggleSelect={handleToggleSelect}
                   onStartEdit={handleStartEdit}

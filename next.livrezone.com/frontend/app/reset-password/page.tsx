@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../hooks/useAuth';
+import { getApiErrorMessage } from '../../lib/api-error';
 import {
     BookOpen,
     Lock,
@@ -58,10 +59,12 @@ export default function ResetPasswordPage() {
             setMessage('Votre mot de passe a été réinitialisé avec succès ! Vous pouvez maintenant vous connecter.');
             setPassword('');
             setPasswordConfirmation('');
-        } catch (err: any) {
+        } catch (err) {
             setError(
-                err?.response?.data?.message ||
+                getApiErrorMessage(
+                    err,
                     'Échec de la réinitialisation du mot de passe. Le lien a peut-être expiré.',
+                ),
             );
         } finally {
             setPending(false);

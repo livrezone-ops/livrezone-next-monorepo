@@ -15,7 +15,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('listings', function (Blueprint $table) {
-            if (!Schema::hasIndex('listings', ['book_id', 'status'])) {
+            if (! Schema::hasIndex('listings', ['book_id', 'status'])) {
                 $table->index(['book_id', 'status'], 'listings_book_id_status_idx');
             }
         });

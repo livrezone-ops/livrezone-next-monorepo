@@ -104,10 +104,11 @@ class Book extends Model
 
             // Nettoyage au cas où le path contient 'originals/'
             $cleanPath = ltrim(str_replace('originals/', '', $path), '/');
-            
+
             // On utilise la route du proxy ou BOOK_COVERS_URL
             $baseUrl = env('BOOK_COVERS_URL', url('/book-cover-proxy'));
-            return rtrim($baseUrl, '/') . '/' . $cleanPath;
+
+            return rtrim($baseUrl, '/').'/'.$cleanPath;
         }
 
         $external = trim((string) ($this->cover_source_url ?? ''));
@@ -132,7 +133,8 @@ class Book extends Model
             $cleanPath = ltrim(str_replace('originals/', '', $path), '/');
             $cleanPathWebp = preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $cleanPath);
             $baseUrl = env('BOOK_COVERS_URL', url('/book-cover-proxy'));
-            return rtrim($baseUrl, '/') . "/thumbnails/{$size}/" . $cleanPathWebp;
+
+            return rtrim($baseUrl, '/')."/thumbnails/{$size}/".$cleanPathWebp;
         }
 
         $external = trim((string) ($this->cover_source_url ?? ''));

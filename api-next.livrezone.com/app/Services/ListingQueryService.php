@@ -149,7 +149,7 @@ class ListingQueryService
 
         $query->where(function ($q) use ($search) {
             $q->where('title', 'like', "%{$search}%")
-              ->orWhere('isbn_13', 'like', "%{$search}%");
+                ->orWhere('isbn_13', 'like', "%{$search}%");
         });
     }
 
@@ -161,12 +161,12 @@ class ListingQueryService
 
         $query->where(function ($q) use ($search) {
             $q->where('listings.title', 'like', "%{$search}%")
-              ->orWhere('listings.isbn_13', 'like', "%{$search}%")
-              ->orWhere('listings.author', 'like', "%{$search}%")
-              ->orWhere('listings.publisher', 'like', "%{$search}%")
-              ->orWhereHas('user.profile', function ($pq) use ($search) {
-                  $pq->where('nickname', 'like', "%{$search}%");
-              });
+                ->orWhere('listings.isbn_13', 'like', "%{$search}%")
+                ->orWhere('listings.author', 'like', "%{$search}%")
+                ->orWhere('listings.publisher', 'like', "%{$search}%")
+                ->orWhereHas('user.profile', function ($pq) use ($search) {
+                    $pq->where('nickname', 'like', "%{$search}%");
+                });
         });
     }
 

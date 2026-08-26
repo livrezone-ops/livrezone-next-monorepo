@@ -15,9 +15,9 @@ class ListingValidationService
      * 2. Elle n'utilise pas de couverture personnalisée uploadée par l'utilisateur.
      * 3. Le titre et la description correspondent aux métadonnées du catalogue.
      *
-     * @param Listing|array $listing Modèle Listing ou tableau de données
-     * @param Book|null $book Modèle Book optionnel
-     * @param bool $hasCustomCover Indique si une image a été uploadée
+     * @param  Listing|array  $listing  Modèle Listing ou tableau de données
+     * @param  Book|null  $book  Modèle Book optionnel
+     * @param  bool  $hasCustomCover  Indique si une image a été uploadée
      * @return string 'published' | 'pending_admin'
      */
     public function determineStatus($listing, ?Book $book = null, bool $hasCustomCover = false): string
@@ -28,10 +28,10 @@ class ListingValidationService
 
         if ($listing instanceof Listing) {
             $book = $book ?? $listing->book;
-            if (!$book && $listing->book_id) {
+            if (! $book && $listing->book_id) {
                 $book = Book::find($listing->book_id);
             }
-            if (!$book && !empty($listing->isbn_13)) {
+            if (! $book && ! empty($listing->isbn_13)) {
                 $book = Book::where('isbn_13', $listing->isbn_13)->first();
             }
 
@@ -48,7 +48,7 @@ class ListingValidationService
             $description = $listing['description'] ?? '';
         }
 
-        if (!$book) {
+        if (! $book) {
             return 'pending_admin';
         }
 

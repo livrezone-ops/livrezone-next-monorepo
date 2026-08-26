@@ -2,11 +2,14 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Gate;
 use App\Models\Listing;
 use App\Observers\ListingObserver;
 use App\Policies\ListingPolicy;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,11 +30,12 @@ class AppServiceProvider extends ServiceProvider
 
         Listing::observe(ListingObserver::class);
 
-        \Illuminate\Support\Facades\RateLimiter::for('catalogue', function (\Illuminate\Http\Request $request) {
-            if (!config('livrezone.anti_scraping.enabled')) {
-                return \Illuminate\Cache\RateLimiting\Limit::none();
+        RateLimiter::for('catalogue', function (Request $request) {
+            if (! config('livrezone.anti_scraping.enabled')) {
+                return Limit::none();
             }
-            return \Illuminate\Cache\RateLimiting\Limit::perMinute(config('livrezone.anti_scraping.max_requests_per_minute'))->by($request->ip());
+
+            return Limit::perMinute(config('livrezone.anti_scraping.max_requests_per_minute'))->by($request->ip());
         });
     }
 }

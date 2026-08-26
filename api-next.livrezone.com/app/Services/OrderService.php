@@ -2,18 +2,17 @@
 
 namespace App\Services;
 
+use App\Jobs\ProcessBookOrderNotifications;
 use App\Models\Book;
 use App\Models\Category;
 use App\Models\Language;
 use App\Models\Order;
 use App\Models\User;
-use App\Jobs\ProcessBookOrderNotifications;
-use App\Services\ImageUploadService;
-use App\Services\ReferenceFilterService;
-use App\Services\SubscriptionService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Pagination\AbstractPaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -39,83 +38,85 @@ class OrderService
         $languageIds = $this->filterService->resolveLanguageIds($filters);
 
         try {
-        // --- 1. Facettes (sans le filtre ville pour garder la liste de villes complète) ---
-        $facetBuilder = Order::search($search, function ($meilisearch, $query, $options) {
-            $options['facets'] = ['category_id', 'city_id', 'language_id'];
-            $options['hitsPerPage'] = 0; // On ne veut que les facettes
-            return $meilisearch->search($query, $options);
-        });
-        $facetBuilder->where('status', 'published');
-        if (!empty($categoryIds)) {
-            $facetBuilder->whereIn('category_id', $categoryIds);
-        }
-        if (!empty($languageIds)) {
-            $facetBuilder->whereIn('language_id', $languageIds);
-        }
+            // --- 1. Facettes (sans le filtre ville pour garder la liste de villes complète) ---
+            $facetBuilder = Order::search($search, function ($meilisearch, $query, $options) {
+                $options['facets'] = ['category_id', 'city_id', 'language_id'];
+                $options['hitsPerPage'] = 0; // On ne veut que les facettes
 
-        $rawFacets = $facetBuilder->raw();
-        $cityFacets = $rawFacets['facetDistribution']['city_id'] ?? [];
-        $categoryFacets = $rawFacets['facetDistribution']['category_id'] ?? [];
-        $languageFacets = $rawFacets['facetDistribution']['language_id'] ?? [];
+                return $meilisearch->search($query, $options);
+            });
+            $facetBuilder->where('status', 'published');
+            if (! empty($categoryIds)) {
+                $facetBuilder->whereIn('category_id', $categoryIds);
+            }
+            if (! empty($languageIds)) {
+                $facetBuilder->whereIn('language_id', $languageIds);
+            }
 
-        $categoryMap = Cache::remember('category_code_map', 3600, function () {
-            return Category::pluck('code', 'id')->toArray();
-        });
-        $languageMap = Cache::remember('language_code_map', 3600, function () {
-            return Language::pluck('code', 'id')->toArray();
-        });
+            $rawFacets = $facetBuilder->raw();
+            $cityFacets = $rawFacets['facetDistribution']['city_id'] ?? [];
+            $categoryFacets = $rawFacets['facetDistribution']['category_id'] ?? [];
+            $languageFacets = $rawFacets['facetDistribution']['language_id'] ?? [];
 
-        $mappedCategories = [];
-        foreach ($categoryFacets as $id => $count) {
-            $code = $categoryMap[$id] ?? $id;
-            $mappedCategories[$code] = ($mappedCategories[$code] ?? 0) + $count;
-        }
-        $mappedLanguages = [];
-        foreach ($languageFacets as $id => $count) {
-            $code = $languageMap[$id] ?? $id;
-            $mappedLanguages[$code] = ($mappedLanguages[$code] ?? 0) + $count;
-        }
-        $mappedCities = [];
-        foreach ($cityFacets as $id => $count) {
-            $mappedCities[(string) $id] = $count;
-        }
+            $categoryMap = Cache::remember('category_code_map', 3600, function () {
+                return Category::pluck('code', 'id')->toArray();
+            });
+            $languageMap = Cache::remember('language_code_map', 3600, function () {
+                return Language::pluck('code', 'id')->toArray();
+            });
 
-        // --- 2. Requête principale (avec tous les filtres) ---
-        $builder = Order::search($search);
-        $builder->where('status', 'published');
-        if (!empty($categoryIds)) {
-            $builder->whereIn('category_id', $categoryIds);
-        }
-        if (!empty($cityIds)) {
-            $builder->whereIn('city_id', $cityIds);
-        }
-        if (!empty($languageIds)) {
-            $builder->whereIn('language_id', $languageIds);
-        }
-        $builder->orderBy('published_at', 'desc');
+            $mappedCategories = [];
+            foreach ($categoryFacets as $id => $count) {
+                $code = $categoryMap[$id] ?? $id;
+                $mappedCategories[$code] = ($mappedCategories[$code] ?? 0) + $count;
+            }
+            $mappedLanguages = [];
+            foreach ($languageFacets as $id => $count) {
+                $code = $languageMap[$id] ?? $id;
+                $mappedLanguages[$code] = ($mappedLanguages[$code] ?? 0) + $count;
+            }
+            $mappedCities = [];
+            foreach ($cityFacets as $id => $count) {
+                $mappedCities[(string) $id] = $count;
+            }
 
-        $paginated = $builder->paginate($perPage);
+            // --- 2. Requête principale (avec tous les filtres) ---
+            $builder = Order::search($search);
+            $builder->where('status', 'published');
+            if (! empty($categoryIds)) {
+                $builder->whereIn('category_id', $categoryIds);
+            }
+            if (! empty($cityIds)) {
+                $builder->whereIn('city_id', $cityIds);
+            }
+            if (! empty($languageIds)) {
+                $builder->whereIn('language_id', $languageIds);
+            }
+            $builder->orderBy('published_at', 'desc');
 
-        // Les ~12 demandes sont hydratées par Scout depuis MySQL : on charge les relations.
-        $paginated->getCollection()->load(['book.language', 'category', 'user.profile.city']);
+            $paginated = $builder->paginate($perPage);
 
-        // Visibilité selon l'abonnement du viewer (Free invisible, Pro avec délai, Premium immédiat)
-        $this->applyVisibility($paginated, $viewer);
+            // Les ~12 demandes sont hydratées par Scout depuis MySQL : on charge les relations.
+            $paginated->getCollection()->load(['book.language', 'category', 'user.profile.city']);
 
-        // Transformation optimisée pour DemandCard
-        $paginated->getCollection()->transform(fn ($order) => $this->transformOrder($order));
+            // Visibilité selon l'abonnement du viewer (Free invisible, Pro avec délai, Premium immédiat)
+            $this->applyVisibility($paginated, $viewer);
 
-        $response = $paginated->toArray();
-        $response['can_view_demandes'] = $this->canViewDemandes($viewer);
-        $response['facets'] = [
-            'categories' => $mappedCategories,
-            'languages' => $mappedLanguages,
-            'cities' => $mappedCities,
-        ];
+            // Transformation optimisée pour DemandCard
+            $paginated->getCollection()->transform(fn ($order) => $this->transformOrder($order));
 
-        return $response;
+            $response = $paginated->toArray();
+            $response['can_view_demandes'] = $this->canViewDemandes($viewer);
+            $response['facets'] = [
+                'categories' => $mappedCategories,
+                'languages' => $mappedLanguages,
+                'cities' => $mappedCities,
+            ];
+
+            return $response;
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Demandes Meilisearch indisponible, repli SQL : ' . $e->getMessage());
+            Log::warning('Demandes Meilisearch indisponible, repli SQL : '.$e->getMessage());
+
             return $this->getPublicDemandesFallback($filters, $perPage, $viewer);
         }
     }
@@ -135,12 +136,13 @@ class OrderService
      * - Pro     : uniquement les demandes publiées depuis plus de PRO_NOTIFICATION_DELAY_HOURS.
      * - Premium : toutes les demandes publiées.
      */
-    private function applyVisibility(\Illuminate\Pagination\AbstractPaginator $paginator, ?User $viewer): void
+    private function applyVisibility(AbstractPaginator $paginator, ?User $viewer): void
     {
         $profile = $viewer?->profile;
 
-        if (!$this->subscriptionService->canViewDemandes($profile)) {
+        if (! $this->subscriptionService->canViewDemandes($profile)) {
             $paginator->setCollection(collect());
+
             return;
         }
 
@@ -149,6 +151,7 @@ class OrderService
         if ($threshold !== null) {
             $filtered = $paginator->getCollection()->filter(function ($order) use ($threshold) {
                 $date = $order->published_at ?? $order->created_at;
+
                 return $date !== null && $date <= $threshold;
             });
 
@@ -208,29 +211,29 @@ class OrderService
             ->with(['book.language', 'category', 'user.profile.city'])
             ->where('status', 'published');
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = trim($filters['search']);
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('author', 'like', "%{$search}%")
-                  ->orWhere('isbn', 'like', "%{$search}%");
+                    ->orWhere('author', 'like', "%{$search}%")
+                    ->orWhere('isbn', 'like', "%{$search}%");
             });
         }
 
         $categoryIds = $this->filterService->resolveCategoryIds($filters);
-        if (!empty($categoryIds)) {
+        if (! empty($categoryIds)) {
             $query->whereIn('category_id', $categoryIds);
         }
 
         $cityIds = $this->filterService->resolveCityIds($filters);
-        if (!empty($cityIds)) {
+        if (! empty($cityIds)) {
             $query->whereHas('user.profile', function ($q) use ($cityIds) {
                 $q->whereIn('city_id', $cityIds);
             });
         }
 
         $languageIds = $this->filterService->resolveLanguageIds($filters);
-        if (!empty($languageIds)) {
+        if (! empty($languageIds)) {
             $query->whereHas('book', function ($q) use ($languageIds) {
                 $q->whereIn('language_id', $languageIds);
             });
@@ -282,11 +285,11 @@ class OrderService
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('orders.title', 'like', "%{$search}%")
-                  ->orWhere('orders.isbn', 'like', "%{$search}%")
-                  ->orWhere('orders.author', 'like', "%{$search}%")
-                  ->orWhereHas('user.profile', function ($pq) use ($search) {
-                      $pq->where('nickname', 'like', "%{$search}%");
-                  });
+                    ->orWhere('orders.isbn', 'like', "%{$search}%")
+                    ->orWhere('orders.author', 'like', "%{$search}%")
+                    ->orWhereHas('user.profile', function ($pq) use ($search) {
+                        $pq->where('nickname', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -384,7 +387,7 @@ class OrderService
 
                 if ($existing) {
                     throw ValidationException::withMessages([
-                        'book_id' => 'Vous avez déjà une demande active pour ce livre.'
+                        'book_id' => 'Vous avez déjà une demande active pour ce livre.',
                     ]);
                 }
             } elseif ($title) {
@@ -396,13 +399,13 @@ class OrderService
 
                 if ($existing) {
                     throw ValidationException::withMessages([
-                        'title' => 'Vous avez déjà une demande active pour ce titre.'
+                        'title' => 'Vous avez déjà une demande active pour ce titre.',
                     ]);
                 }
             }
 
             // Règle de modération : catalogue = published direct, manuel = pending_admin
-            $isCatalogue = !empty($bookId);
+            $isCatalogue = ! empty($bookId);
             $status = $isCatalogue ? 'published' : 'pending_admin';
             $publishedAt = $isCatalogue ? now() : null;
 
@@ -434,7 +437,7 @@ class OrderService
     {
         $coverPath = $order->cover_path;
         if ($coverImage) {
-            if ($coverPath && !str_starts_with($coverPath, 'http')) {
+            if ($coverPath && ! str_starts_with($coverPath, 'http')) {
                 Storage::disk('public')->delete($coverPath);
             }
             $coverPath = $this->imageUploadService->storeCover($coverImage);
@@ -458,6 +461,7 @@ class OrderService
     public function cancelOrder(Order $order): Order
     {
         $order->update(['status' => 'cancelled']);
+
         return $order;
     }
 }

@@ -25,7 +25,7 @@ class ReferenceFilterService
                     break;
                 }
             } elseif (is_array($source)) {
-                if (!empty($source[$key])) {
+                if (! empty($source[$key])) {
                     $value = $source[$key];
                     break;
                 }
@@ -37,6 +37,7 @@ class ReferenceFilterService
         }
 
         $parts = is_array($value) ? $value : explode(',', (string) $value);
+
         return array_values(array_filter(array_map('trim', $parts), fn ($v) => $v !== ''));
     }
 
@@ -84,7 +85,7 @@ class ReferenceFilterService
             }
         }
 
-        if (!empty($codes)) {
+        if (! empty($codes)) {
             $foundIds = Category::whereIn('code', $codes)->pluck('id')->all();
             $numericIds = array_merge($numericIds, $foundIds);
         }
@@ -100,12 +101,12 @@ class ReferenceFilterService
         $selected = [];
         foreach ($numericIds as $catId) {
             $category = $allCategories->get($catId);
-            if (!$category) {
+            if (! $category) {
                 continue;
             }
             $descendants = array_diff($category->selfAndDescendantIds(), [$catId]);
             $hasSelectedDescendant = count(array_intersect($descendants, $numericIds)) > 0;
-            if (!$hasSelectedDescendant) {
+            if (! $hasSelectedDescendant) {
                 $selected[] = $catId;
             }
         }
@@ -113,7 +114,7 @@ class ReferenceFilterService
         $merged = [];
         foreach ($selected as $catId) {
             $category = $allCategories->get($catId);
-            if (!$category) {
+            if (! $category) {
                 continue;
             }
             $merged = array_merge($merged, $category->selfAndDescendantIds());
@@ -143,7 +144,7 @@ class ReferenceFilterService
             }
         }
 
-        if (!empty($codes)) {
+        if (! empty($codes)) {
             $foundIds = Language::whereIn('code', $codes)->pluck('id')->all();
             $numericIds = array_merge($numericIds, $foundIds);
         }
@@ -172,7 +173,7 @@ class ReferenceFilterService
             }
         }
 
-        if (!empty($codes)) {
+        if (! empty($codes)) {
             $foundIds = Level::whereIn('code', $codes)->pluck('id')->all();
             $numericIds = array_merge($numericIds, $foundIds);
         }
