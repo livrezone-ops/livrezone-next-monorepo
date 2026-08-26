@@ -8,6 +8,8 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  Pause,
+  Play,
   Plus,
   Search,
   Trash2,
@@ -54,7 +56,13 @@ function SwitchRow({
 
 interface AdminPayment {
   id: number;
-  user: { id: number; email: string; nickname: string | null } | null;
+  user: {
+    id: number;
+    email: string;
+    nickname: string | null;
+    subscription_type?: string | null;
+    paused_from_type?: string | null;
+  } | null;
   amount: number;
   payment_method: string;
   transaction_id: string | null;
@@ -257,7 +265,7 @@ export default function AdminPaymentsClient() {
 
   const deleteCode = async (id: number) => {
     try {
-      await api.delete(`/admin/discount-codes/${id}`);
+      await api.post(`/admin/discount-codes/${id}/delete`);
       setCodes((prev) => prev.filter((c) => c.id !== id));
       pushToast("Code supprimé.");
     } catch {
@@ -293,6 +301,31 @@ export default function AdminPaymentsClient() {
         next.delete(payment.id);
         return next;
       });
+    }
+  };
+
+  // Pause / reprise de l'abonnement du compte lié au paiement.
+  const [confirmPauseUser, setConfirmPauseUser] = useState<AdminPayment | null>(null);
+  const [pauseBusyId, setPauseBusyId] = useState<number | null>(null);
+
+  const togglePauseUser = async (payment: AdminPayment) => {
+    const paused = !!payment.user?.paused_from_type;
+    setPauseBusyId(payment.user!.id);
+    try {
+      const res = await api.post(
+        `/admin/users/${payment.user!.id}/subscription/${paused ? "resume" : "pause"}`
+      );
+      pushToast(res.data.message ?? "Abonnement mis à jour.");
+      setRefreshKey((k) => k + 1);
+    } catch (err: unknown) {
+      const resp = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
+      const errors = resp.response?.data?.errors;
+      pushToast(
+        errors ? Object.values(errors)[0][0] : resp.response?.data?.message ?? "Erreur.",
+        "error"
+      );
+    } finally {
+      setPauseBusyId(null);
     }
   };
 
@@ -754,21 +787,41 @@ export default function AdminPaymentsClient() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right pr-4">
-                        {p.status === "pending" ? (
-                          busyIds.has(p.id) ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-[#F97316] ml-auto" />
-                          ) : (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {p.status === "pending" && (
+                            busyIds.has(p.id) ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-[#F97316]" />
+                            ) : (
+                              <button
+                                onClick={() => markPaid(p)}
+                                title="Valider le paiement et activer l'abonnement"
+                                className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all cursor-pointer"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </button>
+                            )
+                          )}
+
+                          {p.user && pauseBusyId === p.user.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-[#F97316]" />
+                          ) : p.user && p.user.paused_from_type && p.expires_at && new Date(p.expires_at) > new Date() ? (
                             <button
-                              onClick={() => markPaid(p)}
-                              title="Valider le paiement et activer l'abonnement"
+                              onClick={() => togglePauseUser(p)}
+                              title={`Reprendre l'abonnement ${p.user.paused_from_type.toUpperCase()} (valide jusqu'au ${new Date(p.expires_at).toLocaleDateString("fr-FR")})`}
                               className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all cursor-pointer"
                             >
-                              <CheckCircle2 className="h-4 w-4" />
+                              <Play className="h-4 w-4" />
                             </button>
-                          )
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
+                          ) : p.user && (p.user.subscription_type ?? "free") !== "free" && p.status === "paid" ? (
+                            <button
+                              onClick={() => setConfirmPauseUser(p)}
+                              title="Mettre l'abonnement en pause"
+                              className="p-1.5 rounded-lg bg-orange-50 text-[#EA580C] hover:bg-orange-100 transition-all cursor-pointer"
+                            >
+                              <Pause className="h-4 w-4" />
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -816,6 +869,23 @@ export default function AdminPaymentsClient() {
           setConfirmDeleteCode(null);
         }}
         onCancel={() => setConfirmDeleteCode(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmPauseUser !== null}
+        title="Mettre cet abonnement en pause ?"
+        message={
+          confirmPauseUser?.user
+            ? `Le compte ${confirmPauseUser.user.nickname || confirmPauseUser.user.email} repassera en plan gratuit. L'offre ${confirmPauseUser.user.subscription_type?.toUpperCase()} sera mémorisée pour reprise ultérieure.`
+            : ""
+        }
+        confirmLabel="Mettre en pause"
+        danger
+        onConfirm={() => {
+          if (confirmPauseUser) togglePauseUser(confirmPauseUser);
+          setConfirmPauseUser(null);
+        }}
+        onCancel={() => setConfirmPauseUser(null)}
       />
 
       {/* Toast */}

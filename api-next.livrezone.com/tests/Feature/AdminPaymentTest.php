@@ -99,7 +99,7 @@ class AdminPaymentTest extends TestCase
             ->assertStatus(422);
 
         $this->actingAs($admin)
-            ->deleteJson("/api/admin/discount-codes/{$id}")
+            ->postJson("/api/admin/discount-codes/{$id}/delete")
             ->assertOk();
 
         $this->actingAs($admin)->getJson('/api/admin/discount-codes')->assertOk();

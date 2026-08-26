@@ -161,7 +161,8 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/discount-codes', [AdminController::class, 'discountCodes']);
     Route::post('/discount-codes', [AdminController::class, 'storeDiscountCode']);
     Route::put('/discount-codes/{discountCode}', [AdminController::class, 'updateDiscountCode']);
-    Route::delete('/discount-codes/{discountCode}', [AdminController::class, 'destroyDiscountCode']);
+    // POST plutôt que DELETE : le WAF OpenPanel bloque la méthode DELETE.
+    Route::post('/discount-codes/{discountCode}/delete', [AdminController::class, 'destroyDiscountCode']);
 
     Route::get('/hero-messages', [AdminController::class, 'hero']);
     Route::put('/hero-messages', [AdminController::class, 'storeHero']);
