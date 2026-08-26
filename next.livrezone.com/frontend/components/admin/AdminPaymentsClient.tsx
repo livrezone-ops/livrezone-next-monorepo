@@ -127,12 +127,9 @@ export default function AdminPaymentsClient() {
   const [savingCode, setSavingCode] = useState(false);
   const [confirmDeleteCode, setConfirmDeleteCode] = useState<DiscountCode | null>(null);
 
-  const toastsRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-  const pushToast = (message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type });
+  const pushToast = (message: string, type: "success" | "error" = "success") => {    setToast({ message, type });
     setTimeout(() => setToast(null), 3200);
-    toastsRef.current?.scrollIntoView?.({ block: "nearest" });
   };
 
   // Chargement paiements
@@ -898,7 +895,7 @@ export default function AdminPaymentsClient() {
       />
 
       {/* Toast */}
-      <div ref={toastsRef}>
+      <div>
         {toast && (
           <div
             className={`fixed bottom-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-sm font-bold ${
