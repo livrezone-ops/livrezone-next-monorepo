@@ -35,6 +35,10 @@ class SubscriptionService
         'notification_delay_hours' => 'PRO_NOTIFICATION_DELAY_HOURS',
         'subscription_grace_period_days' => 'SUBSCRIPTION_GRACE_PERIOD_DAYS',
         'subscriptions_disabled' => 'SUBSCRIPTIONS_DISABLED',
+        'method_virement' => 'PAYMENT_METHOD_VIREMENT',
+        'method_especes' => 'PAYMENT_METHOD_ESPECES',
+        'method_cheque' => 'PAYMENT_METHOD_CHEQUE',
+        'method_autre' => 'PAYMENT_METHOD_AUTRE',
     ];
 
     /**
@@ -54,14 +58,14 @@ class SubscriptionService
     public function enabledPaymentMethods(): array
     {
         $methods = [
-            'virement' => 'PAYMENT_METHOD_VIREMENT',
-            'especes' => 'PAYMENT_METHOD_ESPECES',
-            'cheque' => 'PAYMENT_METHOD_CHEQUE',
-            'autre' => 'PAYMENT_METHOD_AUTRE',
+            'virement' => 'method_virement',
+            'especes' => 'method_especes',
+            'cheque' => 'method_cheque',
+            'autre' => 'method_autre',
         ];
 
         return collect($methods)
-            ->filter(fn ($envKey, $key) => (bool) $this->setting("payment_method_{$key}", $envKey, true))
+            ->filter(fn ($settingKey) => (bool) $this->setting($settingKey, self::EDITABLE_SETTINGS[$settingKey], true))
             ->keys()
             ->values()
             ->all();
@@ -72,7 +76,7 @@ class SubscriptionService
      * Mise en cache permanente, invalidée à chaque écriture.
      * Tolérante à l'absence de la table settings (installation fraîche non migrée).
      */
-    protected function setting(string $key, string $envKey, mixed $default): mixed
+    public function setting(string $key, string $envKey, mixed $default): mixed
     {
         return \Illuminate\Support\Facades\Cache::rememberForever("livrezone.setting.{$key}", function () use ($key, $envKey, $default) {
             try {

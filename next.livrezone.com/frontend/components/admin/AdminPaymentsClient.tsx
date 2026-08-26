@@ -205,11 +205,6 @@ export default function AdminPaymentsClient() {
         premium_price_yearly: Math.round(Number(settings.premium_price_yearly ?? 0)),
         notification_delay_hours: Math.round(Number(settings.notification_delay_hours)),
         subscription_grace_period_days: Math.round(Number(settings.subscription_grace_period_days)),
-        subscriptions_disabled: !!Number(settings.subscriptions_disabled),
-        method_virement: !!Number(settings.method_virement ?? 1),
-        method_especes: !!Number(settings.method_especes ?? 1),
-        method_cheque: !!Number(settings.method_cheque ?? 1),
-        method_autre: !!Number(settings.method_autre ?? 1),
       });
       setSettings(res.data.settings);
       pushToast(res.data.message ?? "Réglages mis à jour.");
@@ -225,6 +220,20 @@ export default function AdminPaymentsClient() {
       if (!s) return s;
       return { ...s, [key]: value === "" ? 0 : Number(value) };
     });
+  };
+
+  // Applique un réglage booléen immédiatement (même UX que le toggle promo).
+  const instantApply = async (key: string, value: boolean) => {
+    const previous = settings;
+    setSettings((s) => (s ? { ...s, [key]: value ? 1 : 0 } : s));
+    try {
+      const res = await api.post("/admin/settings", { [key]: value });
+      if (res.data.settings) setSettings((s) => (s ? { ...s, ...res.data.settings } : s));
+      pushToast(res.data.message ?? "Réglage mis à jour.");
+    } catch (err: unknown) {
+      if (previous) setSettings((s) => (s ? { ...s, [key]: previous[key] } : s)); // rollback visuel
+      pushToast("Erreur lors de la mise à jour du réglage.", "error");
+    }
   };
 
   const togglePromo = async () => {
@@ -462,7 +471,7 @@ export default function AdminPaymentsClient() {
               label="Bloquer les inscriptions Pro & Premium"
               hint="Les utilisateurs ne peuvent plus souscrire jusqu'à réactivation."
               checked={!!settings.subscriptions_disabled}
-              onChange={(v) => setSettings((s) => (s ? { ...s, subscriptions_disabled: v ? 1 : 0 } : s))}
+              onChange={(v) => instantApply("subscriptions_disabled", v)}
             />
             <div className="flex flex-wrap gap-x-6 gap-y-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 w-full">Moyens de paiement manuels</span>
@@ -476,7 +485,7 @@ export default function AdminPaymentsClient() {
                   key={key}
                   label={label}
                   checked={!!settings[key]}
-                  onChange={(v) => setSettings((s) => (s ? { ...s, [key]: v ? 1 : 0 } : s))}
+                  onChange={(v) => instantApply(key, v)}
                   compact
                 />
               ))}
