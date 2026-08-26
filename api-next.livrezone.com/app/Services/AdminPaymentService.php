@@ -73,6 +73,8 @@ class AdminPaymentService
                 'id' => $p->user->id,
                 'email' => $p->user->email,
                 'nickname' => $p->user->profile?->nickname,
+                'subscription_type' => $p->user->profile?->subscription_type,
+                'paused_from_type' => $p->user->profile?->paused_from_type,
             ] : null,
             'amount' => (float) $p->amount,
             'payment_method' => $p->payment_method,

@@ -291,7 +291,12 @@ function PaiementContent() {
             Moyen de paiement
           </label>
           <div className="space-y-2">
-            {availableMethods.length === 0 ? (
+            {pricing === null ? (
+              /* Config pas encore chargée : ni liste ni flash de modes désactivés */
+              <div className="flex justify-center py-3">
+                <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+              </div>
+            ) : availableMethods.length === 0 ? (
               <p className="text-sm text-gray-500 py-2">Aucun moyen de paiement disponible actuellement.</p>
             ) : (
               availableMethods.map((m) => (

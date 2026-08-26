@@ -487,6 +487,23 @@ export default function AdminPaymentsClient() {
                 />
               ))}
             </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 w-full">
+                Passerelles en ligne (paiement automatique)
+              </span>
+              {([
+                ["gateway_cmi", "CMI — carte bancaire"],
+                ["gateway_fatourati", "Fatourati"],
+              ] as const).map(([key, label]) => (
+                <SwitchRow
+                  key={key}
+                  label={label}
+                  checked={!!settings[key]}
+                  onChange={(v) => instantApply(key, v)}
+                  compact
+                />
+              ))}
+            </div>
           </div>
         </section>
       )}

@@ -39,6 +39,8 @@ class SubscriptionService
         'method_especes' => 'PAYMENT_METHOD_ESPECES',
         'method_cheque' => 'PAYMENT_METHOD_CHEQUE',
         'method_autre' => 'PAYMENT_METHOD_AUTRE',
+        'gateway_cmi' => 'CMI_ENABLED',
+        'gateway_fatourati' => 'FATOURATI_ENABLED',
     ];
 
     /**
@@ -130,6 +132,8 @@ class SubscriptionService
             'method_especes' => (int) in_array('especes', $this->enabledPaymentMethods(), true),
             'method_cheque' => (int) in_array('cheque', $this->enabledPaymentMethods(), true),
             'method_autre' => (int) in_array('autre', $this->enabledPaymentMethods(), true),
+            'gateway_cmi' => (int) app(\App\Services\PaymentGatewayService::class)->isEnabled('cmi'),
+            'gateway_fatourati' => (int) app(\App\Services\PaymentGatewayService::class)->isEnabled('fatourati'),
         ];
     }
 

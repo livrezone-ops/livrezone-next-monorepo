@@ -19,23 +19,34 @@ use Illuminate\Http\Request;
  */
 class PaymentGatewayService
 {
-    /** Passerelles déclarées : clé => clé d'activation .env dans config/livrezone.php */
+    /** Passerelles déclarées : clé de réglage admin (table settings). */
     public const GATEWAYS = ['cmi', 'fatourati'];
+
+    /** Clés .env de repli si aucun réglage admin n'a jamais été enregistré. */
+    public const GATEWAY_ENV_KEYS = [
+        'cmi' => 'CMI_ENABLED',
+        'fatourati' => 'FATOURATI_ENABLED',
+    ];
 
     public function __construct(
         protected AdminPaymentService $adminPaymentService,
+        protected SubscriptionService $subscriptions,
     ) {
     }
 
     /**
-     * Liste des passerelles activées (exposée au frontend).
+     * Liste des passerelles activées (réglage admin prioritaire, repli .env).
      *
      * @return string[]
      */
     public function enabled(): array
     {
-        return collect(config('livrezone.payment_gateways', []))
-            ->filter(fn (bool $enabled) => $enabled)
+        return collect(self::GATEWAYS)
+            ->filter(fn ($gateway) => (bool) $this->subscriptions->setting(
+                self::GATEWAY_SETTING_KEYS[$gateway],
+                self::GATEWAY_ENV_KEYS[$gateway],
+                false
+            ))
             ->keys()
             ->values()
             ->all();

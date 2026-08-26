@@ -57,6 +57,10 @@ class PaymentController extends Controller
      */
     public function store(Request $request, SubscriptionService $subscriptions): JsonResponse
     {
+        /** @var \App\Services\PaymentGatewayService $gateways */
+        $gateways = app(\App\Services\PaymentGatewayService::class);
+        $onlineGateways = $gateways->enabled();
+
         $validated = $request->validate([
             'subscription_type' => ['required', Rule::in(['pro', 'premium'])],
             'period' => ['required', Rule::in(['monthly', 'yearly'])],
@@ -71,11 +75,20 @@ class PaymentController extends Controller
             ]);
         }
 
-        // Le moyen de paiement doit être parmi ceux activés par l'admin.
-        $enabledMethods = $subscriptions->enabledPaymentMethods();
-        if (! in_array($validated['payment_method'], $enabledMethods, true)) {
+        // Méthodes manuelles (validation admin) ou passerelles en ligne (auto).
+        $isGateway = in_array($validated['payment_method'], $onlineGateways, true);
+
+        if (! $isGateway && ! in_array($validated['payment_method'], $subscriptions->enabledPaymentMethods(), true)) {
             throw ValidationException::withMessages([
                 'payment_method' => 'Ce moyen de paiement n\'est pas disponible actuellement.',
+            ]);
+        }
+
+        // Passerelle réelle sans simulateur : nécessite l'intégration concrète
+        // (initiate + webhook). Pour l'instant on informe proprement.
+        if ($isGateway && ! config('livrezone.payment_simulator')) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Le paiement en ligne via ' . ucfirst($validated['payment_method']) . ' sera bientôt disponible.',
             ]);
         }
 
@@ -103,12 +116,28 @@ class PaymentController extends Controller
             'status' => 'pending',
         ]);
 
+        // Passerelle en ligne : en mode simulateur on confirme immédiatement
+        // (activation + email), comme le ferait le webhook du prestataire.
+        if ($isGateway && config('livrezone.payment_simulator')) {
+            app(AdminPaymentService::class)->markPaid($payment->fresh());
+        }
+
+        // Code de paiement Fatourati : référence à communiquer lors du paiement.
+        if ($validated['payment_method'] === 'fatourati') {
+            $code = 'FTR-' . str_pad((string) $payment->id, 6, '0', STR_PAD_LEFT);
+            $payment->update(['transaction_id' => $code]);
+        }
+
+        $payment = $payment->fresh();
+
         return response()->json([
-            'message' => config('livrezone.payment_simulator')
-                ? 'Demande créée. Mode test actif : vous pouvez confirmer le paiement maintenant.'
-                : 'Votre demande a été enregistrée. Votre abonnement sera activé dès validation du paiement par notre équipe.',
+            'message' => $isGateway && config('livrezone.payment_simulator')
+                ? 'Paiement confirmé (mode test). Votre abonnement est actif !'
+                : 'Votre demande a été enregistrée.',
             'payment' => $payment,
             'simulator' => (bool) config('livrezone.payment_simulator'),
+            'flow' => $isGateway ? 'online' : 'manual',
+            'fatourati_code' => $validated['payment_method'] === 'fatourati' ? $payment->transaction_id : null,
         ], 201);
     }
 

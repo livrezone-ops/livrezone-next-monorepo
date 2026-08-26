@@ -103,4 +103,31 @@ class AdminSettingsTest extends TestCase
         $this->actingAs($admin)->postJson('/api/admin/settings', ['method_cheque' => true])->assertOk();
         $this->assertContains('cheque', (new SubscriptionService())->enabledPaymentMethods());
     }
+
+    public function test_admin_can_toggle_payment_gateways(): void
+    {
+        Config::set('livrezone.payment_simulator', false);
+        $admin = User::factory()->create(['is_admin' => true]);
+        $service = app(\App\Services\PaymentGatewayService::class);
+
+        // Réglages absents -> repli .env (false dans les tests).
+        $this->assertNotContains('cmi', $service->enabled());
+
+        $this->actingAs($admin)->postJson('/api/admin/settings', ['gateway_cmi' => true])->assertOk();
+
+        $settings = json_decode(
+            $this->actingAs($admin)->getJson('/api/admin/settings')->getContent(),
+            true
+        )['settings'];
+        $this->assertSame(1, $settings['gateway_cmi']);
+        $this->assertSame(0, $settings['gateway_fatourati']);
+
+        $gateways = app(\App\Services\PaymentGatewayService::class);
+        $this->assertContains('cmi', $gateways->enabled());
+        $this->assertNotContains('fatourati', $gateways->enabled());
+
+        // /reference-data expose la passerelle au frontend
+        $ref = $this->actingAs($admin)->getJson('/api/reference-data');
+        $ref->assertOk();
+    }
 }

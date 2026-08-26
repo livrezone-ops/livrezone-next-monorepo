@@ -81,7 +81,17 @@ export default function TarificationPage() {
                     </p>
                 </div>
 
-                <div className="mt-16 grid gap-8 lg:grid-cols-3 lg:gap-12">
+                {config.subscriptions_disabled && (
+                    <div className="mt-10 flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-6 py-4">
+                        <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500 animate-pulse" />
+                        <p className="text-sm font-bold text-amber-900">
+                            L&apos;inscription aux offres Pro et Premium est désactivée momentanément.
+                            Seule l&apos;offre gratuite est disponible pour les nouvelles souscriptions.
+                        </p>
+                    </div>
+                )}
+
+                <div className="mt-10 grid gap-8 lg:grid-cols-3 lg:gap-12">
                     {/* Free Tier */}
                     <div className={`relative flex flex-col rounded-3xl border ${isCurrentPlan('free') ? 'border-[#6D28D9] shadow-xl shadow-purple-500/10' : 'border-slate-200 shadow-sm'} bg-white p-8`}>
                         {isCurrentPlan('free') && (
@@ -118,14 +128,7 @@ export default function TarificationPage() {
                         )}
                     </div>
 
-                    {config.subscriptions_disabled && (
-                    <div className="mb-10 inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-800">
-                        <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
-                        L&apos;inscription à Pro et Premium est désactivée momentanément.
-                    </div>
-                )}
-
-                {/* Pro Tier */}
+                    {/* Pro Tier */}
                     <div className={`relative flex flex-col rounded-3xl border ${isCurrentPlan('pro') ? 'border-[#6D28D9] shadow-xl shadow-purple-500/10' : 'border-indigo-500 shadow-xl shadow-indigo-500/10'} bg-white p-8`}>
                         {isCurrentPlan('pro') ? (
                             <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-[#6D28D9] px-4 py-1 text-xs font-bold uppercase tracking-wide text-white">

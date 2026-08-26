@@ -218,6 +218,8 @@ class AdminController extends Controller
             'method_especes' => 'nullable|boolean',
             'method_cheque' => 'nullable|boolean',
             'method_autre' => 'nullable|boolean',
+            'gateway_cmi' => 'nullable|boolean',
+            'gateway_fatourati' => 'nullable|boolean',
         ]);
 
         // Empêche de désactiver TOUS les moyens de paiement d'un coup.
