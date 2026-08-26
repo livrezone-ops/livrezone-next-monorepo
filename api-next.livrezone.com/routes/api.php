@@ -80,7 +80,11 @@ Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
     Route::post('/{order}/cancel', [\App\Http\Controllers\Api\OrderController::class, 'cancel']);
 });
 
-Route::middleware('auth:sanctum')->get('/payments', [\App\Http\Controllers\Api\PaymentController::class, 'index']);
+Route::middleware('auth:sanctum')->prefix('payments')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\PaymentController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\PaymentController::class, 'store']);
+    Route::post('/{payment}/simulate-confirm', [\App\Http\Controllers\Api\PaymentController::class, 'simulateConfirm']);
+});
 
 // Public Listings Routes
 Route::get('/listings', [\App\Http\Controllers\Api\ListingController::class, 'index']);
@@ -145,6 +149,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/orders/{order}/status', [AdminController::class, 'updateOrderStatus']);
 
     Route::get('/payments', [AdminController::class, 'payments']);
+    Route::post('/payments/{payment}/mark-paid', [AdminController::class, 'markPaymentPaid']);
     Route::get('/promo', [AdminController::class, 'promoState']);
     Route::post('/promo/toggle', [AdminController::class, 'togglePromo']);
     Route::get('/settings', [AdminController::class, 'settings']);

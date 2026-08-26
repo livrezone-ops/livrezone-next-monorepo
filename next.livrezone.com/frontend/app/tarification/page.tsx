@@ -11,6 +11,8 @@ interface PricingConfig {
     max_free_listings: number;
     pro_price: number;
     premium_price: number;
+    pro_price_yearly?: number;
+    premium_price_yearly?: number;
     promo_pro_free: boolean;
     pro_notification_delay_hours: number;
 }
@@ -52,6 +54,8 @@ export default function TarificationPage() {
         max_free_listings: 25,
         pro_price: 30,
         premium_price: 50,
+        pro_price_yearly: 300,
+        premium_price_yearly: 500,
         promo_pro_free: false,
         pro_notification_delay_hours: 3
     };
@@ -70,7 +74,7 @@ export default function TarificationPage() {
                         Des tarifs simples et transparents
                     </h2>
                     <p className="mt-4 text-lg text-slate-600">
-                        Choisissez l'offre qui correspond le mieux à vos besoins de vente sur LivreZone.
+                        Choisissez l&apos;offre qui correspond le mieux à vos besoins de vente sur LivreZone.
                     </p>
                 </div>
 
@@ -93,7 +97,7 @@ export default function TarificationPage() {
                         <ul className="mb-8 flex-1 space-y-4 text-sm text-slate-600">
                             <li className="flex items-start gap-3">
                                 <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
-                                <span>Jusqu'à <strong className="text-slate-900">{config.max_free_listings} annonces</strong> gratuites</span>
+                                <span>Jusqu&apos;à <strong className="text-slate-900">{config.max_free_listings} annonces</strong> gratuites</span>
                             </li>
                             <li className="flex items-start gap-3">
                                 <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
@@ -143,6 +147,9 @@ export default function TarificationPage() {
                                         <span className="ml-1 text-lg font-medium text-slate-500">/mois</span>
                                     </div>
                                 )}
+                                <span className="text-xs text-slate-400 mt-1">
+                                    Ou {config.pro_price_yearly} DH/an — 2 mois offerts
+                                </span>
                             </div>
                         </div>
                         <ul className="mb-8 flex-1 space-y-4 text-sm text-slate-600">
@@ -159,9 +166,15 @@ export default function TarificationPage() {
                                 <span>Notification de commande sous <strong>{config.pro_notification_delay_hours}h</strong></span>
                             </li>
                         </ul>
-                        <button disabled={isCurrentPlan('pro')} className="mt-auto block w-full rounded-xl bg-indigo-600 px-6 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                            {isCurrentPlan('pro') ? 'Actif' : 'Passer à l\'offre Pro'}
-                        </button>
+                        {isCurrentPlan('pro') ? (
+                            <button disabled className="mt-auto block w-full rounded-xl bg-indigo-600 px-6 py-3 text-center text-sm font-semibold text-white opacity-50 cursor-not-allowed">
+                                Actif
+                            </button>
+                        ) : (
+                            <Link href={`/tarification/paiement?type=pro`} className="mt-auto block w-full rounded-xl bg-indigo-600 px-6 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-indigo-700">
+                                Passer à l&apos;offre Pro
+                            </Link>
+                        )}
                     </div>
 
                     {/* Premium Tier */}
@@ -176,7 +189,7 @@ export default function TarificationPage() {
                                 <ShieldCheck className="h-6 w-6 text-amber-500" />
                                 <h3 className="text-2xl font-bold text-slate-900">Premium</h3>
                             </div>
-                            <p className="mt-2 text-sm text-slate-500">L'expérience ultime sans compromis</p>
+                            <p className="mt-2 text-sm text-slate-500">L&apos;expérience ultime sans compromis</p>
                             <div className="mt-4 flex items-baseline text-5xl font-black tracking-tight text-slate-900">
                                 {config.premium_price} <span className="ml-1 text-xl font-semibold text-slate-500">DH</span>
                                 <span className="ml-1 text-lg font-medium text-slate-500">/mois</span>
@@ -196,9 +209,15 @@ export default function TarificationPage() {
                                 <span>Notification de commande <strong>Immédiate</strong></span>
                             </li>
                         </ul>
-                        <button disabled={isCurrentPlan('premium')} className="mt-auto block w-full rounded-xl bg-amber-500 px-6 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                            {isCurrentPlan('premium') ? 'Actif' : 'Passer à l\'offre Premium'}
-                        </button>
+                        {isCurrentPlan('premium') ? (
+                            <button disabled className="mt-auto block w-full rounded-xl bg-amber-500 px-6 py-3 text-center text-sm font-semibold text-white opacity-50 cursor-not-allowed">
+                                Actif
+                            </button>
+                        ) : (
+                            <Link href={`/tarification/paiement?type=premium`} className="mt-auto block w-full rounded-xl bg-amber-500 px-6 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-amber-600">
+                                Passer à l&apos;offre Premium
+                            </Link>
+                        )}
                     </div>
                 </div>
                 

@@ -291,6 +291,21 @@ class AdminController extends Controller
         return response()->json(['message' => 'Code supprimé.']);
     }
 
+    public function markPaymentPaid(Request $request, \App\Models\Payment $payment)
+    {
+        $updated = app(\App\Services\AdminPaymentService::class)->markPaid($payment);
+
+        return response()->json([
+            'message' => 'Paiement validé. Abonnement ' . $updated->subscription_type . ' actif jusqu\'au ' .
+                ($updated->expires_at?->format('d/m/Y') ?? '—') . '.',
+            'payment' => [
+                'id' => $updated->id,
+                'status' => $updated->status,
+                'expires_at' => $updated->expires_at?->toISOString(),
+            ],
+        ]);
+    }
+
     // ------------------------------------------------------------------
     // Hero messages
     // ------------------------------------------------------------------

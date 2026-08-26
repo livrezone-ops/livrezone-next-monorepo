@@ -29,6 +29,8 @@ class SubscriptionService
         'max_free_listings' => 'MAX_FREE_LISTINGS',
         'pro_price' => 'PRO_PRICE',
         'premium_price' => 'PREMIUM_PRICE',
+        'pro_price_yearly' => 'PRO_PRICE_YEARLY',
+        'premium_price_yearly' => 'PREMIUM_PRICE_YEARLY',
         'notification_delay_hours' => 'PRO_NOTIFICATION_DELAY_HOURS',
         'subscription_grace_period_days' => 'SUBSCRIPTION_GRACE_PERIOD_DAYS',
     ];
@@ -77,9 +79,35 @@ class SubscriptionService
             'max_free_listings' => $this->getMaxFreeListings(),
             'pro_price' => $this->getProPrice(),
             'premium_price' => $this->getPremiumPrice(),
+            'pro_price_yearly' => $this->getProPriceYearly(),
+            'premium_price_yearly' => $this->getPremiumPriceYearly(),
             'notification_delay_hours' => $this->getNotificationDelayHours(),
             'subscription_grace_period_days' => $this->getGracePeriodDays(),
         ];
+    }
+
+    /**
+     * Prix annuel Pro (2 mois offerts par défaut = 10x le mensuel).
+     */
+    public function getProPriceYearly(): float
+    {
+        return $this->yearlyPrice('pro_price_yearly', 'PRO_PRICE_YEARLY', $this->getProPrice());
+    }
+
+    /**
+     * Prix annuel Premium (2 mois offerts par défaut = 10x le mensuel).
+     */
+    public function getPremiumPriceYearly(): float
+    {
+        return $this->yearlyPrice('premium_price_yearly', 'PREMIUM_PRICE_YEARLY', $this->getPremiumPrice());
+    }
+
+    private function yearlyPrice(string $key, string $envKey, float $monthlyPrice): float
+    {
+        $value = (float) $this->setting($key, $envKey, 0);
+
+        // 0 ou non défini : calculé depuis le mensuel (10 mois = 2 mois offerts).
+        return $value > 0 ? $value : round($monthlyPrice * 10, 2);
     }
 
     /**

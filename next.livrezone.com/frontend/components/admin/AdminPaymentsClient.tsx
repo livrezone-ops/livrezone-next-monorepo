@@ -71,6 +71,8 @@ export default function AdminPaymentsClient() {
   const [total, setTotal] = useState(0);
   const [lastPage, setLastPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
 
   const [promoActive, setPromoActive] = useState<boolean | null>(null);
 
@@ -124,22 +126,26 @@ export default function AdminPaymentsClient() {
     return () => {
       cancelled = true;
     };
-  }, [status, type, search, sortBy, sortDir, page]);
+  }, [status, type, search, sortBy, sortDir, page, refreshKey]);
 
   // État promo + codes + réglages tarification
+  // allSettled : une table manquante ne doit pas masquer les autres panneaux.
   useEffect(() => {
     (async () => {
-      try {
-        const [promo, codesRes, settingsRes] = await Promise.all([
-          api.get("/admin/promo"),
-          api.get("/admin/discount-codes"),
-          api.get("/admin/settings"),
-        ]);
-        setPromoActive(promo.data.promo_pro_free ?? false);
-        setCodes(codesRes.data.codes ?? []);
-        setSettings(settingsRes.data.settings ?? null);
-      } catch {
-        // silencieux
+      const [promoRes, codesRes, settingsRes] = await Promise.allSettled([
+        api.get("/admin/promo"),
+        api.get("/admin/discount-codes"),
+        api.get("/admin/settings"),
+      ]);
+
+      if (promoRes.status === "fulfilled") {
+        setPromoActive(promoRes.value.data.promo_pro_free ?? false);
+      }
+      if (codesRes.status === "fulfilled") {
+        setCodes(codesRes.value.data.codes ?? []);
+      }
+      if (settingsRes.status === "fulfilled") {
+        setSettings(settingsRes.value.data.settings ?? null);
       }
     })();
   }, []);
@@ -152,6 +158,8 @@ export default function AdminPaymentsClient() {
         max_free_listings: Number(settings.max_free_listings),
         pro_price: Number(settings.pro_price),
         premium_price: Number(settings.premium_price),
+        pro_price_yearly: Number(settings.pro_price_yearly ?? 0),
+        premium_price_yearly: Number(settings.premium_price_yearly ?? 0),
         notification_delay_hours: Number(settings.notification_delay_hours),
         subscription_grace_period_days: Number(settings.subscription_grace_period_days),
       });
@@ -229,6 +237,23 @@ export default function AdminPaymentsClient() {
       setSortDir("desc");
     }
     setPage(1);
+  };
+
+  const markPaid = async (payment: AdminPayment) => {
+    setBusyIds((prev) => new Set(prev).add(payment.id));
+    try {
+      const res = await api.post(`/admin/payments/${payment.id}/mark-paid`);
+      pushToast(res.data.message ?? "Paiement validé.");
+      setRefreshKey((k) => k + 1);
+    } catch {
+      pushToast("Erreur lors de la validation.", "error");
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(payment.id);
+        return next;
+      });
+    }
   };
 
   const tiles = [
@@ -311,6 +336,28 @@ export default function AdminPaymentsClient() {
                 step="0.01"
                 value={settings.premium_price}
                 onChange={(e) => updateSettingField("premium_price", e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Pro annuel (MAD)</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={settings.pro_price_yearly ?? 0}
+                onChange={(e) => updateSettingField("pro_price_yearly", e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Premium annuel (MAD)</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={settings.premium_price_yearly ?? 0}
+                onChange={(e) => updateSettingField("premium_price_yearly", e.target.value)}
                 className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
               />
             </label>
@@ -591,6 +638,7 @@ export default function AdminPaymentsClient() {
                     sortDir={sortDir}
                     onSort={handleSort}
                   />
+                  <th className="px-4 py-3 text-right pr-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -636,6 +684,23 @@ export default function AdminPaymentsClient() {
                           </span>
                         ) : (
                           "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right pr-4">
+                        {p.status === "pending" ? (
+                          busyIds.has(p.id) ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-[#F97316] ml-auto" />
+                          ) : (
+                            <button
+                              onClick={() => markPaid(p)}
+                              title="Valider le paiement et activer l'abonnement"
+                              className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all cursor-pointer"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </button>
+                          )
+                        ) : (
+                          <span className="text-gray-300">—</span>
                         )}
                       </td>
                     </tr>

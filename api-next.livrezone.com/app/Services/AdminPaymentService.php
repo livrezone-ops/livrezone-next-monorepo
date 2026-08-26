@@ -100,6 +100,38 @@ class AdminPaymentService
         ];
     }
 
+    /**
+     * Valide un paiement : l'abonnement correspondant est activé pour la
+     * période choisie (1 mois ou 12 mois à compter de maintenant).
+     */
+    public function markPaid(Payment $payment): Payment
+    {
+        if ($payment->status === 'paid') {
+            return $payment;
+        }
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($payment) {
+            $months = ($payment->period ?? 'monthly') === 'yearly' ? 12 : 1;
+
+            $payment->update([
+                'status' => 'paid',
+                'paid_at' => now(),
+                'expires_at' => now()->addMonths($months),
+            ]);
+
+            \App\Models\Profile::where('user_id', $payment->user_id)
+                ->update(['subscription_type' => $payment->subscription_type]);
+
+            // Consomme le coupon utilisé, une seule fois.
+            if ($payment->discount_code) {
+                \App\Models\DiscountCode::where('code', $payment->discount_code)
+                    ->increment('times_used');
+            }
+
+            return $payment->fresh();
+        });
+    }
+
     // ------------------------------------------------------------------
     // Codes de réduction
     // ------------------------------------------------------------------

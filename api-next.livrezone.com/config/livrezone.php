@@ -28,4 +28,16 @@ return [
     ],
 
     'book_covers_url' => env('BOOK_COVERS_URL', null),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Simulateur de paiement (tests)
+    |--------------------------------------------------------------------------
+    |
+    | PAYMENT_SIMULATOR=true : le bouton "Payer" confirme immédiatement la
+    | transaction au lieu de rediriger vers une passerelle (CMI, etc.).
+    | Ne JAMAIS activer en production.
+    |
+    */
+    'payment_simulator' => env('PAYMENT_SIMULATOR', false),
 ];

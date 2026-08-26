@@ -15,6 +15,8 @@ class Payment extends Model
         'payment_method',
         'transaction_id',
         'subscription_type',
+        'period',
+        'discount_code',
         'status',
         'paid_at',
         'expires_at',

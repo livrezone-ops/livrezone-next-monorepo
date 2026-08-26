@@ -59,6 +59,8 @@ class ReferenceDataService
                 'max_free_listings' => $subscription->getMaxFreeListings(),
                 'pro_price' => $subscription->getProPrice(),
                 'premium_price' => $subscription->getPremiumPrice(),
+                'pro_price_yearly' => $subscription->getProPriceYearly(),
+                'premium_price_yearly' => $subscription->getPremiumPriceYearly(),
                 'promo_pro_free' => $subscription->isPromoProFree(),
                 'pro_notification_delay_hours' => $subscription->getNotificationDelayHours(),
             ];
