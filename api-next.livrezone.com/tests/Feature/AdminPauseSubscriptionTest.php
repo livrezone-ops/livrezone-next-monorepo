@@ -63,7 +63,8 @@ class AdminPauseSubscriptionTest extends TestCase
     public function test_admin_can_resume_paused_subscription(): void
     {
         $admin = $this->makeUserWithType('premium', isAdmin: true);
-        $alice = $this->makeUserWithType('free');
+        // Alice est Pro : c'est une condition requise pour pouvoir mettre en pause.
+        $alice = $this->makeUserWithType('pro');
         $this->createPaidPayment($alice, 'pro', now()->addDays(20));
 
         // Mise en pause manuelle (via l'API pour rester réaliste).

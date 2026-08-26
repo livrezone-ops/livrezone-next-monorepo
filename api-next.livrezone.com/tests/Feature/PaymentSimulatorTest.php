@@ -32,7 +32,7 @@ class PaymentSimulatorTest extends TestCase
         ]));
     }
 
-    private function createPendingPayment(User $user, string $code = null): Payment
+    private function createPendingPayment(User $user, ?string $code = null): Payment
     {
         return Payment::create([
             'user_id' => $user->id,
