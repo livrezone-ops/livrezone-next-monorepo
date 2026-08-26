@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   CreditCard,
   Loader2,
+  Mail,
+  Search,
 } from "lucide-react";
 import api from "@/lib/axios";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,11 +26,13 @@ interface PricingConfig {
   payment_methods?: string[];
 }
 
-const METHODS = [
-  { val: "virement", label: "Virement bancaire" },
-  { val: "especes", label: "Espèces (en librairie partenaire)" },
-  { val: "cheque", label: "Chèque" },
-  { val: "autre", label: "Autre moyen" },
+const RECEIPT_EMAIL = "mypaiement@livrezone.com";
+
+const ALL_METHODS = [
+  { val: "virement", label: "Virement bancaire", hint: "Coordonnées envoyées après validation de la demande." },
+  { val: "especes", label: "Espèces", hint: "Paiement en main propre auprès de l'équipe." },
+  { val: "cheque", label: "Chèque", hint: "Chèque libellé à l'ordre de LivreZone." },
+  { val: "autre", label: "Autre moyen", hint: "Nous vous contacterons pour convenir ensemble." },
 ];
 
 export default function PaiementPage() {
@@ -43,6 +47,7 @@ function PaiementContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const plan = searchParams.get("type") === "premium" ? "premium" : "pro";
+  const planLabel = plan === "pro" ? "Pro" : "Premium";
 
   const [pricing, setPricing] = useState<PricingConfig | null>(null);
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
@@ -51,12 +56,12 @@ function PaiementContent() {
   const debouncedCoupon = useDebounced(coupon, 450);
   const [preview, setPreview] = useState<{ amount: number; discount: number; coupon_valid: boolean } | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [done, setDone] = useState(false);
-  const [activated, setActivated] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pendingPaymentId, setPendingPaymentId] = useState<number | null>(null);
-  const [simulator, setSimulator] = useState(false);
+  const [result, setResult] = useState<
+    | { kind: "manual"; ref: string }
+    | { kind: "activated" }
+    | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,8 +80,8 @@ function PaiementContent() {
     };
   }, []);
 
-  // Aperçu serveur du montant : se met à jour dès que la période ou le
-  // coupon (stabilisé) change — le prix affiché est toujours le prix réel.
+  // Aperçu serveur du montant : le prix affiché est toujours le prix réel
+  // (réglages admin + coupon), même pendant la saisie du code.
   useEffect(() => {
     let cancelled = false;
 
@@ -89,7 +94,7 @@ function PaiementContent() {
         });
         if (!cancelled) setPreview(data);
       } catch {
-        if (!cancelled) setPreview(null); // coupon invalide : on retombe sur le prix de base
+        if (!cancelled) setPreview(null); // coupon invalide : retour au prix de base
       }
     })();
 
@@ -98,9 +103,6 @@ function PaiementContent() {
     };
   }, [plan, period, debouncedCoupon]);
 
-  // Passerelles en ligne activées côté serveur (CMI, Fatourati...)
-  const onlineGateways: string[] = pricing?.payment_gateways ?? [];
-
   const config: PricingConfig = pricing ?? {
     pro_price: 30,
     premium_price: 50,
@@ -108,12 +110,15 @@ function PaiementContent() {
     premium_price_yearly: 500,
   };
 
-  // Moyens manuels filtrés selon les réglages admin (tous si fallback statique).
+  // Moyens manuels filtrés selon les réglages admin (tous si fallback).
   const availableMethods = pricing?.payment_methods
-    ? METHODS.filter((m) => pricing.payment_methods!.includes(m.val))
-    : METHODS;
+    ? ALL_METHODS.filter((m) => pricing.payment_methods!.includes(m.val))
+    : ALL_METHODS;
 
-  // Montant affiché = aperçu serveur (coupon appliqué) sinon prix de base.
+  // Passerelles en ligne activées côté serveur (CMI, Fatourati...).
+  const onlineGateways: string[] = pricing?.payment_gateways ?? [];
+  const isGateway = ["cmi", "fatourati"].includes(method);
+
   const monthly = plan === "pro" ? config.pro_price : config.premium_price;
   const yearly = plan === "pro" ? config.pro_price_yearly : config.premium_price_yearly;
   const baseAmount = period === "yearly" ? yearly : monthly;
@@ -136,9 +141,13 @@ function PaiementContent() {
         payment_method: method,
         discount_code: coupon.trim() || undefined,
       });
-      setPendingPaymentId(data.payment?.id ?? null);
-      setSimulator(!!data.simulator);
-      if (!data.simulator) setDone(true);
+
+      if (data.flow === "online" && data.simulator) {
+        // Simulateur : la passerelle est simulée, activation immédiate côté serveur.
+        setResult({ kind: "activated" });
+      } else {
+        setResult({ kind: "manual", ref: `#${data.payment?.id ?? ""}` });
+      }
     } catch (err: unknown) {
       const resp = err as { response?: { status?: number; data?: { message?: string; errors?: Record<string, string[]> } } };
       if (resp.response?.status === 422) {
@@ -152,58 +161,54 @@ function PaiementContent() {
     }
   };
 
-  const simulatePayment = async () => {
-    if (!pendingPaymentId) return;
-    setConfirming(true);
-    setError(null);
-    try {
-      await api.post(`/payments/${pendingPaymentId}/simulate-confirm`);
-      setActivated(true);
-      setDone(true);
-    } catch (err: unknown) {
-      const resp = err as { response?: { data?: { message?: string } } };
-      setError(resp.response?.data?.message ?? "Erreur lors de la simulation.");
-    } finally {
-      setConfirming(false);
-    }
-  };
-
   if (!user) {
     return <PendingAuthRedirect />;
   }
 
-  if (done) {
+  /* ---------------- Écran de fin (manuel ou activation) ---------------- */
+  if (result) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center bg-slate-50 px-4">
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm max-w-md w-full p-8 text-center">
-          <CheckCircle2 className="h-14 w-14 text-emerald-500 mx-auto" />
-          <h1 className="text-2xl font-black text-slate-900 mt-4">
-            {activated ? "Paiement confirmé, abonnement actif !" : "Demande enregistrée !"}
-          </h1>
-          <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-            {activated ? (
-              <>
-                Votre abonnement <strong>{plan === "pro" ? "Pro" : "Premium"}</strong> ({period === "yearly" ? "annuel" : "mensuel"},
-                {" "}{amount} DH) est désormais actif. Un email de confirmation vous a été envoyé.
-              </>
-            ) : (
-              <>
-                Votre abonnement <strong>{plan === "pro" ? "Pro" : "Premium"}</strong> ({period === "yearly" ? "annuel" : "mensuel"},
-                {" "}{amount} DH) sera activé dès validation de votre paiement par notre équipe.
-              </>
-            )}
-          </p>
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm max-w-lg w-full p-8 text-center">
+          {result.kind === "activated" ? (
+            <>
+              <CheckCircle2 className="h-14 w-14 text-emerald-500 mx-auto" />
+              <h1 className="text-2xl font-black text-slate-900 mt-4">Paiement confirmé 🎉</h1>
+              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+                Votre abonnement <strong>{planLabel}</strong> ({period === "yearly" ? "annuel" : "mensuel"},
+                {" "}{amount} DH) est désormais <strong>actif</strong>. Un email de confirmation vous a été envoyé.
+              </p>
+            </>
+          ) : (
+            <>
+              <Mail className="h-14 w-14 text-[#6D28D9] mx-auto" />
+              <h1 className="text-2xl font-black text-slate-900 mt-4">Demande enregistrée — réf. {result.ref}</h1>
+              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+                Votre abonnement <strong>{planLabel}</strong> ({period === "yearly" ? "annuel" : "mensuel"},
+                {" "}{amount} DH) sera <strong>activé dès confirmation de votre paiement</strong>.
+              </p>
+              <div className="mt-5 rounded-xl border border-violet-200 bg-violet-50/60 p-4 text-left">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#6D28D9] mb-1">
+                  Étape importante
+                </p>
+                <p className="text-sm text-slate-700 leading-relaxed">
+                  Après avoir effectué votre paiement, envoyez votre <strong>reçu par email</strong> à{" "}
+                  <a href={`mailto:${RECEIPT_EMAIL}`} className="font-black text-[#6D28D9] underline break-all">
+                    {RECEIPT_EMAIL}
+                  </a>{" "}
+                  en précisant votre référence <strong>{result.ref}</strong>.
+                </p>
+              </div>
+            </>
+          )}
           <div className="flex flex-col gap-2 mt-6">
             <Link
               href="/dashboard/paiements"
               className="rounded-xl bg-[#6D28D9] px-6 py-3 text-sm font-bold text-white hover:bg-violet-800 transition-colors"
             >
-              Suivre ma demande
+              {result.kind === "activated" ? "Gérer mon abonnement" : "Suivre ma demande"}
             </Link>
-            <Link
-              href="/tarification"
-              className="text-xs font-bold text-gray-500 hover:text-gray-800"
-            >
+            <Link href="/tarification" className="text-xs font-bold text-gray-500 hover:text-gray-800">
               Retour aux offres
             </Link>
           </div>
@@ -211,6 +216,17 @@ function PaiementContent() {
       </div>
     );
   }
+
+  /* ---------------- Formulaire ---------------- */
+  const ctaLabel = submitting
+    ? null
+    : isGateway
+      ? plan && period && method
+        ? method === "cmi"
+          ? "Continuer vers le paiement CMI"
+          : "Obtenir mon code Fatourati"
+        : "Continuer"
+      : "Confirmer ma demande";
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4">
@@ -223,10 +239,10 @@ function PaiementContent() {
         </Link>
 
         <h1 className="text-3xl font-black text-slate-900">
-          Abonnement {plan === "pro" ? "Pro" : "Premium"}
+          Abonnement {planLabel}
         </h1>
         <p className="mt-2 text-sm text-slate-600">
-          Choisissez votre période et votre moyen de paiement. Votre abonnement sera activé dès réception et validation par notre équipe.
+          Choisissez votre période et votre moyen de paiement.
         </p>
 
         {/* Choix de période */}
@@ -279,56 +295,55 @@ function PaiementContent() {
               <p className="text-sm text-gray-500 py-2">Aucun moyen de paiement disponible actuellement.</p>
             ) : (
               availableMethods.map((m) => (
-              <label
-                key={m.val}
-                className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all ${
-                  method === m.val
-                    ? "border-[#6D28D9] bg-violet-50/50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="method"
-                  value={m.val}
-                  checked={method === m.val}
-                  onChange={() => setMethod(m.val)}
-                  className="text-[#6D28D9] focus:ring-[#6D28D9]"
-                />
-                <CreditCard className="h-4 w-4 text-gray-400" />
-                <span className="text-sm font-medium text-slate-800">{m.label}</span>
-              </label>
-            ))
+                <label
+                  key={m.val}
+                  className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-all ${
+                    method === m.val
+                      ? "border-[#6D28D9] bg-violet-50/50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="method"
+                    value={m.val}
+                    checked={method === m.val}
+                    onChange={() => setMethod(m.val)}
+                    className="mt-0.5 text-[#6D28D9] focus:ring-[#6D28D9]"
+                  />
+                  <CreditCard className="h-4 w-4 text-gray-400 mt-0.5" />
+                  <span>
+                    <span className="block text-sm font-medium text-slate-800">{m.label}</span>
+                    <span className="block text-xs text-gray-400">{m.hint}</span>
+                  </span>
+                </label>
+              ))
             )}
 
             {/* Passerelles en ligne : visibles uniquement si activées côté serveur.
-                Le paiement y est automatique (webhook), contrairement au virement/espèces
-                qui nécessitent la validation manuelle de l'admin. */}
+                Confirmation automatique via webhook, sans intervention admin. */}
             {onlineGateways.includes("cmi") && (
-              <label className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all ${method === "cmi" ? "border-[#6D28D9] bg-violet-50/50" : "border-gray-200 hover:border-gray-300"}`}>
-                <input type="radio" name="method" value="cmi" checked={method === "cmi"} onChange={() => setMethod("cmi")} className="text-[#6D28D9] focus:ring-[#6D28D9]" />
-                <CreditCard className="h-4 w-4 text-gray-400" />
-                <span className="text-sm font-medium text-slate-800">Carte bancaire (CMI) — paiement instantané</span>
+              <label className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-all ${method === "cmi" ? "border-[#6D28D9] bg-violet-50/50" : "border-gray-200 hover:border-gray-300"}`}>
+                <input type="radio" name="method" value="cmi" checked={method === "cmi"} onChange={() => setMethod("cmi")} className="mt-0.5 text-[#6D28D9] focus:ring-[#6D28D9]" />
+                <CreditCard className="h-4 w-4 text-gray-400 mt-0.5" />
+                <span>
+                  <span className="block text-sm font-medium text-slate-800">Carte bancaire (CMI)</span>
+                  <span className="block text-xs text-gray-400">Paiement sécurisé et activation instantanée.</span>
+                </span>
               </label>
             )}
             {onlineGateways.includes("fatourati") && (
-              <label className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all ${method === "fatourati" ? "border-[#6D28D9] bg-violet-50/50" : "border-gray-200 hover:border-gray-300"}`}>
-                <input type="radio" name="method" value="fatourati" checked={method === "fatourati"} onChange={() => setMethod("fatourati")} className="text-[#6D28D9] focus:ring-[#6D28D9]" />
-                <CreditCard className="h-4 w-4 text-gray-400" />
-                <span className="text-sm font-medium text-slate-800">Fatourati — paiement instantané</span>
+              <label className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-all ${method === "fatourati" ? "border-[#6D28D9] bg-violet-50/50" : "border-gray-200 hover:border-gray-300"}`}>
+                <input type="radio" name="method" value="fatourati" checked={method === "fatourati"} onChange={() => setMethod("fatourati")} className="mt-0.5 text-[#6D28D9] focus:ring-[#6D28D9]" />
+                <CreditCard className="h-4 w-4 text-gray-400 mt-0.5" />
+                <span>
+                  <span className="block text-sm font-medium text-slate-800">Fatourati</span>
+                  <span className="block text-xs text-gray-400">Payez avec votre code de paiement Fatourati.</span>
+                </span>
               </label>
             )}
           </div>
-          {onlineGateways.length === 0 && (
-            <p className="text-[11px] text-gray-400 mt-3">
-              Le paiement par carte en ligne sera bientôt disponible. En attendant, choisissez virement ou espèces : l&apos;équipe valide votre abonnement après réception.
-            </p>
-          )}
         </div>
-
-        {error && (
-          <p className="mt-4 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl p-3">{error}</p>
-        )}
 
         {/* Coupon de réduction avec aperçu live */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5 mt-6">
@@ -356,55 +371,52 @@ function PaiementContent() {
           )}
         </div>
 
-        {/* Récapitulatif + CTA */}
+        {error && (
+          <p className="mt-4 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl p-3">{error}</p>
+        )}
+
+        {/* Récapitulatif + CTA unique */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5 mt-6">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-600">
-              Total {period === "yearly" ? "annuel" : "mensuel"}
-            </span>
-            <span className="text-2xl font-black text-slate-900">{amount} DH</span>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-600">Abonnement {planLabel}</span>
+              <span className="text-sm font-bold text-slate-900">{baseAmount} DH</span>
+            </div>
+            {couponApplied && preview && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-emerald-600 font-bold">Réduction ({coupon.trim()})</span>
+                <span className="text-xs font-bold text-emerald-600">−{preview.discount} DH</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+              <span className="text-sm text-slate-600">
+                Total {period === "yearly" ? "annuel" : "mensuel"}
+              </span>
+              <span className="text-2xl font-black text-slate-900">{amount} DH</span>
+            </div>
           </div>
-          {couponApplied && preview && (
-            <p className="text-xs text-slate-500 mt-1">
-              <span className="line-through">{baseAmount} DH</span>{" "}
-              <span className="font-bold text-emerald-600">−{preview.discount} DH avec le code</span>
-            </p>
-          )}
+
           {savingsLabel && (
-            <p className="text-xs font-bold text-emerald-600 mt-1">{savingsLabel}</p>
+            <p className="text-xs font-bold text-emerald-600 mt-2">{savingsLabel}</p>
           )}
+
           <button
             onClick={submit}
-            disabled={submitting}
+            disabled={submitting || availableMethods.length === 0}
             className="mt-5 w-full rounded-xl bg-[#6D28D9] px-6 py-3.5 text-sm font-bold text-white hover:bg-violet-800 transition-colors disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
           >
             {submitting ? (
               <Loader2 className="h-5 w-5 animate-spin mx-auto" />
-            ) : simulator ? (
-              "Créer la transaction (mode test)"
             ) : (
-              "Envoyer ma demande d'abonnement"
+              ctaLabel ?? "Confirmer"
             )}
           </button>
-          <p className="text-[11px] text-gray-400 mt-3 text-center">
-            {simulator
-              ? "Mode test actif : le paiement sera simulé, sans passerelle réelle."
-              : "Aucun débit automatique : notre équipe vous contactera pour finaliser le paiement."}
-          </p>
 
-          {simulator && pendingPaymentId && !done && (
-            <button
-              onClick={simulatePayment}
-              disabled={confirming}
-              className="mt-3 w-full rounded-xl bg-[#F97316] px-6 py-3.5 text-sm font-bold text-white hover:bg-[#EA580C] transition-colors disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
-            >
-              {confirming ? (
-                <Loader2 className="h-5 w-5 animate-spin mx-auto" />
-              ) : (
-                "Payer maintenant (simulation)"
-              )}
-            </button>
-          )}
+          <p className="text-[11px] text-gray-400 mt-3 text-center">
+            {isGateway
+              ? "Vous serez redirigé vers la plateforme de paiement pour finaliser en toute sécurité."
+              : "Un écran récapitulatif vous indiquera la marche à suivre pour finaliser."}
+          </p>
         </div>
       </div>
     </div>

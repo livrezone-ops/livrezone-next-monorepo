@@ -226,10 +226,9 @@ class AdminController extends Controller
         if ($incoming !== []) {
             foreach ($methods as $m) {
                 if (! array_key_exists($m, $validated)) {
-                    // Champs non envoyés : conserver l'état actuel.
-                    $current = (int) (bool) $subscriptions->setting(
-                        $m, strtoupper($m), true
-                    );
+                    // Champs non envoyés : conserver l'état actuel (DB, sinon .env).
+                    $envKey = \App\Services\SubscriptionService::EDITABLE_SETTINGS[$m] ?? strtoupper($m);
+                    $current = (int) (bool) $subscriptions->setting($m, $envKey, true);
                     $validated[$m] = (bool) $current;
                 }
             }
