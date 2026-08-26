@@ -19,9 +19,6 @@ use Illuminate\Http\Request;
  */
 class PaymentGatewayService
 {
-    /** Passerelles déclarées : clé de réglage admin (table settings). */
-    public const GATEWAYS = ['cmi', 'fatourati'];
-
     /** Clés .env de repli si aucun réglage admin n'a jamais été enregistré. */
     public const GATEWAY_ENV_KEYS = [
         'cmi' => 'CMI_ENABLED',
@@ -41,10 +38,10 @@ class PaymentGatewayService
      */
     public function enabled(): array
     {
-        return collect(self::GATEWAYS)
-            ->filter(fn ($gateway) => (bool) $this->subscriptions->setting(
-                self::GATEWAY_SETTING_KEYS[$gateway],
-                self::GATEWAY_ENV_KEYS[$gateway],
+        return collect(self::GATEWAY_ENV_KEYS)
+            ->filter(fn ($envKey, $gateway) => (bool) $this->subscriptions->setting(
+                "gateway_{$gateway}",
+                $envKey,
                 false
             ))
             ->keys()

@@ -40,4 +40,24 @@ return [
     |
     */
     'payment_simulator' => env('PAYMENT_SIMULATOR', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Passerelles de paiement en ligne
+    |--------------------------------------------------------------------------
+    |
+    | Activer une passerelle la propose aux utilisateurs lors du paiement.
+    | Les webhooks correspondants doivent être configurés chez le prestataire
+    | (voir PaymentGatewayService::verifyWebhookSignature).
+    |
+    */
+    'payment_gateways' => [
+        'cmi' => (bool) env('CMI_ENABLED', false),
+        'fatourati' => (bool) env('FATOURATI_ENABLED', false),
+    ],
+
+    'payment_webhooks' => [
+        'cmi' => env('CMI_WEBHOOK_SECRET'),
+        'fatourati' => env('FATOURATI_WEBHOOK_SECRET'),
+    ],
 ];
