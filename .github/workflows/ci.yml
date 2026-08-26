@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api-next.livrezone.com/**"
+      - "next.livrezone.com/frontend/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (pint + phpunit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api-next.livrezone.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Pint (code style)
+        run: vendor/bin/pint --test
+
+      - name: PHPUnit
+        env:
+          APP_KEY: base64:2fl+Ktvkfl+Fuz4Qp/A75G2RTiWVA/ZoKZvp6fiiM10=
+        run: vendor/bin/phpunit -c phpunit.xml tests
+
+  frontend:
+    name: Frontend (lint + tsc)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: next.livrezone.com/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: next.livrezone.com/frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript (tsc --noEmit)
+        run: npx tsc --noEmit

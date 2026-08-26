@@ -6,6 +6,9 @@
 !/next.livrezone.com/
 !/api-next.livrezone.com/
 
+# CI GitHub Actions
+!/.github/
+
 # Frontend Next.js
 /next.livrezone.com/*
 !/next.livrezone.com/frontend/
