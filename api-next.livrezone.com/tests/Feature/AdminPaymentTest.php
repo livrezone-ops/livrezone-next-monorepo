@@ -68,6 +68,11 @@ class AdminPaymentTest extends TestCase
             ->assertOk();
 
         $this->assertFalse($service->isPromoProFree());
+
+        // Le réglage persiste en DB même après une purge du cache (optimize:clear).
+        Cache::forget(SubscriptionService::PROMO_CACHE_KEY);
+        $this->assertTrue(SubscriptionService::PROMO_CACHE_KEY !== null);
+        $this->assertFalse((new SubscriptionService())->isPromoProFree());
     }
 
     public function test_admin_can_create_and_delete_discount_code(): void

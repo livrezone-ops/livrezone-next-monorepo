@@ -9,6 +9,7 @@ import {
   XCircle,
 } from "lucide-react";
 import api from "@/lib/axios";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface AdminOrder {
   id: number;
@@ -62,6 +63,7 @@ export default function AdminDemandesClient() {
   const [loading, setLoading] = useState(true);
   const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
+  const [confirmReject, setConfirmReject] = useState<AdminOrder | null>(null);
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const toastIdRef = useRef(0);
 
@@ -273,7 +275,7 @@ export default function AdminDemandesClient() {
                     )}
                     {order.status !== "rejected" && (
                       <button
-                        onClick={() => applyAction(order, "reject")}
+                        onClick={() => setConfirmReject(order)}
                         title="Rejeter la demande"
                         className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all cursor-pointer"
                       >
@@ -310,6 +312,23 @@ export default function AdminDemandesClient() {
           </button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmReject !== null}
+        title="Rejeter cette demande ?"
+        message={
+          confirmReject
+            ? `La demande « ${confirmReject.title} » ne sera plus visible publiquement.`
+            : ""
+        }
+        confirmLabel="Rejeter"
+        danger
+        onConfirm={() => {
+          if (confirmReject) applyAction(confirmReject, "reject");
+          setConfirmReject(null);
+        }}
+        onCancel={() => setConfirmReject(null)}
+      />
 
       {/* Toasts */}
       <div className="fixed bottom-4 right-4 z-50 space-y-2">

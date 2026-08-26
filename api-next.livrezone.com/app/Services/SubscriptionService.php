@@ -22,28 +22,101 @@ class SubscriptionService
     public const TYPES = ['free', 'pro', 'premium'];
 
     public const PROMO_CACHE_KEY = 'livrezone.promo_pro_free';
+    public const PROMO_SETTING_KEY = 'promo_pro_free';
+
+    /** Réglages modifiables depuis l'admin : clé de réglage => clé .env de repli. */
+    public const EDITABLE_SETTINGS = [
+        'max_free_listings' => 'MAX_FREE_LISTINGS',
+        'pro_price' => 'PRO_PRICE',
+        'premium_price' => 'PREMIUM_PRICE',
+        'notification_delay_hours' => 'PRO_NOTIFICATION_DELAY_HOURS',
+        'subscription_grace_period_days' => 'SUBSCRIPTION_GRACE_PERIOD_DAYS',
+    ];
 
     /**
-     * Promo « Pro offert pour les free » : pilotée depuis l'admin (cache),
-     * avec repli sur la variable d'environnement si aucun réglage admin.
+     * Lit un réglage : valeur admin (DB, prioritaire) sinon variable d'environnement.
+     * Mise en cache permanente, invalidée à chaque écriture.
+     * Tolérante à l'absence de la table settings (installation fraîche non migrée).
+     */
+    protected function setting(string $key, string $envKey, mixed $default): mixed
+    {
+        return \Illuminate\Support\Facades\Cache::rememberForever("livrezone.setting.{$key}", function () use ($key, $envKey, $default) {
+            try {
+                $setting = \App\Models\Setting::find($key);
+            } catch (\Throwable) {
+                return $default;
+            }
+
+            if ($setting !== null && $setting->value !== null && $setting->value !== '') {
+                return $setting->value;
+            }
+
+            return env($envKey, $default);
+        });
+    }
+
+    /**
+     * Écrit un réglage admin (effet immédiat, persiste aux déploiements).
+     */
+    public function setSetting(string $key, mixed $value): void
+    {
+        if (! array_key_exists($key, self::EDITABLE_SETTINGS)) {
+            throw new \InvalidArgumentException("Réglage non éditable : {$key}");
+        }
+
+        \App\Models\Setting::updateOrCreate(['key' => $key], ['value' => (string) $value]);
+        \Illuminate\Support\Facades\Cache::forget("livrezone.setting.{$key}");
+    }
+
+    /**
+     * Valeurs courantes des réglages éditables (pour l'UI admin).
+     */
+    public function getEditableSettings(): array
+    {
+        return [
+            'max_free_listings' => $this->getMaxFreeListings(),
+            'pro_price' => $this->getProPrice(),
+            'premium_price' => $this->getPremiumPrice(),
+            'notification_delay_hours' => $this->getNotificationDelayHours(),
+            'subscription_grace_period_days' => $this->getGracePeriodDays(),
+        ];
+    }
+
+    /**
+     * Promo « Pro offert pour les free » : pilotée depuis l'admin (persistée
+     * en DB, mise en cache pour la perf), avec repli sur la variable
+     * d'environnement si aucun réglage n'a jamais été enregistré.
      */
     public function isPromoProFree(): bool
     {
-        $override = \Illuminate\Support\Facades\Cache::get(self::PROMO_CACHE_KEY);
+        return \Illuminate\Support\Facades\Cache::rememberForever(self::PROMO_CACHE_KEY, function () {
+            try {
+                $setting = \App\Models\Setting::find(self::PROMO_SETTING_KEY);
+            } catch (\Throwable) {
+                $setting = null;
+            }
 
-        if ($override !== null) {
-            return (bool) $override;
-        }
+            if ($setting !== null) {
+                return filter_var($setting->value, FILTER_VALIDATE_BOOLEAN);
+            }
 
-        return filter_var(env('PROMO_PRO_FREE', false), FILTER_VALIDATE_BOOLEAN);
+            return filter_var(env('PROMO_PRO_FREE', false), FILTER_VALIDATE_BOOLEAN);
+        });
     }
 
     /**
      * Active/désactive la promo Pro gratuit (admin).
+     * Persistance en DB (survit aux déploiements) + invalidation du cache
+     * (effet immédiat, sans artisan ni déploiement).
      */
     public function setPromoProFree(bool $active): void
     {
-        \Illuminate\Support\Facades\Cache::forever(self::PROMO_CACHE_KEY, $active);
+        \App\Models\Setting::updateOrCreate(
+            ['key' => self::PROMO_SETTING_KEY],
+            ['value' => $active ? '1' : '0']
+        );
+
+        \Illuminate\Support\Facades\Cache::forget(self::PROMO_CACHE_KEY);
     }
 
     /**
@@ -84,7 +157,7 @@ class SubscriptionService
 
     public function getNotificationDelayHours(): int
     {
-        return (int) env('PRO_NOTIFICATION_DELAY_HOURS', 3);
+        return (int) $this->setting('notification_delay_hours', 'PRO_NOTIFICATION_DELAY_HOURS', 3);
     }
 
     /**
@@ -103,7 +176,7 @@ class SubscriptionService
 
     public function getMaxFreeListings(): int
     {
-        return (int) env('MAX_FREE_LISTINGS', 25);
+        return (int) $this->setting('max_free_listings', 'MAX_FREE_LISTINGS', 25);
     }
 
     /**
@@ -153,12 +226,21 @@ class SubscriptionService
 
     public function getProPrice(): float
     {
-        return (float) env('PRO_PRICE', 30);
+        return (float) $this->setting('pro_price', 'PRO_PRICE', 30);
     }
 
     public function getPremiumPrice(): float
     {
-        return (float) env('PREMIUM_PRICE', 50);
+        return (float) $this->setting('premium_price', 'PREMIUM_PRICE', 50);
+    }
+
+    /**
+     * Délai de grâce (jours) avant de masquer les annonces excédentaires
+     * d'un compte repassé à Free après expiration de son abonnement.
+     */
+    public function getGracePeriodDays(): int
+    {
+        return (int) $this->setting('subscription_grace_period_days', 'SUBSCRIPTION_GRACE_PERIOD_DAYS', 15);
     }
 
     /**
@@ -224,7 +306,7 @@ class SubscriptionService
      */
     public function processExpirations(): void
     {
-        $gracePeriodDays = (int) env('SUBSCRIPTION_GRACE_PERIOD_DAYS', 15);
+        $gracePeriodDays = $this->getGracePeriodDays();
 
         $activeProfiles = Profile::whereIn('subscription_type', ['pro', 'premium'])->get();
         foreach ($activeProfiles as $profile) {

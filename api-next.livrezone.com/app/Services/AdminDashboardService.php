@@ -19,6 +19,7 @@ class AdminDashboardService
             'search' => 'nullable|string|max:100',
             'status' => ['nullable', Rule::in(['all', 'active', 'inactive'])],
             'connection' => ['nullable', Rule::in(['all', 'online', 'offline'])],
+            'type' => ['nullable', Rule::in(['all', 'free', 'pro', 'premium'])],
             'sort_by' => ['nullable', Rule::in(['created_at', 'name', 'email', 'last_activity'])],
             'sort_dir' => ['nullable', Rule::in(['asc', 'desc'])],
             'limit' => 'nullable|integer',
@@ -26,6 +27,7 @@ class AdminDashboardService
 
         $status = $data['status'] ?? 'all';
         $connection = $data['connection'] ?? 'all';
+        $type = $data['type'] ?? 'all';
 
         $query = User::query()->with('profile.city');
 
@@ -33,6 +35,13 @@ class AdminDashboardService
             $query->where('is_active', true);
         } elseif ($status === 'inactive') {
             $query->where('is_active', false);
+        }
+
+        // Filtre par type de compte (abonnement du profil)
+        if ($type !== 'all') {
+            $query->whereHas('profile', function ($q) use ($type) {
+                $q->where('subscription_type', $type);
+            });
         }
 
         // Filtre connexion (en ligne / hors ligne) basé sur la dernière activité
@@ -60,7 +69,16 @@ class AdminDashboardService
 
         $sortBy = $data['sort_by'] ?? 'created_at';
         $sortDir = $data['sort_dir'] ?? 'desc';
-        $query->orderBy($sortBy, $sortDir);
+
+        // 'last_activity' n'est pas une colonne réelle : COALESCE entre
+        // le heartbeat et la dernière connexion.
+        if ($sortBy === 'last_activity') {
+            $query->orderByRaw(
+                'COALESCE(last_activity_at, last_login_at) ' . ($sortDir === 'asc' ? 'ASC' : 'DESC')
+            );
+        } else {
+            $query->orderBy($sortBy, $sortDir);
+        }
 
         $limit = isset($data['limit']) ? (int) $data['limit'] : 20;
         $users = $query->paginate($limit);
@@ -95,23 +113,28 @@ class AdminDashboardService
             ];
         });
 
+        // Compteurs agrégés : une seule requête + cache court (30 s) car ces
+        // scans full-table (COALESCE) sont coûteux et appelés à chaque filtre.
+        $counts = \Illuminate\Support\Facades\Cache::remember('livrezone.admin.user_counts', 30, function () {
+            return [
+                'active' => User::where('is_active', true)->count(),
+                'inactive' => User::where('is_active', false)->count(),
+                'online' => User::whereRaw('COALESCE(last_activity_at, last_login_at) >= ?', [
+                    now()->subSeconds(static::ONLINE_WINDOW_SECONDS),
+                ])->count(),
+            ];
+        });
+
         return [
             'users' => $items->values()->all(),
             'meta' => [
                 'current_page' => $users->currentPage(),
                 'last_page' => $users->lastPage(),
                 'total' => $users->total(),
-                'active_count' => User::where('is_active', true)->count(),
-                'inactive_count' => User::where('is_active', false)->count(),
-                'online_count' => $this->onlineUserCount(),
+                'active_count' => $counts['active'],
+                'inactive_count' => $counts['inactive'],
+                'online_count' => $counts['online'],
             ],
         ];
-    }
-
-    protected function onlineUserCount(): int
-    {
-        return User::whereRaw('COALESCE(last_activity_at, last_login_at) >= ?', [
-            now()->subSeconds(static::ONLINE_WINDOW_SECONDS),
-        ])->count();
     }
 }

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/axios";
 import SortableTh from "@/components/SortableTh";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface AdminPayment {
   id: number;
@@ -73,10 +74,14 @@ export default function AdminPaymentsClient() {
 
   const [promoActive, setPromoActive] = useState<boolean | null>(null);
 
+  const [settings, setSettings] = useState<Record<string, number> | null>(null);
+  const [savingSettings, setSavingSettings] = useState(false);
+
   const [codes, setCodes] = useState<DiscountCode[]>([]);
   const [showCodeForm, setShowCodeForm] = useState(false);
   const [form, setForm] = useState({ code: "", type: "percent", value: "", max_uses: "" });
   const [savingCode, setSavingCode] = useState(false);
+  const [confirmDeleteCode, setConfirmDeleteCode] = useState<DiscountCode | null>(null);
 
   const toastsRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -121,21 +126,50 @@ export default function AdminPaymentsClient() {
     };
   }, [status, type, search, sortBy, sortDir, page]);
 
-  // État promo + codes
+  // État promo + codes + réglages tarification
   useEffect(() => {
     (async () => {
       try {
-        const [promo, codesRes] = await Promise.all([
+        const [promo, codesRes, settingsRes] = await Promise.all([
           api.get("/admin/promo"),
           api.get("/admin/discount-codes"),
+          api.get("/admin/settings"),
         ]);
         setPromoActive(promo.data.promo_pro_free ?? false);
         setCodes(codesRes.data.codes ?? []);
+        setSettings(settingsRes.data.settings ?? null);
       } catch {
         // silencieux
       }
     })();
   }, []);
+
+  const saveSettings = async () => {
+    if (!settings) return;
+    setSavingSettings(true);
+    try {
+      const res = await api.put("/admin/settings", {
+        max_free_listings: Number(settings.max_free_listings),
+        pro_price: Number(settings.pro_price),
+        premium_price: Number(settings.premium_price),
+        notification_delay_hours: Number(settings.notification_delay_hours),
+        subscription_grace_period_days: Number(settings.subscription_grace_period_days),
+      });
+      setSettings(res.data.settings);
+      pushToast(res.data.message ?? "Réglages mis à jour.");
+    } catch {
+      pushToast("Erreur lors de la sauvegarde des réglages.", "error");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const updateSettingField = (key: string, value: string) => {
+    setSettings((s) => {
+      if (!s) return s;
+      return { ...s, [key]: value === "" ? 0 : Number(value) };
+    });
+  };
 
   const togglePromo = async () => {
     try {
@@ -183,6 +217,10 @@ export default function AdminPaymentsClient() {
     }
   };
 
+  const requestDeleteCode = (code: DiscountCode) => {
+    setConfirmDeleteCode(code);
+  };
+
   const handleSort = (field: string) => {
     if (sortBy === field) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -223,6 +261,82 @@ export default function AdminPaymentsClient() {
           </div>
         ))}
       </div>
+
+      {/* Tarification & Réglages */}
+      {settings && (
+        <section className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-black text-sm uppercase tracking-wider text-gray-700 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-[#F97316]" /> Tarification &amp; Réglages abonnements
+            </h2>
+            <button
+              onClick={saveSettings}
+              disabled={savingSettings}
+              className="flex items-center gap-1.5 bg-[#6D28D9] hover:bg-violet-800 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all cursor-pointer disabled:opacity-50"
+            >
+              {savingSettings ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              Enregistrer
+            </button>
+          </div>
+          <p className="text-[11px] text-gray-400 mb-4">
+            Effet immédiat, sans redéploiement. Ces valeurs remplacent celles du fichier de configuration.
+          </p>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Annonces max (Free)</span>
+              <input
+                type="number"
+                min="0"
+                value={settings.max_free_listings}
+                onChange={(e) => updateSettingField("max_free_listings", e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Prix Pro (MAD)</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={settings.pro_price}
+                onChange={(e) => updateSettingField("pro_price", e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Prix Premium (MAD)</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={settings.premium_price}
+                onChange={(e) => updateSettingField("premium_price", e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Délai visibilité demandes (h)</span>
+              <input
+                type="number"
+                min="0"
+                value={settings.notification_delay_hours}
+                onChange={(e) => updateSettingField("notification_delay_hours", e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Délai de grâce (jours)</span>
+              <input
+                type="number"
+                min="0"
+                value={settings.subscription_grace_period_days}
+                onChange={(e) => updateSettingField("subscription_grace_period_days", e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
+              />
+            </label>
+          </div>
+        </section>
+      )}
 
       {/* Promo Pro gratuit */}
       <div
@@ -371,7 +485,7 @@ export default function AdminPaymentsClient() {
                       </td>
                       <td className="px-3 py-2 text-right">
                         <button
-                          onClick={() => deleteCode(c.id)}
+                          onClick={() => requestDeleteCode(c)}
                           title="Supprimer le code"
                           className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all cursor-pointer"
                         >
@@ -554,6 +668,23 @@ export default function AdminPaymentsClient() {
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={confirmDeleteCode !== null}
+        title="Supprimer ce code de réduction ?"
+        message={
+          confirmDeleteCode
+            ? `Le code « ${confirmDeleteCode.code} » sera définitivement supprimé.`
+            : ""
+        }
+        confirmLabel="Supprimer"
+        danger
+        onConfirm={() => {
+          if (confirmDeleteCode) deleteCode(confirmDeleteCode.id);
+          setConfirmDeleteCode(null);
+        }}
+        onCancel={() => setConfirmDeleteCode(null)}
+      />
 
       {/* Toast */}
       <div ref={toastsRef}>

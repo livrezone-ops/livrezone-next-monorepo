@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import {
   Users,
   BookOpen,
@@ -21,6 +21,8 @@ import api from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/api-error";
 import ToastContainer, { ToastData, ToastType } from "@/components/Toast";
 import SortableTh from "@/components/SortableTh";
+import { useDebounced } from "@/hooks/useDebounced";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 const PAGE_SIZE = 15;
 
@@ -184,12 +186,21 @@ export default function AdminClient({
 function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: ToastType) => void; currentUserId?: number }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounced(search);
   const [status, setStatus] = useState("all");
   const [connection, setConnection] = useState("all");
+  const [type, setType] = useState("all");
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
+
+  // Repasse à la page 1 quand la recherche stabilisée change
+  const [lastSearchKey, setLastSearchKey] = useState(debouncedSearch);
+  if (lastSearchKey !== debouncedSearch) {
+    setLastSearchKey(debouncedSearch);
+    setPage(1);
+  }
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
@@ -231,16 +242,18 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
     sort_by: sortBy,
     sort_dir: sortDir,
   };
-  if (search.trim()) params.search = search.trim();
+  if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
   if (status !== "all") params.status = status;
   if (connection !== "all") params.connection = connection;
+  if (type !== "all") params.type = type;
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: ["admin", "users", params],
     queryFn: async () => {
       const { data } = await api.get("/admin/users", { params });
       return data;
     },
+    placeholderData: keepPreviousData,
   });
 
   const meta = data?.meta;
@@ -274,8 +287,36 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
       });
   };
 
+  // Désactivation utilisateur : confirmation préalable (action impactante).
+  const [confirmDeactivate, setConfirmDeactivate] = useState<{ id: number; name: string } | null>(null);
+
+  const requestToggle = (id: number, name: string, isActive: boolean) => {
+    if (isActive) {
+      setConfirmDeactivate({ id, name });
+    } else {
+      toggleUser(id, isActive);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={confirmDeactivate !== null}
+        title="Désactiver cet utilisateur ?"
+        message={
+          confirmDeactivate
+            ? `${confirmDeactivate.name} ne pourra plus se connecter ni publier. Ses annonces existantes resteront en ligne.`
+            : ""
+        }
+        confirmLabel="Désactiver"
+        cancelLabel="Annuler"
+        danger
+        onConfirm={() => {
+          if (confirmDeactivate) toggleUser(confirmDeactivate.id, true);
+          setConfirmDeactivate(null);
+        }}
+        onCancel={() => setConfirmDeactivate(null)}
+      />
       <div className="flex flex-col sm:flex-row md:items-center justify-between gap-3">
         <div className="flex gap-2">
           {[
@@ -296,6 +337,17 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
         </div>
 
         <div className="flex items-center gap-3">
+          <select
+            value={type}
+            onChange={(e) => { setType(e.target.value); setPage(1); }}
+            className="text-xs border border-gray-200 bg-white rounded-lg py-2 px-2 pr-6 text-gray-600 shadow-xs cursor-pointer"
+          >
+            <option value="all">Tous les comptes</option>
+            <option value="free">Free</option>
+            <option value="pro">Pro</option>
+            <option value="premium">Premium</option>
+          </select>
+
           <select
             value={connection}
             onChange={(e) => { setConnection(e.target.value); setPage(1); }}
@@ -422,7 +474,7 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
                     <td className="px-4 py-3 text-right pr-4">
                       <div className="flex gap-1.5 justify-end items-center">
                         <button
-                          onClick={() => toggleUser(u.id, u.is_active)}
+                          onClick={() => requestToggle(u.id, u.name, u.is_active)}
                           disabled={busy}
                           className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
                             u.is_active
@@ -462,12 +514,41 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
 function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: string, t?: ToastType) => void; initialFilter?: string }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounced(search);
   const [filter, setFilter] = useState(initialFilter);
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [busyIds, setBusyIds] = useState<Set<number>>(new Set());
+  const [confirmAction, setConfirmAction] = useState<{
+    scope: "single" | "bulk";
+    id?: number;
+    action: string;
+  } | null>(null);
+
+  const ACTION_LABELS: Record<string, string> = {
+    activate: "Activer",
+    deactivate: "Désactiver",
+    delete: "Supprimer",
+  };
+
+  const runConfirmed = () => {
+    if (!confirmAction) return;
+    if (confirmAction.scope === "single" && confirmAction.id !== undefined) {
+      handleSingle(confirmAction.id, confirmAction.action);
+    } else {
+      handleBulk(confirmAction.action);
+    }
+    setConfirmAction(null);
+  };
+
+  // Repasse à la page 1 quand la recherche stabilisée change
+  const [lastSearchKey, setLastSearchKey] = useState(debouncedSearch);
+  if (lastSearchKey !== debouncedSearch) {
+    setLastSearchKey(debouncedSearch);
+    setPage(1);
+  }
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
@@ -485,15 +566,16 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
     sort_by: sortBy,
     sort_dir: sortDir,
   };
-  if (search.trim()) params.search = search.trim();
+  if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
   if (filter !== "all") params.filter = filter;
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: ["admin", "listings", params],
     queryFn: async () => {
       const { data } = await api.get("/admin/listings", { params });
       return data;
     },
+    placeholderData: keepPreviousData,
   });
 
   const meta = data?.meta;
@@ -578,6 +660,25 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={confirmAction !== null}
+        title={
+          confirmAction?.action === "delete"
+            ? confirmAction.scope === "bulk"
+              ? `Supprimer ${selectedIds.length} annonces ?`
+              : "Supprimer cette annonce ?"
+            : `${ACTION_LABELS[confirmAction?.action ?? ""] ?? "Modifier"} ${confirmAction?.scope === "bulk" ? `${selectedIds.length} annonces` : "cette annonce"} ?`
+        }
+        message={
+          confirmAction?.action === "delete"
+            ? "L'annonce sera retirée de la plateforme et ne pourra plus être récupérée par l'acheteur."
+            : "L'annonce deviendra invisible publiquement. Le vendeur pourra la réactiver."
+        }
+        confirmLabel={ACTION_LABELS[confirmAction?.action ?? ""] ?? "Confirmer"}
+        danger={confirmAction?.action === "delete"}
+        onConfirm={runConfirmed}
+        onCancel={() => setConfirmAction(null)}
+      />
       <div className="flex flex-col sm:flex-row md:items-center justify-between gap-4">
         <div className="flex bg-gray-100 rounded-lg p-0.5 flex-wrap">
           {[
@@ -627,21 +728,21 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
             <button
-              onClick={() => handleBulk("activate")}
+              onClick={() => setConfirmAction({ scope: "bulk", action: "activate" })}
               disabled={bulkMutation.isPending}
               className="flex items-center gap-1.5 text-xs font-bold bg-white text-emerald-600 hover:bg-emerald-50 border border-gray-200 px-3 py-2 rounded-lg transition-colors cursor-pointer"
             >
               <Play className="w-3.5 h-3.5" /> Activer
             </button>
             <button
-              onClick={() => handleBulk("deactivate")}
+              onClick={() => setConfirmAction({ scope: "bulk", action: "deactivate" })}
               disabled={bulkMutation.isPending}
               className="flex items-center gap-1.5 text-xs font-bold bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 px-3 py-2 rounded-lg transition-colors cursor-pointer"
             >
               <Ban className="w-3.5 h-3.5" /> Désactiver
             </button>
             <button
-              onClick={() => handleBulk("delete")}
+              onClick={() => setConfirmAction({ scope: "bulk", action: "delete" })}
               disabled={bulkMutation.isPending}
               className="flex items-center gap-1.5 text-xs font-bold bg-white text-rose-600 hover:bg-rose-50 border border-gray-200 px-3 py-2 rounded-lg transition-colors cursor-pointer"
             >
@@ -721,10 +822,10 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
                         <button onClick={() => handleSingle(l.id, "activate")} disabled={busy} className="p-1.5 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer" title="Activer">
                           <Play className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => handleSingle(l.id, "deactivate")} disabled={busy} className="p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer" title="Désactiver">
+                        <button onClick={() => setConfirmAction({ scope: "single", id: l.id, action: "deactivate" })} disabled={busy} className="p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer" title="Désactiver">
                           <Ban className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => handleSingle(l.id, "delete")} disabled={busy} className="p-1.5 text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer" title="Supprimer">
+                        <button onClick={() => setConfirmAction({ scope: "single", id: l.id, action: "delete" })} disabled={busy} className="p-1.5 text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer" title="Supprimer">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>

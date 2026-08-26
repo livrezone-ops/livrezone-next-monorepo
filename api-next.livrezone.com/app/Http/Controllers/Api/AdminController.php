@@ -198,6 +198,33 @@ class AdminController extends Controller
         ]);
     }
 
+    public function settings(\App\Services\SubscriptionService $subscriptions)
+    {
+        return response()->json([
+            'settings' => $subscriptions->getEditableSettings(),
+        ]);
+    }
+
+    public function updateSettings(Request $request, \App\Services\SubscriptionService $subscriptions)
+    {
+        $validated = $request->validate([
+            'max_free_listings' => 'nullable|integer|min:0|max:10000',
+            'pro_price' => 'nullable|numeric|min:0|max:100000',
+            'premium_price' => 'nullable|numeric|min:0|max:100000',
+            'notification_delay_hours' => 'nullable|integer|min:0|max:720',
+            'subscription_grace_period_days' => 'nullable|integer|min:0|max:365',
+        ]);
+
+        foreach (array_filter($validated, fn ($v) => $v !== null) as $key => $value) {
+            $subscriptions->setSetting($key, $value);
+        }
+
+        return response()->json([
+            'message' => 'Réglages mis à jour.',
+            'settings' => $subscriptions->getEditableSettings(),
+        ]);
+    }
+
     public function togglePromo(Request $request, \App\Services\SubscriptionService $subscriptions)
     {
         $validated = $request->validate([

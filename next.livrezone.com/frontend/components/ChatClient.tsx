@@ -27,6 +27,7 @@ import { setChatActive } from "@/lib/chat-active";
 import { useAuth } from "@/hooks/useAuth";
 import { useToasts } from "@/hooks/useToasts";
 import Toast from "@/components/Toast";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 function getImageUrl(url?: string | null): string | null {
   if (!url) return null;
@@ -72,6 +73,9 @@ export default function ChatClient() {
   });
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [confirm, setConfirm] = useState<
+    { kind: "thread"; id: number } | { kind: "message"; id: number } | null
+  >(null);
   const [editText, setEditText] = useState("");
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -340,15 +344,7 @@ export default function ChatClient() {
   });
 
   const handleDeleteThread = (threadId: number) => {
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        "Supprimer cette conversation ? Tous les messages seront perdus."
-      )
-    ) {
-      return;
-    }
-    deleteThreadMutation.mutate(threadId);
+    setConfirm({ kind: "thread", id: threadId });
   };
 
   const handleSend = useCallback(
@@ -372,15 +368,31 @@ export default function ChatClient() {
   };
 
   const handleDelete = (msg: ChatMessage) => {
-    if (typeof window !== "undefined" && !window.confirm("Supprimer ce message ?")) {
-      return;
-    }
-    deleteMutation.mutate(msg.id);
+    setConfirm({ kind: "message", id: msg.id });
   };
 
   return (
     <div className="w-full max-w-7xl mx-auto">
       <Toast toasts={toasts} dismiss={dismissToast} />
+
+      <ConfirmDialog
+        open={confirm !== null}
+        title={confirm?.kind === "thread" ? "Supprimer la conversation ?" : "Supprimer ce message ?"}
+        message={
+          confirm?.kind === "thread"
+            ? "Tous les messages seront perdus pour vous. Cette action est irréversible."
+            : "Le message sera supprimé pour tous les participants."
+        }
+        confirmLabel="Supprimer"
+        danger
+        onConfirm={() => {
+          if (!confirm) return;
+          if (confirm.kind === "thread") deleteThreadMutation.mutate(confirm.id);
+          else deleteMutation.mutate(confirm.id);
+          setConfirm(null);
+        }}
+        onCancel={() => setConfirm(null)}
+      />
 
       <h1 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-2">
         <MessageSquare className="h-6 w-6 text-[#6D28D9]" />
