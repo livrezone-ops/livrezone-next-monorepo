@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import {
   Users,
@@ -99,11 +99,6 @@ function formatDate(value?: string | null): string {
   } catch {
     return "—";
   }
-}
-
-function formatTimestamp(ts: number | null): string {
-  if (!ts) return "—";
-  return new Date(ts * 1000).toLocaleString("fr-FR");
 }
 
 function getAvatarUrl(p?: AdminUser["profile"]): string | null {
@@ -247,7 +242,7 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
   if (connection !== "all") params.connection = connection;
   if (type !== "all") params.type = type;
 
-  const { data, isLoading, isError, isFetching } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["admin", "users", params],
     queryFn: async () => {
       const { data } = await api.get("/admin/users", { params });
@@ -569,7 +564,7 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
   if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
   if (filter !== "all") params.filter = filter;
 
-  const { data, isLoading, isError, isFetching } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["admin", "listings", params],
     queryFn: async () => {
       const { data } = await api.get("/admin/listings", { params });
@@ -848,8 +843,9 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
 // ==================================================================
 
 function HeroTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void }) {
-  const [messages, setMessages] = useState<HeroMessage[] | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  // Édition locale uniquement : les données serveur sont dérivées au rendu
+  // (pas de synchronisation state <-> props dans un effet).
+  const [overrides, setOverrides] = useState<HeroMessage[] | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["admin", "hero-file"],
@@ -860,21 +856,14 @@ function HeroTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void 
     },
   });
 
-  useEffect(() => {
-    if (!loaded && !isLoading) {
-      const msgs = (data?.messages as HeroMessage[] | undefined) ?? [];
-      setMessages(msgs.length > 0 ? msgs : [newBlankMessage(1)]);
-      setLoaded(true);
-    }
-  }, [loaded, isLoading, data]);
+  const serverMessages = (data?.messages as HeroMessage[] | undefined) ?? [];
+  const messages: HeroMessage[] = overrides ??
+    (isLoading ? [] : (serverMessages.length > 0 ? serverMessages : [newBlankMessage(1)]));
 
   const updateField = <K extends keyof HeroMessage>(index: number, key: K, value: HeroMessage[K]) => {
-    setMessages((prev) => {
-      if (!prev) return prev;
-      const next = [...prev];
-      next[index] = { ...next[index], [key]: value };
-      return next;
-    });
+    const next = [...messages];
+    next[index] = { ...next[index], [key]: value };
+    setOverrides(next);
   };
 
   const updateNested = (
@@ -883,33 +872,24 @@ function HeroTab({ pushToast }: { pushToast: (m: string, t?: ToastType) => void 
     field: "label" | "href",
     value: string
   ) => {
-    setMessages((prev) => {
-      if (!prev) return prev;
-      const next = [...prev];
-      const msg = { ...next[index] };
-      const action = msg[kind] ? { ...msg[kind] } : { label: "", href: "" };
-      (action as Record<string, string>)[field] = value;
-      (msg as Record<string, unknown>)[kind] = action;
-      next[index] = msg as HeroMessage;
-      return next;
-    });
+    const next = [...messages];
+    const msg = { ...next[index] };
+    const action = msg[kind] ? { ...msg[kind] } : { label: "", href: "" };
+    (action as Record<string, string>)[field] = value;
+    (msg as Record<string, unknown>)[kind] = action;
+    next[index] = msg as HeroMessage;
+    setOverrides(next);
   };
 
   const addMessage = () => {
-    setMessages((prev) => {
-      if (!prev) return prev;
-      const maxId = prev.reduce((m, x) => Math.max(m, x.id ?? 0), 0);
-      return [...prev, newBlankMessage(maxId + 1)];
-    });
+    const maxId = messages.reduce((m, x) => Math.max(m, x.id ?? 0), 0);
+    setOverrides([...messages, newBlankMessage(maxId + 1)]);
   };
 
   const removeMessage = (index: number) => {
-    setMessages((prev) => {
-      if (!prev) return prev;
-      const next = [...prev];
-      next.splice(index, 1);
-      return next.length > 0 ? next : [newBlankMessage(1)];
-    });
+    const next = [...messages];
+    next.splice(index, 1);
+    setOverrides(next.length > 0 ? next : [newBlankMessage(1)]);
   };
 
   const saveMutation = useMutation({

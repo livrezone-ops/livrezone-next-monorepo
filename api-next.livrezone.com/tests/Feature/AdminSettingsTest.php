@@ -29,7 +29,7 @@ class AdminSettingsTest extends TestCase
     {
         $admin = User::factory()->create(['is_admin' => true]);
 
-        $response = $this->actingAs($admin)->putJson('/api/admin/settings', [
+        $response = $this->actingAs($admin)->postJson('/api/admin/settings', [
             'max_free_listings' => 10,
             'pro_price' => 35.5,
             'subscription_grace_period_days' => 7,
@@ -50,7 +50,7 @@ class AdminSettingsTest extends TestCase
     {
         $admin = User::factory()->create(['is_admin' => true]);
 
-        $this->actingAs($admin)->putJson('/api/admin/settings', ['max_free_listings' => 5]);
+        $this->actingAs($admin)->postJson('/api/admin/settings', ['max_free_listings' => 5]);
 
         Cache::flush(); // simule optimize:clear lors d'un déploiement
 
@@ -74,7 +74,7 @@ class AdminSettingsTest extends TestCase
         $seller = User::factory()->create();
 
         $this->actingAs($seller)
-            ->putJson('/api/admin/settings', ['max_free_listings' => 1])
+            ->postJson('/api/admin/settings', ['max_free_listings' => 1])
             ->assertStatus(403);
     }
 }

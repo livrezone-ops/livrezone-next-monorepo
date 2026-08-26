@@ -154,14 +154,15 @@ export default function AdminPaymentsClient() {
     if (!settings) return;
     setSavingSettings(true);
     try {
-      const res = await api.put("/admin/settings", {
-        max_free_listings: Number(settings.max_free_listings),
-        pro_price: Number(settings.pro_price),
-        premium_price: Number(settings.premium_price),
-        pro_price_yearly: Number(settings.pro_price_yearly ?? 0),
-        premium_price_yearly: Number(settings.premium_price_yearly ?? 0),
-        notification_delay_hours: Number(settings.notification_delay_hours),
-        subscription_grace_period_days: Number(settings.subscription_grace_period_days),
+      const res = await api.post("/admin/settings", {
+        // Prix en dirhams entiers (pas de 1 DH), arrondis par sécurité.
+        max_free_listings: Math.round(Number(settings.max_free_listings)),
+        pro_price: Math.round(Number(settings.pro_price)),
+        premium_price: Math.round(Number(settings.premium_price)),
+        pro_price_yearly: Math.round(Number(settings.pro_price_yearly ?? 0)),
+        premium_price_yearly: Math.round(Number(settings.premium_price_yearly ?? 0)),
+        notification_delay_hours: Math.round(Number(settings.notification_delay_hours)),
+        subscription_grace_period_days: Math.round(Number(settings.subscription_grace_period_days)),
       });
       setSettings(res.data.settings);
       pushToast(res.data.message ?? "Réglages mis à jour.");
@@ -322,7 +323,7 @@ export default function AdminPaymentsClient() {
               <input
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 value={settings.pro_price}
                 onChange={(e) => updateSettingField("pro_price", e.target.value)}
                 className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
@@ -333,7 +334,7 @@ export default function AdminPaymentsClient() {
               <input
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 value={settings.premium_price}
                 onChange={(e) => updateSettingField("premium_price", e.target.value)}
                 className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
@@ -344,7 +345,7 @@ export default function AdminPaymentsClient() {
               <input
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 value={settings.pro_price_yearly ?? 0}
                 onChange={(e) => updateSettingField("pro_price_yearly", e.target.value)}
                 className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
@@ -355,7 +356,7 @@ export default function AdminPaymentsClient() {
               <input
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 value={settings.premium_price_yearly ?? 0}
                 onChange={(e) => updateSettingField("premium_price_yearly", e.target.value)}
                 className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
@@ -456,7 +457,7 @@ export default function AdminPaymentsClient() {
             <input
               required
               type="number"
-              step="0.01"
+              step="1"
               min="0.01"
               value={form.value}
               onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))}

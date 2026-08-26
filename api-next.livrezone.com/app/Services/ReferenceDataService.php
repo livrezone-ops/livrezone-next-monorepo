@@ -63,6 +63,7 @@ class ReferenceDataService
                 'premium_price_yearly' => $subscription->getPremiumPriceYearly(),
                 'promo_pro_free' => $subscription->isPromoProFree(),
                 'pro_notification_delay_hours' => $subscription->getNotificationDelayHours(),
+                'payment_gateways' => app(\App\Services\PaymentGatewayService::class)->enabled(),
             ];
 
             return [

@@ -144,4 +144,32 @@ class PaymentSimulatorTest extends TestCase
             'discount_code' => 'EXPIRE',
         ])->assertStatus(422);
     }
+
+    public function test_preview_shows_discounted_amount_without_creating_payment(): void
+    {
+        DiscountCode::create([
+            'code' => 'PROMO20',
+            'type' => 'percent',
+            'value' => 20,
+            'is_active' => true,
+        ]);
+
+        $user = User::factory()->create();
+
+        // Coupon valide : aperçu réduit, aucun paiement créé.
+        $response = $this->actingAs($user)->postJson('/api/payments/preview', [
+            'subscription_type' => 'pro',
+            'period' => 'monthly',
+            'discount_code' => 'PROMO20',
+        ])->assertOk();
+
+        $response->assertJson([
+            'base_amount' => 30.0,
+            'amount' => 24.0,
+            'coupon_valid' => true,
+            'discount' => 6.0,
+        ]);
+
+        $this->assertSame(0, Payment::count());
+    }
 }

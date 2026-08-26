@@ -9,6 +9,7 @@ import api from "@/lib/axios";
 import { Loader2, Search, Plus, Minus, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
+import type { BookSearchItem } from "@/lib/books-api";
 
 // Types pour les données de référence
 interface CategoryNode {
@@ -165,12 +166,6 @@ const getCategoryRules = (cats: CategoryNode[] | undefined, categoryId: number |
 
 export default function ListingForm({ initialData, onSubmitSuccess, isEditMode = false, onError }: ListingFormProps) {
   const { user } = useAuth();
-  const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'https://api-next.livrezone.com/api').replace(/\/api\/?$/, '');
-  const resolveCoverUrl = (path?: string) => {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    return `${API_ORIGIN}/${path.replace(/^\//, '')}`;
-  };
 
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(
@@ -182,7 +177,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
 
   // Recherche / Autocomplétion de livres
   const [bookSearchQuery, setBookSearchQuery] = useState("");
-  const [bookSuggestions, setBookSuggestions] = useState<any[]>([]);
+  const [bookSuggestions, setBookSuggestions] = useState<BookSearchItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearchingBooks, setIsSearchingBooks] = useState(false);
   const [bookSearchError, setBookSearchError] = useState<string | null>(null);
@@ -341,12 +336,13 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
   // Autocomplétion
   useEffect(() => {
     const term = bookSearchQuery.trim();
-    if (term.length < 2) {
-      setBookSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
     const delay = setTimeout(async () => {
+      // Réinitialisation dans le timer : évite un setState synchrone dans l'effet.
+      if (term.length < 2) {
+        setBookSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
       try {
         const res = await api.get(`/books/autocomplete?q=${encodeURIComponent(term)}`);
         setBookSuggestions(res.data || []);
@@ -562,7 +558,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
               </div>
               <div>
                   <h3 className="font-bold text-slate-800 text-lg sm:text-xl">Quel livre souhaitez-vous vendre ? (Titre ou ISBN)</h3>
-                  <p className="text-sm font-medium text-slate-500 mt-0.5">On s'occupe du reste ✨</p>
+                  <p className="text-sm font-medium text-slate-500 mt-0.5">On s&apos;occupe du reste ✨</p>
               </div>
           </div>
           <div className="relative flex items-center w-full z-50">
@@ -801,7 +797,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                 <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className="mb-1 block text-sm font-semibold text-slate-700">Prix (MAD) <span className="text-red-500">*</span></label>
-                        <input type="number" step="0.01" min="0"
+                        <input type="number" step="1" min="0"
                                {...form.register("price", { valueAsNumber: true })}
                                onChange={(e) => {
                                    form.register("price", { valueAsNumber: true }).onChange(e);
@@ -824,7 +820,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                     </div>
                     <div>
                         <label className="mb-1 block text-sm font-semibold text-slate-700">Prix réduit</label>
-                        <input type="number" step="0.01" min="0"
+                        <input type="number" step="1" min="0"
                                {...form.register("discount_price", { setValueAs: v => (v === "" || v === null || isNaN(v)) ? null : parseFloat(v) })}
                                onChange={(e) => {
                                    form.register("discount_price").onChange(e);

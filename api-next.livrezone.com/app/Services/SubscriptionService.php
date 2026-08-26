@@ -68,6 +68,8 @@ class SubscriptionService
 
         \App\Models\Setting::updateOrCreate(['key' => $key], ['value' => (string) $value]);
         \Illuminate\Support\Facades\Cache::forget("livrezone.setting.{$key}");
+        // /reference-data (page tarification) embarque prix et délais : invalider.
+        \Illuminate\Support\Facades\Cache::forget('reference_data');
     }
 
     /**
@@ -145,6 +147,8 @@ class SubscriptionService
         );
 
         \Illuminate\Support\Facades\Cache::forget(self::PROMO_CACHE_KEY);
+        // La page tarification lit la promo via /reference-data (cache 24 h).
+        \Illuminate\Support\Facades\Cache::forget('reference_data');
     }
 
     /**

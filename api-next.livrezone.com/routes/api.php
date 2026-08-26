@@ -82,6 +82,7 @@ Route::middleware('auth:sanctum')->prefix('orders')->group(function () {
 
 Route::middleware('auth:sanctum')->prefix('payments')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\PaymentController::class, 'index']);
+    Route::post('/preview', [\App\Http\Controllers\Api\PaymentController::class, 'preview']);
     Route::post('/', [\App\Http\Controllers\Api\PaymentController::class, 'store']);
     Route::post('/{payment}/simulate-confirm', [\App\Http\Controllers\Api\PaymentController::class, 'simulateConfirm']);
 });
@@ -153,7 +154,8 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/promo', [AdminController::class, 'promoState']);
     Route::post('/promo/toggle', [AdminController::class, 'togglePromo']);
     Route::get('/settings', [AdminController::class, 'settings']);
-    Route::put('/settings', [AdminController::class, 'updateSettings']);
+    // POST plutôt que PUT : le WAF OpenPanel bloque les méthodes non standard.
+    Route::post('/settings', [AdminController::class, 'updateSettings']);
     Route::get('/discount-codes', [AdminController::class, 'discountCodes']);
     Route::post('/discount-codes', [AdminController::class, 'storeDiscountCode']);
     Route::put('/discount-codes/{discountCode}', [AdminController::class, 'updateDiscountCode']);

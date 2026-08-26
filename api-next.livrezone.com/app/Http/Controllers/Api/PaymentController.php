@@ -10,7 +10,6 @@ use App\Services\AdminPaymentService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -24,6 +23,33 @@ class PaymentController extends Controller
             ->get();
 
         return response()->json(['payments' => $payments]);
+    }
+
+    /**
+     * Aperçu en temps réel du montant (utilisé pendant la saisie du coupon).
+     * Ne crée rien : même calcul que store(), source de vérité unique.
+     */
+    public function preview(Request $request, SubscriptionService $subscriptions): JsonResponse
+    {
+        $validated = $request->validate([
+            'subscription_type' => ['required', Rule::in(['pro', 'premium'])],
+            'period' => ['required', Rule::in(['monthly', 'yearly'])],
+            'discount_code' => 'nullable|string|max:30',
+        ]);
+
+        [$amount, $baseAmount, $coupon] = $this->resolveAmount(
+            $validated['subscription_type'],
+            $validated['period'],
+            $validated['discount_code'] ?? null,
+            $subscriptions
+        );
+
+        return response()->json([
+            'base_amount' => $baseAmount,
+            'amount' => $amount,
+            'coupon_valid' => $coupon !== null,
+            'discount' => $coupon ? round($baseAmount - $amount, 2) : 0,
+        ]);
     }
 
     /**
@@ -51,33 +77,12 @@ class PaymentController extends Controller
             ]);
         }
 
-        // Code de réduction (facultatif) : doit être actif, non expiré, sous quota.
-        $coupon = null;
-        if (! empty($validated['discount_code'])) {
-            $coupon = DiscountCode::where('code', strtoupper($validated['discount_code']))->first();
-
-            if (
-                ! $coupon || ! $coupon->is_active ||
-                ($coupon->expires_at && $coupon->expires_at->isPast()) ||
-                ($coupon->max_uses !== null && $coupon->times_used >= $coupon->max_uses)
-            ) {
-                throw ValidationException::withMessages([
-                    'discount_code' => 'Code de réduction invalide ou expiré.',
-                ]);
-            }
-        }
-
-        $isPro = $validated['subscription_type'] === 'pro';
-        $amount = $validated['period'] === 'yearly'
-            ? ($isPro ? $subscriptions->getProPriceYearly() : $subscriptions->getPremiumPriceYearly())
-            : ($isPro ? $subscriptions->getProPrice() : $subscriptions->getPremiumPrice());
-
-        // Application de la remise
-        if ($coupon) {
-            $amount = $coupon->type === 'percent'
-                ? round($amount * (1 - ($coupon->value / 100)), 2)
-                : max(0, (float) $amount - (float) $coupon->value);
-        }
+        [$amount, , $coupon] = $this->resolveAmount(
+            $validated['subscription_type'],
+            $validated['period'],
+            $validated['discount_code'] ?? null,
+            $subscriptions
+        );
 
         $payment = Payment::create([
             'user_id' => $request->user()->id,
@@ -96,6 +101,42 @@ class PaymentController extends Controller
             'payment' => $payment,
             'simulator' => (bool) config('livrezone.payment_simulator'),
         ], 201);
+    }
+
+    /**
+     * Calcule le montant final : prix des réglages, moins la remise du coupon
+     * si celui-ci est valide. Retourne [montant final, montant de base, coupon|null].
+     *
+     * @return array{0: float, 1: float, 2: DiscountCode|null}
+     */
+    private function resolveAmount(string $type, string $period, ?string $code, SubscriptionService $subscriptions): array
+    {
+        $isPro = $type === 'pro';
+        $baseAmount = $period === 'yearly'
+            ? ($isPro ? $subscriptions->getProPriceYearly() : $subscriptions->getPremiumPriceYearly())
+            : ($isPro ? $subscriptions->getProPrice() : $subscriptions->getPremiumPrice());
+
+        if (! $code) {
+            return [(float) $baseAmount, (float) $baseAmount, null];
+        }
+
+        $coupon = DiscountCode::where('code', strtoupper($code))->first();
+
+        if (
+            ! $coupon || ! $coupon->is_active ||
+            ($coupon->expires_at && $coupon->expires_at->isPast()) ||
+            ($coupon->max_uses !== null && $coupon->times_used >= $coupon->max_uses)
+        ) {
+            throw ValidationException::withMessages([
+                'discount_code' => 'Code de réduction invalide ou expiré.',
+            ]);
+        }
+
+        $amount = $coupon->type === 'percent'
+            ? round($baseAmount * (1 - ($coupon->value / 100)), 2)
+            : max(0, (float) $baseAmount - (float) $coupon->value);
+
+        return [$amount, (float) $baseAmount, $coupon];
     }
 
     /**
