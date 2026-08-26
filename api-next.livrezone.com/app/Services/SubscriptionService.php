@@ -8,6 +8,7 @@ use App\Models\Profile;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Source de vérité unique pour la gestion des abonnements :
@@ -33,7 +34,38 @@ class SubscriptionService
         'premium_price_yearly' => 'PREMIUM_PRICE_YEARLY',
         'notification_delay_hours' => 'PRO_NOTIFICATION_DELAY_HOURS',
         'subscription_grace_period_days' => 'SUBSCRIPTION_GRACE_PERIOD_DAYS',
+        'subscriptions_disabled' => 'SUBSCRIPTIONS_DISABLED',
     ];
+
+    /**
+     * Inscriptions Pro/Premium bloquées momentanément par l'admin ?
+     */
+    public function areSubscriptionsDisabled(): bool
+    {
+        return (bool) $this->setting('subscriptions_disabled', 'SUBSCRIPTIONS_DISABLED', false);
+    }
+
+    /**
+     * Moyens de paiement manuels activés par l'admin
+     * (les passerelles en ligne sont gérées séparément via PaymentGatewayService).
+     *
+     * @return string[]
+     */
+    public function enabledPaymentMethods(): array
+    {
+        $methods = [
+            'virement' => 'PAYMENT_METHOD_VIREMENT',
+            'especes' => 'PAYMENT_METHOD_ESPECES',
+            'cheque' => 'PAYMENT_METHOD_CHEQUE',
+            'autre' => 'PAYMENT_METHOD_AUTRE',
+        ];
+
+        return collect($methods)
+            ->filter(fn ($envKey, $key) => (bool) $this->setting("payment_method_{$key}", $envKey, true))
+            ->keys()
+            ->values()
+            ->all();
+    }
 
     /**
      * Lit un réglage : valeur admin (DB, prioritaire) sinon variable d'environnement.
@@ -85,6 +117,11 @@ class SubscriptionService
             'premium_price_yearly' => $this->getPremiumPriceYearly(),
             'notification_delay_hours' => $this->getNotificationDelayHours(),
             'subscription_grace_period_days' => $this->getGracePeriodDays(),
+            'subscriptions_disabled' => (int) $this->areSubscriptionsDisabled(),
+            'method_virement' => (int) in_array('virement', $this->enabledPaymentMethods(), true),
+            'method_especes' => (int) in_array('especes', $this->enabledPaymentMethods(), true),
+            'method_cheque' => (int) in_array('cheque', $this->enabledPaymentMethods(), true),
+            'method_autre' => (int) in_array('autre', $this->enabledPaymentMethods(), true),
         ];
     }
 
@@ -327,6 +364,69 @@ class SubscriptionService
         if ($type === 'free') {
             $this->deactivateExcessFreeListings($profile);
         }
+
+        return $profile->fresh();
+    }
+
+    /**
+     * Désactivation temporaire par l'admin : bascule en Free en mémorisant
+     * l'offre d'origine (paused_from_type) pour permettre la reprise.
+     * Les annonces excédentaires sont masquées, comme après un downgrade.
+     */
+    public function pauseSubscription(User $user): Profile
+    {
+        $profile = $user->profile;
+
+        if (! $profile) {
+            throw new \RuntimeException('Profil introuvable pour cet utilisateur.');
+        }
+
+        if ($profile->subscription_type === 'free') {
+            throw ValidationException::withMessages([
+                'status' => 'Cet utilisateur est déjà sur le plan gratuit.',
+            ]);
+        }
+
+        $profile->update([
+            'paused_from_type' => $profile->subscription_type,
+            'paused_at' => now(),
+            'subscription_type' => 'free',
+        ]);
+
+        $this->deactivateExcessFreeListings($profile->fresh());
+
+        return $profile->fresh();
+    }
+
+    /**
+     * Reprise d'un abonnement mis en pause : restaure l'offre d'origine
+     * si le paiement sous-jacent est encore valide.
+     */
+    public function resumeSubscription(User $user): Profile
+    {
+        $profile = $user->profile;
+
+        if (! $profile || ! $profile->paused_from_type) {
+            throw ValidationException::withMessages([
+                'status' => 'Aucun abonnement en pause pour cet utilisateur.',
+            ]);
+        }
+
+        $lastPayment = $this->getLatestPaidPayment($user->id);
+
+        if (! $lastPayment || ! $lastPayment->expires_at || Carbon::parse($lastPayment->expires_at)->isPast()) {
+            // Offre sous-jacente expirée pendant la pause : reprise impossible,
+            // l'utilisateur doit repasser par un nouveau paiement.
+            throw ValidationException::withMessages([
+                'status' => 'Le paiement sous-jacent a expiré. Reprenez via un nouveau paiement.',
+            ]);
+        }
+
+        $profile->update([
+            'subscription_type' => $profile->paused_from_type,
+            'paused_from_type' => null,
+            'paused_at' => null,
+        ]);
 
         return $profile->fresh();
     }

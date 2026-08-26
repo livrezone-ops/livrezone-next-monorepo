@@ -15,7 +15,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
+  Pause,
   Plus,
+  Loader2,
 } from "lucide-react";
 import api from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -40,6 +42,8 @@ interface AdminUser {
     nickname?: string | null;
     logo?: string | null;
     subscription_type?: string | null;
+    paused_from_type?: string | null;
+    paused_at?: string | null;
   } | null;
   listings_count: number;
   last_login_at?: string | null;
@@ -285,6 +289,24 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
   // Désactivation utilisateur : confirmation préalable (action impactante).
   const [confirmDeactivate, setConfirmDeactivate] = useState<{ id: number; name: string } | null>(null);
 
+  // Pause / reprise d'abonnement
+  const [confirmPause, setConfirmPause] = useState<{ id: number; name: string } | null>(null);
+  const [pausePendingId, setPausePendingId] = useState<number | null>(null);
+
+  const togglePause = async (id: number, name: string, pause: boolean) => {
+    if (pausePendingId !== null) return;
+    setPausePendingId(id);
+    try {
+      const res = await api.post(`/admin/users/${id}/subscription/${pause ? "pause" : "resume"}`);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      pushToast(res?.data?.message || "Abonnement mis à jour");
+    } catch (e) {
+      pushToast(getApiErrorMessage(e, "Erreur lors de la modification de l'abonnement."), "warning");
+    } finally {
+      setPausePendingId(null);
+    }
+  };
+
   const requestToggle = (id: number, name: string, isActive: boolean) => {
     if (isActive) {
       setConfirmDeactivate({ id, name });
@@ -295,6 +317,22 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
 
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={confirmPause !== null}
+        title="Mettre l'abonnement en pause ?"
+        message={
+          confirmPause
+            ? `${confirmPause.name} repassera en plan gratuit et ses annonces excédentaires seront masquées. L'offre d'origine sera mémorisée pour une reprise ultérieure.`
+            : ""
+        }
+        confirmLabel="Mettre en pause"
+        danger
+        onConfirm={() => {
+          if (confirmPause) togglePause(confirmPause.id, confirmPause.name, true);
+          setConfirmPause(null);
+        }}
+        onCancel={() => setConfirmPause(null)}
+      />
       <ConfirmDialog
         open={confirmDeactivate !== null}
         title="Désactiver cet utilisateur ?"
@@ -452,17 +490,38 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
                       {u.id === currentUserId ? (
                         <span className="text-[10px] text-gray-400">—</span>
                       ) : (
-                        <select
-                          value={u.profile?.subscription_type ?? "free"}
-                          disabled={pendingIds.has(u.id)}
-                          onChange={(e) => changeSubscription(u.id, e.target.value)}
-                          className="text-[11px] border border-gray-200 bg-white rounded-lg py-1.5 px-2 text-gray-600 shadow-xs cursor-pointer disabled:opacity-50"
-                          title="Changer le profil d'abonnement"
-                        >
-                          <option value="free">Gratuit</option>
-                          <option value="pro">Pro</option>
-                          <option value="premium">Premium</option>
-                        </select>
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={u.profile?.subscription_type ?? "free"}
+                            disabled={pendingIds.has(u.id)}
+                            onChange={(e) => changeSubscription(u.id, e.target.value)}
+                            className="text-[11px] border border-gray-200 bg-white rounded-lg py-1.5 px-2 text-gray-600 shadow-xs cursor-pointer disabled:opacity-50"
+                            title="Changer le profil d'abonnement"
+                          >
+                            <option value="free">Gratuit</option>
+                            <option value="pro">Pro</option>
+                            <option value="premium">Premium</option>
+                          </select>
+                          {pausePendingId === u.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-[#6D28D9]" />
+                          ) : u.profile?.paused_from_type ? (
+                            <button
+                              onClick={() => togglePause(u.id, u.name, false)}
+                              className="p-1.5 rounded-lg transition-colors cursor-pointer text-emerald-600 hover:bg-emerald-50"
+                              title={`Reprendre l'abonnement ${u.profile.paused_from_type.toUpperCase()}`}
+                            >
+                              <Play className="w-4 h-4" />
+                            </button>
+                          ) : (u.profile?.subscription_type ?? "free") !== "free" ? (
+                            <button
+                              onClick={() => setConfirmPause({ id: u.id, name: u.name })}
+                              className="p-1.5 rounded-lg transition-colors cursor-pointer text-orange-500 hover:bg-orange-50"
+                              title="Mettre l'abonnement en pause"
+                            >
+                              <Pause className="w-4 h-4" />
+                            </button>
+                          ) : null}
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-3 text-gray-400">{formatDate(u.created_at)}</td>

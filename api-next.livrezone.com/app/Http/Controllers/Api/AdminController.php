@@ -213,7 +213,33 @@ class AdminController extends Controller
             'premium_price' => 'nullable|numeric|min:0|max:100000',
             'notification_delay_hours' => 'nullable|integer|min:0|max:720',
             'subscription_grace_period_days' => 'nullable|integer|min:0|max:365',
+            'subscriptions_disabled' => 'nullable|boolean',
+            'method_virement' => 'nullable|boolean',
+            'method_especes' => 'nullable|boolean',
+            'method_cheque' => 'nullable|boolean',
+            'method_autre' => 'nullable|boolean',
         ]);
+
+        // Empêche de désactiver TOUS les moyens de paiement d'un coup.
+        $methods = ['method_virement', 'method_especes', 'method_cheque', 'method_autre'];
+        $incoming = array_intersect_key($validated, array_flip($methods));
+        if ($incoming !== []) {
+            foreach ($methods as $m) {
+                if (! array_key_exists($m, $validated)) {
+                    // Champs non envoyés : conserver l'état actuel.
+                    $current = (int) (bool) $subscriptions->setting(
+                        $m, strtoupper($m), true
+                    );
+                    $validated[$m] = (bool) $current;
+                }
+            }
+
+            if (! in_array(true, array_map('boolval', array_intersect_key($validated, array_flip($methods))), true)) {
+                throw ValidationException::withMessages([
+                    'method_virement' => 'Au moins un moyen de paiement doit rester actif.',
+                ]);
+            }
+        }
 
         foreach (array_filter($validated, fn ($v) => $v !== null) as $key => $value) {
             $subscriptions->setSetting($key, $value);
@@ -289,6 +315,26 @@ class AdminController extends Controller
         $discountCode->delete();
 
         return response()->json(['message' => 'Code supprimé.']);
+    }
+
+    public function pauseSubscription(Request $request, User $user, \App\Services\SubscriptionService $subscriptions)
+    {
+        $profile = $subscriptions->pauseSubscription($user);
+
+        return response()->json([
+            'message' => 'Abonnement mis en pause (plan gratuit). Offre d\'origine mémorisée.',
+            'profile' => ['id' => $profile->id, 'subscription_type' => $profile->subscription_type, 'paused_from_type' => $profile->paused_from_type],
+        ]);
+    }
+
+    public function resumeSubscription(Request $request, User $user, \App\Services\SubscriptionService $subscriptions)
+    {
+        $profile = $subscriptions->resumeSubscription($user);
+
+        return response()->json([
+            'message' => 'Abonnement repris : ' . strtoupper($profile->subscription_type) . '.',
+            'profile' => ['id' => $profile->id, 'subscription_type' => $profile->subscription_type, 'paused_from_type' => null],
+        ]);
     }
 
     public function markPaymentPaid(Request $request, \App\Models\Payment $payment)

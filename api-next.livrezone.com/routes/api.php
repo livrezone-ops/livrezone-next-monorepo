@@ -141,6 +141,8 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/users', [AdminController::class, 'users']);
     Route::post('/users/{user}/status', [AdminController::class, 'updateUserStatus']);
     Route::post('/users/{user}/subscription', [AdminController::class, 'updateUserSubscription']);
+    Route::post('/users/{user}/subscription/pause', [AdminController::class, 'pauseSubscription']);
+    Route::post('/users/{user}/subscription/resume', [AdminController::class, 'resumeSubscription']);
 
     Route::get('/listings', [AdminController::class, 'listings']);
     Route::post('/listings/bulk-status', [AdminController::class, 'bulkListingStatus']);

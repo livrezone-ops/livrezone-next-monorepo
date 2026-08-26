@@ -64,6 +64,8 @@ class ReferenceDataService
                 'promo_pro_free' => $subscription->isPromoProFree(),
                 'pro_notification_delay_hours' => $subscription->getNotificationDelayHours(),
                 'payment_gateways' => app(\App\Services\PaymentGatewayService::class)->enabled(),
+                'subscriptions_disabled' => $subscription->areSubscriptionsDisabled(),
+                'payment_methods' => $subscription->enabledPaymentMethods(),
             ];
 
             return [

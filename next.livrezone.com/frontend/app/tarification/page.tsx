@@ -15,6 +15,8 @@ interface PricingConfig {
     premium_price_yearly?: number;
     promo_pro_free: boolean;
     pro_notification_delay_hours: number;
+    subscriptions_disabled?: boolean;
+    payment_methods?: string[];
 }
 
 export default function TarificationPage() {
@@ -57,7 +59,8 @@ export default function TarificationPage() {
         pro_price_yearly: 300,
         premium_price_yearly: 500,
         promo_pro_free: false,
-        pro_notification_delay_hours: 3
+        pro_notification_delay_hours: 3,
+        subscriptions_disabled: false
     };
 
     const isCurrentPlan = (plan: string) => {
@@ -115,7 +118,14 @@ export default function TarificationPage() {
                         )}
                     </div>
 
-                    {/* Pro Tier */}
+                    {config.subscriptions_disabled && (
+                    <div className="mb-10 inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-800">
+                        <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+                        L&apos;inscription à Pro et Premium est désactivée momentanément.
+                    </div>
+                )}
+
+                {/* Pro Tier */}
                     <div className={`relative flex flex-col rounded-3xl border ${isCurrentPlan('pro') ? 'border-[#6D28D9] shadow-xl shadow-purple-500/10' : 'border-indigo-500 shadow-xl shadow-indigo-500/10'} bg-white p-8`}>
                         {isCurrentPlan('pro') ? (
                             <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-[#6D28D9] px-4 py-1 text-xs font-bold uppercase tracking-wide text-white">
@@ -166,9 +176,9 @@ export default function TarificationPage() {
                                 <span>Notification de commande sous <strong>{config.pro_notification_delay_hours}h</strong></span>
                             </li>
                         </ul>
-                        {isCurrentPlan('pro') ? (
+                        {isCurrentPlan('pro') || config.subscriptions_disabled ? (
                             <button disabled className="mt-auto block w-full rounded-xl bg-indigo-600 px-6 py-3 text-center text-sm font-semibold text-white opacity-50 cursor-not-allowed">
-                                Actif
+                                {isCurrentPlan('pro') ? 'Actif' : 'Indisponible'}
                             </button>
                         ) : (
                             <Link href={`/tarification/paiement?type=pro`} className="mt-auto block w-full rounded-xl bg-indigo-600 px-6 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-indigo-700">
@@ -209,9 +219,9 @@ export default function TarificationPage() {
                                 <span>Notification de commande <strong>Immédiate</strong></span>
                             </li>
                         </ul>
-                        {isCurrentPlan('premium') ? (
+                        {isCurrentPlan('premium') || config.subscriptions_disabled ? (
                             <button disabled className="mt-auto block w-full rounded-xl bg-amber-500 px-6 py-3 text-center text-sm font-semibold text-white opacity-50 cursor-not-allowed">
-                                Actif
+                                {isCurrentPlan('premium') ? 'Actif' : 'Indisponible'}
                             </button>
                         ) : (
                             <Link href={`/tarification/paiement?type=premium`} className="mt-auto block w-full rounded-xl bg-amber-500 px-6 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-amber-600">

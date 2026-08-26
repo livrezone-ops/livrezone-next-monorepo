@@ -52,6 +52,8 @@ class Profile extends Model
         'city_id',
         'profile_type',
         'subscription_type',
+        'paused_from_type',
+        'paused_at',
         'delivery_option',
         'nickname',
         'adresse',
@@ -69,6 +71,7 @@ class Profile extends Model
         'listing_count' => 'integer',
         'telegram_link_token_expires_at' => 'datetime',
         'telegram_linked_at' => 'datetime',
+        'paused_at' => 'datetime',
     ];
 
     protected static function boot()

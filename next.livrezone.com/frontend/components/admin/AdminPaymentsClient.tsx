@@ -18,6 +18,40 @@ import api from "@/lib/axios";
 import SortableTh from "@/components/SortableTh";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
+function SwitchRow({
+  label,
+  hint,
+  checked,
+  onChange,
+  compact = false,
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className={`font-bold text-slate-800 ${compact ? "text-xs" : "text-sm"}`}>{label}</p>
+        {hint && <p className="text-[11px] text-gray-400">{hint}</p>}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative shrink-0 h-6 w-11 rounded-full transition-colors cursor-pointer ${checked ? "bg-[#F97316]" : "bg-gray-300"}`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : ""}`}
+        />
+      </button>
+    </div>
+  );
+}
+
 interface AdminPayment {
   id: number;
   user: { id: number; email: string; nickname: string | null } | null;
@@ -163,6 +197,11 @@ export default function AdminPaymentsClient() {
         premium_price_yearly: Math.round(Number(settings.premium_price_yearly ?? 0)),
         notification_delay_hours: Math.round(Number(settings.notification_delay_hours)),
         subscription_grace_period_days: Math.round(Number(settings.subscription_grace_period_days)),
+        subscriptions_disabled: !!Number(settings.subscriptions_disabled),
+        method_virement: !!Number(settings.method_virement ?? 1),
+        method_especes: !!Number(settings.method_especes ?? 1),
+        method_cheque: !!Number(settings.method_cheque ?? 1),
+        method_autre: !!Number(settings.method_autre ?? 1),
       });
       setSettings(res.data.settings);
       pushToast(res.data.message ?? "Réglages mis à jour.");
@@ -382,6 +421,33 @@ export default function AdminPaymentsClient() {
                 className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
               />
             </label>
+          </div>
+
+          {/* Blocage des inscriptions + modes de paiement manuels */}
+          <div className="mt-5 pt-4 border-t border-gray-100 space-y-3">
+            <SwitchRow
+              label="Bloquer les inscriptions Pro & Premium"
+              hint="Les utilisateurs ne peuvent plus souscrire jusqu'à réactivation."
+              checked={!!settings.subscriptions_disabled}
+              onChange={(v) => setSettings((s) => (s ? { ...s, subscriptions_disabled: v ? 1 : 0 } : s))}
+            />
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 w-full">Moyens de paiement manuels</span>
+              {([
+                ["method_virement", "Virement bancaire"],
+                ["method_especes", "Espèces"],
+                ["method_cheque", "Chèque"],
+                ["method_autre", "Autre moyen"],
+              ] as const).map(([key, label]) => (
+                <SwitchRow
+                  key={key}
+                  label={label}
+                  checked={!!settings[key]}
+                  onChange={(v) => setSettings((s) => (s ? { ...s, [key]: v ? 1 : 0 } : s))}
+                  compact
+                />
+              ))}
+            </div>
           </div>
         </section>
       )}

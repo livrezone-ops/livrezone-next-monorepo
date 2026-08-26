@@ -21,6 +21,7 @@ interface PricingConfig {
   pro_price_yearly: number;
   premium_price_yearly: number;
   payment_gateways?: string[];
+  payment_methods?: string[];
 }
 
 const METHODS = [
@@ -106,6 +107,11 @@ function PaiementContent() {
     pro_price_yearly: 300,
     premium_price_yearly: 500,
   };
+
+  // Moyens manuels filtrés selon les réglages admin (tous si fallback statique).
+  const availableMethods = pricing?.payment_methods
+    ? METHODS.filter((m) => pricing.payment_methods!.includes(m.val))
+    : METHODS;
 
   // Montant affiché = aperçu serveur (coupon appliqué) sinon prix de base.
   const monthly = plan === "pro" ? config.pro_price : config.premium_price;
@@ -269,7 +275,10 @@ function PaiementContent() {
             Moyen de paiement
           </label>
           <div className="space-y-2">
-            {METHODS.map((m) => (
+            {availableMethods.length === 0 ? (
+              <p className="text-sm text-gray-500 py-2">Aucun moyen de paiement disponible actuellement.</p>
+            ) : (
+              availableMethods.map((m) => (
               <label
                 key={m.val}
                 className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all ${
@@ -289,7 +298,8 @@ function PaiementContent() {
                 <CreditCard className="h-4 w-4 text-gray-400" />
                 <span className="text-sm font-medium text-slate-800">{m.label}</span>
               </label>
-            ))}
+            ))
+            )}
 
             {/* Passerelles en ligne : visibles uniquement si activées côté serveur.
                 Le paiement y est automatique (webhook), contrairement au virement/espèces

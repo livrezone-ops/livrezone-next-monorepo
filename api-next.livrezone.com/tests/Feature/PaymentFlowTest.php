@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\PaymentConfirmedMail;
 use App\Models\City;
 use App\Models\Payment;
 use App\Models\Profile;
@@ -9,6 +10,7 @@ use App\Models\User;
 use App\Services\SubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -47,7 +49,7 @@ class PaymentFlowTest extends TestCase
         $this->assertSame('pending', $response->json('payment.status'));
     }
 
-    public function test_duplicate_pending_request_is_blocked(): void
+    public function test_new_request_replaces_abandoned_pending_one(): void
     {
         Cache::flush();
         $user = User::factory()->create();
@@ -59,16 +61,21 @@ class PaymentFlowTest extends TestCase
             'payment_method' => 'especes',
         ])->assertStatus(201);
 
+        // La nouvelle demande remplace l'ancienne au lieu d'être refusée.
         $this->actingAs($user)->postJson('/api/payments', [
             'subscription_type' => 'premium',
-            'period' => 'monthly',
+            'period' => 'yearly',
             'payment_method' => 'virement',
-        ])->assertStatus(422);
+        ])->assertStatus(201);
+
+        $this->assertSame(1, Payment::where('user_id', $user->id)->where('status', 'pending')->count());
+        $this->assertSame('premium', Payment::latest('id')->first()->subscription_type);
     }
 
     public function test_admin_mark_paid_activates_subscription_for_full_year(): void
     {
         Cache::flush();
+        Mail::fake();
         $admin = User::factory()->create(['is_admin' => true]);
         $user = User::factory()->create();
         $this->makeProfile($user);
@@ -96,6 +103,9 @@ class PaymentFlowTest extends TestCase
         );
 
         $this->assertSame('premium', $user->profile->fresh()->subscription_type);
+
+        // L'email de confirmation part après l'activation effective.
+        Mail::assertSent(PaymentConfirmedMail::class);
     }
 
     public function test_seller_cannot_mark_payments_paid(): void

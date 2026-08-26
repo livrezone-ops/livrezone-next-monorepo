@@ -103,6 +103,8 @@ class AdminPaymentService
     /**
      * Valide un paiement : l'abonnement correspondant est activé pour la
      * période choisie (1 mois ou 12 mois à compter de maintenant).
+     * L'email de confirmation part UNIQUEMENT après l'activation effective,
+     * quel que soit le déclencheur (admin, simulateur, webhook passerelle).
      */
     public function markPaid(Payment $payment): Payment
     {
@@ -110,7 +112,7 @@ class AdminPaymentService
             return $payment;
         }
 
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($payment) {
+        $updated = \Illuminate\Support\Facades\DB::transaction(function () use ($payment) {
             $months = ($payment->period ?? 'monthly') === 'yearly' ? 12 : 1;
 
             $payment->update([
@@ -130,6 +132,18 @@ class AdminPaymentService
 
             return $payment->fresh();
         });
+
+        // Email après commit : un échec d'envoi n'annule jamais l'activation.
+        if ($updated->user?->email) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($updated->user->email)
+                    ->send(new \App\Mail\PaymentConfirmedMail($updated));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Email de confirmation de paiement non envoyé : ' . $e->getMessage());
+            }
+        }
+
+        return $updated;
     }
 
     // ------------------------------------------------------------------

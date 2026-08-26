@@ -3,14 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Mail\PaymentConfirmedMail;
 use App\Models\DiscountCode;
 use App\Models\Payment;
 use App\Services\AdminPaymentService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -62,20 +60,31 @@ class PaymentController extends Controller
         $validated = $request->validate([
             'subscription_type' => ['required', Rule::in(['pro', 'premium'])],
             'period' => ['required', Rule::in(['monthly', 'yearly'])],
-            'payment_method' => ['required', Rule::in(['virement', 'especes', 'cheque', 'autre'])],
+            'payment_method' => ['required', 'string', 'max:30'],
             'discount_code' => 'nullable|string|max:30',
         ]);
 
-        // Une seule demande en attente à la fois par utilisateur.
-        $pending = Payment::where('user_id', $request->user()->id)
-            ->where('status', 'pending')
-            ->exists();
-
-        if ($pending) {
+        // Inscriptions Pro/Premium momentanément fermées par l'admin ?
+        if ($subscriptions->areSubscriptionsDisabled()) {
             throw ValidationException::withMessages([
-                'payment_method' => 'Vous avez déjà une demande en attente de validation.',
+                'subscription_type' => 'L\'inscription à Pro et Premium est désactivée momentanément.',
             ]);
         }
+
+        // Le moyen de paiement doit être parmi ceux activés par l'admin.
+        $enabledMethods = $subscriptions->enabledPaymentMethods();
+        if (! in_array($validated['payment_method'], $enabledMethods, true)) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Ce moyen de paiement n\'est pas disponible actuellement.',
+            ]);
+        }
+
+        // Une seule demande en attente à la fois : la nouvelle REMPLACE
+        // l'ancienne (demande abandonnée = aucune valeur, on ne bloque pas
+        // l'utilisateur indéfiniment).
+        Payment::where('user_id', $request->user()->id)
+            ->where('status', 'pending')
+            ->delete();
 
         [$amount, , $coupon] = $this->resolveAmount(
             $validated['subscription_type'],
@@ -162,7 +171,7 @@ class PaymentController extends Controller
 
         $updated = $adminPaymentService->markPaid($payment);
 
-        Mail::to($request->user()->email)->send(new PaymentConfirmedMail($updated));
+        // L'email de confirmation part depuis markPaid(), après activation.
 
         return response()->json([
             'message' => 'Paiement confirmé (mode test). Votre abonnement est actif !',
