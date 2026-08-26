@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1000" height="1000">
+  <defs>
+    <style>
+      
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@800;900&display=swap');
+
+      .brand-font {
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-weight: 900;
+      }
+    </style>
+  </defs>
+
+  <!-- 75% Blanc : Fond Blanc Circulaire -->
+  <circle cx="500" cy="500" r="500" fill="#FFFFFF" />
+  <circle cx="500" cy="500" r="445" fill="none" stroke="#6D28D9" stroke-width="26" />
+
+  <!-- Nuage d'Arrière-Plan Doux Lilas -->
+  <path d="M 280,360 Q 220,440 280,520 Q 360,590 500,580 Q 680,600 740,510 Q 780,410 700,340 Q 580,280 440,300 Q 320,300 280,360 Z" 
+        fill="#F3E8FF" />
+
+  <!-- Rayons d'Énergie Orange (7% Orange) -->
+  <g fill="#F97316">
+    <path d="M 645,210 Q 665,180 690,165 Q 670,195 645,210 Z" />
+    <path d="M 675,235 Q 715,220 745,210 Q 705,240 675,235 Z" />
+    <path d="M 690,270 Q 735,275 770,275 Q 725,290 690,270 Z" />
+    <path d="M 260,490 Q 220,480 190,470 Q 230,500 260,490 Z" />
+    <path d="M 245,525 Q 205,535 180,550 Q 220,545 245,525 Z" />
+    <path d="M 265,565 Q 235,595 215,625 Q 250,590 265,565 Z" />
+  </g>
+
+  <!-- Groupe Livres -->
+  <g transform="translate(0, -15)">
+    
+    <!-- 1. Livre Penché à Gauche -->
+    <g transform="translate(340, 420) rotate(-13) translate(-340, -420)">
+      <rect x="310" y="270" width="68" height="260" rx="12" fill="#7C3AED" />
+      <rect x="328" y="315" width="32" height="150" rx="6" fill="#FFFFFF" />
+      <line x1="318" y1="290" x2="370" y2="290" stroke="#F97316" stroke-width="8" stroke-linecap="round" />
+    </g>
+
+    <!-- 2. Deuxième Livre Vertical (Violet Foncé) -->
+    <rect x="395" y="300" width="50" height="240" rx="10" fill="#4C1D95" />
+    <rect x="405" y="325" width="30" height="190" rx="4" fill="#6D28D9" />
+
+    <!-- 3. Grand Livre Central (Violet Électrique) -->
+    <rect x="450" y="250" width="80" height="290" rx="14" fill="#6D28D9" />
+    <rect x="466" y="295" width="48" height="185" rx="6" fill="#FFFFFF" />
+    <!-- Ruban marque-page Orange -->
+    <path d="M 475,540 L 505,540 L 505,580 L 490,565 L 475,580 Z" fill="#F97316" />
+
+    <!-- 4. Livre avec Classeur (Violet #7C3AED) -->
+    <rect x="535" y="275" width="55" height="265" rx="12" fill="#7C3AED" />
+    <circle cx="562" cy="315" r="12" fill="#FFFFFF" />
+    <rect x="545" y="475" width="35" height="8" rx="4" fill="#FFFFFF" />
+
+    <!-- 5. Livre de Droite -->
+    <rect x="595" y="320" width="50" height="220" rx="10" fill="#F97316" />
+    <rect x="605" y="465" width="30" height="8" rx="4" fill="#FFFFFF" />
+    <rect x="605" y="485" width="30" height="8" rx="4" fill="#FFFFFF" />
+    
+  </g>
+
+  <!-- Typographie : LIVRE (Violet #6D28D9) ZONE (Orange #F97316) -->
+  <text x="500" y="745" class="brand-font" font-size="108" text-anchor="middle" letter-spacing="-1">
+    <tspan fill="#6D28D9">LIVRE</tspan><tspan fill="#F97316">ZONE</tspan>
+  </text>
+</svg>
