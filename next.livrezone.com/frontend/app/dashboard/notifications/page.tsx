@@ -142,8 +142,8 @@ export default function NotificationsPage() {
     const p = preferences.find((x) => x.notification_type === type && x.channel === channel);
     if (p) return p.is_enabled;
 
-    if (channel === "email" || channel === "in_app") return true;
-    return false;
+    // Canal activé par défaut tant qu'aucune préférence n'a été enregistrée.
+    return true;
   };
 
   const getFilters = (type: string) => {
