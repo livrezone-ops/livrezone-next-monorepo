@@ -196,9 +196,32 @@ export interface ListingDetail {
 
 export async function getPublicListing(id: string): Promise<ListingDetail | null> {
   try {
+    // Règle produit : une annonce pending_admin reste visible par son créateur
+    // et l'admin (Gate::allows('view')). Côté SSR il faut donc transmettre les
+    // cookies de session + un referer sur le domaine stateful (Sinon Sanctum
+    // ne résout pas l'utilisateur). Réponse spécifique à l'utilisateur =>
+    // jamais mise dans le cache partagé Next (cache: no-store).
+    const { cookies } = await import("next/headers");
+    const cookieHeader = (await cookies()).toString();
+    const baseHeaders: Record<string, string> = {
+      Accept: "application/json",
+      Host: "api-next.livrezone.com",
+    };
+
     const res = await fetch(`${API_BASE}/api/listings/${encodeURIComponent(id)}`, {
-      next: { revalidate: 60 },
-      headers: { Accept: "application/json", Host: "api-next.livrezone.com" },
+      ...(cookieHeader
+        ? {
+            cache: "no-store",
+            headers: {
+              ...baseHeaders,
+              Cookie: cookieHeader,
+              Referer: "https://next.livrezone.com",
+            },
+          }
+        : {
+            next: { revalidate: 60 },
+            headers: baseHeaders,
+          }),
     });
     if (!res.ok) return null;
     const json = await res.json();

@@ -165,4 +165,32 @@ class AuthorizationPolicyTest extends TestCase
         $this->assertSame('Bonjour', $message->fresh()->message);
         $this->assertDatabaseHas('chat_messages', ['id' => $message->id]);
     }
+
+    /**
+     * Règle produit : une annonce pending_admin reste visible par son créateur
+     * et l'admin (page détail) en attendant la validation, mais pas par les
+     * visiteurs anonymes ni les autres vendeurs.
+     */
+    public function test_pending_admin_listing_visible_to_owner_and_admin_only(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $admin = User::factory()->create(['is_admin' => true]);
+        $listing = $this->createListing($owner, status: 'pending_admin');
+
+        // Anonyme : refusé.
+        $this->getJson("/api/listings/{$listing->id}")->assertStatus(403);
+
+        // Autre vendeur : refusé.
+        Sanctum::actingAs($other);
+        $this->getJson("/api/listings/{$listing->id}")->assertStatus(403);
+
+        // Créateur : autorisé (attente de validation).
+        Sanctum::actingAs($owner);
+        $this->getJson("/api/listings/{$listing->id}")->assertOk();
+
+        // Admin : autorisé (pré-modération).
+        Sanctum::actingAs($admin);
+        $this->getJson("/api/listings/{$listing->id}")->assertOk();
+    }
 }
