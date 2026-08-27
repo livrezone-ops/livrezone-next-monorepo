@@ -11,10 +11,12 @@ export interface ListingSummary {
   isbn_13?: string | null;
   cover_path?: string | null;
   cover_source_url?: string | null;
+  cover_thumbnail_url?: string | null;
   book?: {
     isbn_13?: string | null;
     authors?: string[] | string | null;
     cover_url?: string | null;
+    cover_thumbnail_url?: string | null;
   } | null;
   user?: {
     id: number;
@@ -162,6 +164,7 @@ export interface ListingDetail {
   discount_price?: number | null;
   cover_path?: string | null;
   cover_source_url?: string | null;
+  cover_thumbnail_url?: string | null;
   isbn_13?: string | null;
   user: {
     id: number;
@@ -184,6 +187,7 @@ export interface ListingDetail {
     page_count?: number | null;
     cover_path?: string | null;
     cover_url?: string | null;
+    cover_thumbnail_url?: string | null;
   } | null;
   category?: { name_fr: string; parent?: { name_fr: string } | null } | null;
   level?: { name_fr: string; code?: string } | null;

@@ -113,7 +113,14 @@ export default function HeaderSearch({ onCloseMobile, isMobile = false }: Header
           <div className="absolute left-0 right-0 top-[calc(100%+4px)] bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto animate-in slide-in-from-top-2 duration-150">
             <ul className="py-2">
               {suggestions.map((listing) => {
-                const cover = listing.book?.cover_url || listing.cover_source_url || null;
+                // Miniature en priorité (160 webp ~5-13 Ko vs original ~65 Ko) ;
+                // le backend inclut déjà les fallbacks (book, source, placeholder)
+                const cover =
+                  listing.cover_thumbnail_url ||
+                  listing.book?.cover_thumbnail_url ||
+                  listing.book?.cover_url ||
+                  listing.cover_source_url ||
+                  null;
                 const author = listing.book?.authors
                   ? Array.isArray(listing.book.authors)
                     ? listing.book.authors.join(", ")
