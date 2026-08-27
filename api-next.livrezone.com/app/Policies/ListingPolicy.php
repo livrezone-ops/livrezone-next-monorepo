@@ -19,4 +19,13 @@ class ListingPolicy
 
         return $user->id === $listing->user_id || $user->is_admin === true;
     }
+
+    /**
+     * Gestion vendeur (show/update/republish/updateStatus) : propriétaire seul.
+     * La modération admin passe par des endpoints dédiés, pas par cette policy.
+     */
+    public function update(User $user, Listing $listing): bool
+    {
+        return $user->id === $listing->user_id;
+    }
 }

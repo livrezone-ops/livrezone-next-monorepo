@@ -106,7 +106,7 @@ class ChatController extends Controller
      */
     public function show(Request $request, ChatThread $thread): JsonResponse
     {
-        if (! $this->isParticipant($thread, $request->user()->id)) {
+        if (! $request->user()->can('participate', $thread)) {
             return response()->json(['message' => 'Accès refusé.'], 403);
         }
 
@@ -146,7 +146,7 @@ class ChatController extends Controller
      */
     public function sendMessage(ChatMessageStoreRequest $request, ChatThread $thread): JsonResponse
     {
-        if (! $this->isParticipant($thread, $request->user()->id)) {
+        if (! $request->user()->can('participate', $thread)) {
             return response()->json(['message' => 'Accès refusé.'], 403);
         }
 
@@ -182,7 +182,7 @@ class ChatController extends Controller
      */
     public function updateMessage(ChatMessageStoreRequest $request, ChatThread $thread, ChatMessage $message): JsonResponse
     {
-        if (! $this->isParticipant($thread, $request->user()->id)) {
+        if (! $request->user()->can('participate', $thread)) {
             return response()->json(['message' => 'Accès refusé.'], 403);
         }
 
@@ -190,7 +190,7 @@ class ChatController extends Controller
             return response()->json(['message' => 'Message introuvable.'], 404);
         }
 
-        if ($message->sender_id !== $request->user()->id) {
+        if (! $request->user()->can('update', [$message, $thread])) {
             return response()->json(['message' => 'Vous ne pouvez modifier que vos propres messages.'], 403);
         }
 
@@ -220,7 +220,7 @@ class ChatController extends Controller
      */
     public function destroyMessage(Request $request, ChatThread $thread, ChatMessage $message): JsonResponse
     {
-        if (! $this->isParticipant($thread, $request->user()->id)) {
+        if (! $request->user()->can('participate', $thread)) {
             return response()->json(['message' => 'Accès refusé.'], 403);
         }
 
@@ -228,7 +228,7 @@ class ChatController extends Controller
             return response()->json(['message' => 'Message introuvable.'], 404);
         }
 
-        if ($message->sender_id !== $request->user()->id) {
+        if (! $request->user()->can('delete', [$message, $thread])) {
             return response()->json(['message' => 'Vous ne pouvez supprimer que vos propres messages.'], 403);
         }
 
@@ -256,7 +256,7 @@ class ChatController extends Controller
      */
     public function destroy(Request $request, ChatThread $thread): JsonResponse
     {
-        if (! $this->isParticipant($thread, $request->user()->id)) {
+        if (! $request->user()->can('participate', $thread)) {
             return response()->json(['message' => 'Accès refusé.'], 403);
         }
 
@@ -271,7 +271,7 @@ class ChatController extends Controller
      */
     public function markRead(Request $request, ChatThread $thread): JsonResponse
     {
-        if (! $this->isParticipant($thread, $request->user()->id)) {
+        if (! $request->user()->can('participate', $thread)) {
             return response()->json(['message' => 'Accès refusé.'], 403);
         }
 
@@ -288,13 +288,5 @@ class ChatController extends Controller
             'updated' => $updated,
             'message' => 'Messages marqués comme lus.',
         ]);
-    }
-
-    /**
-     * Vérifie qu'un utilisateur participe au fil.
-     */
-    private function isParticipant(ChatThread $thread, int $userId): bool
-    {
-        return $thread->user_one_id === $userId || $thread->user_two_id === $userId;
     }
 }

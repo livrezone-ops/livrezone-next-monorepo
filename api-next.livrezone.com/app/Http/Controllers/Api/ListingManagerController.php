@@ -28,7 +28,7 @@ class ListingManagerController extends Controller
 
     public function show(Request $request, Listing $listing)
     {
-        if ($listing->user_id !== $request->user()->id) {
+        if (! $request->user()->can('update', $listing)) {
             abort(403, 'Non autorisé');
         }
 
@@ -147,7 +147,7 @@ class ListingManagerController extends Controller
 
     public function update(Request $request, Listing $listing)
     {
-        if ($listing->user_id !== $request->user()->id) {
+        if (! $request->user()->can('update', $listing)) {
             abort(403, 'Non autorisé');
         }
 

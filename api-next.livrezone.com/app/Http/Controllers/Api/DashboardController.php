@@ -40,7 +40,7 @@ class DashboardController extends Controller
 
     public function updateInline(Request $request, Listing $listing)
     {
-        if ($listing->user_id !== $request->user()->id) {
+        if (! $request->user()->can('update', $listing)) {
             abort(403);
         }
 
@@ -57,7 +57,7 @@ class DashboardController extends Controller
 
     public function updateStatus(Request $request, Listing $listing)
     {
-        if ($listing->user_id !== $request->user()->id) {
+        if (! $request->user()->can('update', $listing)) {
             abort(403);
         }
 
@@ -101,7 +101,7 @@ class DashboardController extends Controller
      */
     public function republish(Request $request, Listing $listing)
     {
-        if ($listing->user_id !== $request->user()->id) {
+        if (! $request->user()->can('update', $listing)) {
             abort(403);
         }
 
