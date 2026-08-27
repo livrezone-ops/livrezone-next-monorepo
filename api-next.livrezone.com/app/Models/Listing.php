@@ -321,4 +321,22 @@ class Listing extends Model
             ->where('user_id', $userId)
             ->where('status', '!=', 'archived');
     }
+
+    /**
+     * Fallback miniature : délégation à la miniature du livre associé
+     * (catalogue : /thumbnails/{taille}) au lieu de la couverture source
+     * externe pleine taille. Sans livre couvert, comportement historique
+     * (cover_source_url), aligné sur Order::coverFallbackUrl().
+     */
+    protected function coverFallbackUrl(bool $thumbnail = false): ?string
+    {
+        if ($thumbnail && ($book = $this->book) !== null
+            && trim((string) $book->cover_path) !== '') {
+            return $book->cover_thumbnail_url;
+        }
+
+        $external = trim((string) ($this->cover_source_url ?? ''));
+
+        return $external !== '' ? $external : null;
+    }
 }

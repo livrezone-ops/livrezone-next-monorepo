@@ -174,10 +174,10 @@ class ListingSearchService
         $limit = $request->integer('limit', 12);
         $listings = $query->paginate($limit);
 
-        // S'assurer que l'accesseur cover_url du livre est bien inclus dans le JSON
+        // S'assurer que les accesseurs cover du livre sont bien inclus dans le JSON
         $listings->getCollection()->transform(function ($listing) {
             if ($listing->book) {
-                $listing->book->setAppends(['cover_url']);
+                $listing->book->setAppends(['cover_url', 'cover_thumbnail_url']);
             }
 
             return $listing;

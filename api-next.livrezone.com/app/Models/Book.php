@@ -35,6 +35,7 @@ class Book extends Model
 
     protected $appends = [
         'cover_url',
+        'cover_thumbnail_url',
     ];
 
     protected $fillable = [
