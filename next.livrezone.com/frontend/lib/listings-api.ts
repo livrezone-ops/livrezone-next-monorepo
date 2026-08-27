@@ -42,6 +42,7 @@ export interface PublicListingsResult {
 
 export interface ListingsQuery {
   search?: string;
+  isbn?: string;
   category?: string;
   level?: string;
   subject?: string;
@@ -111,6 +112,7 @@ export async function getPublicListings(query: ListingsQuery): Promise<PublicLis
   if (query.language) params.set("language", query.language);
   if (query.condition) params.set("condition", query.condition);
   if (query.cities) params.set("city", query.cities);
+  if (query.isbn) params.set("isbn", query.isbn);
   if (query.minPrice !== undefined && query.minPrice !== null) params.set("min_price", String(query.minPrice));
   if (query.maxPrice !== undefined && query.maxPrice !== null) params.set("max_price", String(query.maxPrice));
   if (query.userId) params.set("user_id", String(query.userId));

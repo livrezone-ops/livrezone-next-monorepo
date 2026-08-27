@@ -168,7 +168,7 @@ export async function generateMetadata({
       url: canonical,
     },
     robots:
-      f.page > 1
+      f.page > 1 || Boolean(f.isbn)
         ? { index: false, follow: true }
         : { index: true, follow: true },
   };
@@ -208,6 +208,7 @@ export default async function AnnoncesPage({ searchParams }: PageProps) {
       language: f.languages.length ? f.languages.join(",") : undefined,
       condition: f.conditions.length ? f.conditions.join(",") : undefined,
       cities: f.cities.length ? f.cities.join(",") : undefined,
+      isbn: f.isbn || undefined,
       minPrice: f.minPrice ?? undefined,
       maxPrice: f.maxPrice ?? undefined,
       sort: f.sort || undefined,
@@ -237,7 +238,8 @@ export default async function AnnoncesPage({ searchParams }: PageProps) {
     f.cities.length > 0 ||
     (f.minPrice !== null && f.minPrice > priceMinLimit) ||
     (f.maxPrice !== null && f.maxPrice < priceMaxLimit) ||
-    Boolean(f.search)
+    Boolean(f.search) ||
+    Boolean(f.isbn)
   );
 
   const jsonLdItemList =
@@ -274,6 +276,19 @@ export default async function AnnoncesPage({ searchParams }: PageProps) {
             {articleCount && (
               <span className="text-[13px] text-gray-500 font-medium">
                 {articleCount}
+              </span>
+            )}
+            {f.isbn && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="font-bold">ISBN&nbsp;: {f.isbn}</span>
+                <Link
+                  href="/annonces"
+                  className="text-emerald-600 hover:text-emerald-900 font-bold transition-colors"
+                  title="Retirer le filtre ISBN"
+                >
+                  <X className="w-3 h-3" />
+                </Link>
               </span>
             )}
             {hasActiveFilters && (

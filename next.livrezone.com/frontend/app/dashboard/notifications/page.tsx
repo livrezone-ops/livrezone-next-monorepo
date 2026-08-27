@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/axios";
-import { Loader2, Bell, Mail, MessageSquare, Send, Check, Copy, Link2, Unlink, CheckCheck } from "lucide-react";
+import { Loader2, Bell, Mail, MessageSquare, MessageCircle, Send, Check, Copy, Link2, Unlink, CheckCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 
 interface CategoryNode {
   id: number;
@@ -207,6 +208,7 @@ export default function NotificationsPage() {
         { notification_type: "book_orders", channel: "email", is_enabled: getPref("book_orders", "email"), filters: Object.keys(filters).length ? filters : null },
         { notification_type: "book_orders", channel: "in_app", is_enabled: getPref("book_orders", "in_app"), filters: Object.keys(filters).length ? filters : null },
         { notification_type: "book_orders", channel: "telegram", is_enabled: getPref("book_orders", "telegram"), filters: Object.keys(filters).length ? filters : null },
+        { notification_type: "book_orders", channel: "whatsapp", is_enabled: getPref("book_orders", "whatsapp"), filters: Object.keys(filters).length ? filters : null },
         { notification_type: "newsletter", channel: "email", is_enabled: getPref("newsletter", "email"), filters: null },
         { notification_type: "promos", channel: "email", is_enabled: getPref("promos", "email"), filters: null },
       ];
@@ -437,6 +439,20 @@ export default function NotificationsPage() {
                 </div>
               </div>
               <Toggle checked={getPref("book_orders", "telegram")} onChange={() => handleToggle("book_orders", "telegram")} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600"><MessageCircle className="w-5 h-5" /></div>
+                <div>
+                  <p className="font-bold text-gray-900 text-sm">WhatsApp</p>
+                  <p className="text-xs text-gray-500">
+                    Alerte quand un livre que vous cherchez est mis en vente. Nécessite un numéro de mobile dans votre{" "}
+                    <Link href="/dashboard/profil" className="text-[#6D28D9] font-bold hover:underline">profil</Link>.
+                  </p>
+                </div>
+              </div>
+              <Toggle checked={getPref("book_orders", "whatsapp")} onChange={() => handleToggle("book_orders", "whatsapp")} />
             </div>
           </div>
 

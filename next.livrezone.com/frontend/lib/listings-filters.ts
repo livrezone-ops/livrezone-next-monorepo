@@ -10,6 +10,7 @@ export interface AnnoncesFilters {
   minPrice: number | null;
   maxPrice: number | null;
   search: string;
+  isbn: string;
   sort: string;
   page: number;
 }
@@ -61,6 +62,7 @@ export function parseFilters(get: ParamGetter): AnnoncesFilters {
     minPrice: toNumber(get("min_price") ?? get("min")),
     maxPrice: toNumber(get("max_price") ?? get("max")),
     search: get("search") || "",
+    isbn: (get("isbn") || "").trim(),
     sort: get("sort") || "latest",
     page: toNumber(get("page")) || 1,
   };
@@ -68,6 +70,7 @@ export function parseFilters(get: ParamGetter): AnnoncesFilters {
 
 export interface SerializedFilters {
   search?: string;
+  isbn?: string;
   category?: string;
   level?: string;
   language?: string;
@@ -91,6 +94,7 @@ export function buildFilterQuery(
     minLimit?: number;
     maxLimit?: number;
     search?: string;
+    isbn?: string;
     sort?: string;
     page?: number;
   }
@@ -113,6 +117,7 @@ export function buildFilterQuery(
     params.set("max_price", String(filters.maxPrice));
   }
 
+  if (filters.isbn) params.set("isbn", filters.isbn);
   if (filters.sort && filters.sort !== "latest") params.set("sort", filters.sort);
   if (filters.page && filters.page > 1) params.set("page", String(filters.page));
 

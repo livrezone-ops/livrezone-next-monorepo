@@ -228,6 +228,7 @@ export default function FilterSidebar({
       minLimit: priceMinLimit,
       maxLimit: priceMaxLimit,
       search: filters.search,
+      isbn: filters.isbn || undefined,
       sort: filters.sort,
     });
     const qs = params.toString();

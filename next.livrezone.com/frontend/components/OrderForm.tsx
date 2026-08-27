@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Upload, Loader2, X } from "lucide-react";
+import { Upload, Loader2, X, CheckCircle2, Search } from "lucide-react";
 import api from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useToast } from "@/components/Toast";
@@ -43,6 +43,7 @@ export default function OrderForm({ initialData, isEditing = false }: OrderFormP
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(initialData?.cover_url || null);
   const [submitting, setSubmitting] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState<{ count: number; isbn: string; title: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: refData } = useQuery({
@@ -110,7 +111,23 @@ export default function OrderForm({ initialData, isEditing = false }: OrderFormP
         const { data } = await api.post("/orders", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
+
+        // Signal : le livre demandé est déjà en vente sur le site
+        // (order.available_listings_count > 0 renvoyé par POST /orders).
+        const count = Number(data?.order?.available_listings_count ?? 0);
+        if (count > 0) {
+          setCreatedOrder({
+            count,
+            isbn: String(data?.order?.isbn ?? isbn).trim(),
+            title: String(data?.order?.title ?? title).trim(),
+          });
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
+
         success(data.message || "Votre demande a été enregistrée !");
+        router.push("/dashboard/demandes");
+        return;
       }
 
       router.push("/dashboard/demandes");
@@ -123,6 +140,42 @@ export default function OrderForm({ initialData, isEditing = false }: OrderFormP
   };
 
   return (
+    <>
+      {createdOrder && (
+        <div className="bg-white rounded-2xl border border-emerald-200 shadow-xs overflow-hidden mb-5">
+          <div className="bg-emerald-50 px-5 py-4 flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-bold text-emerald-800 text-sm">Demande publiée !</p>
+              <p className="text-xs text-emerald-700 mt-0.5">
+                Bonne nouvelle&nbsp;: ce livre est en vente actuellement sur le site
+                ({createdOrder.count} annonce{createdOrder.count > 1 ? "s" : ""} correspondante{createdOrder.count > 1 ? "s" : ""}).
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCreatedOrder(null)}
+              className="text-emerald-400 hover:text-emerald-600 cursor-pointer shrink-0"
+              title="Fermer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <Link
+              href={createdOrder.isbn ? `/annonces?isbn=${encodeURIComponent(createdOrder.isbn)}` : `/annonces?search=${encodeURIComponent(createdOrder.title)}`}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 transition-colors shadow-xs"
+            >
+              <Search className="w-4 h-4" />
+              Voir les vendeurs de ce livre
+            </Link>
+            <span className="text-[11px] text-gray-400 hidden sm:inline">ou</span>
+            <Link href="/dashboard/demandes" className="text-xs font-bold text-[#6D28D9] hover:text-violet-900 hover:underline">
+              accéder à mes demandes
+            </Link>
+          </div>
+        </div>
+      )}
     <div className="bg-white rounded-2xl border border-gray-150 p-6 sm:p-8 shadow-xs">
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Titre */}
@@ -262,5 +315,6 @@ export default function OrderForm({ initialData, isEditing = false }: OrderFormP
         </div>
       </form>
     </div>
+    </>
   );
 }
