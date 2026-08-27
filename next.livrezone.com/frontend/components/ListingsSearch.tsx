@@ -241,13 +241,7 @@ export default function ListingsSearch({
                   }
                   price={Number(l.price)}
                   discountPrice={l.discount_price != null ? Number(l.discount_price) : null}
-                  cover={
-                    l.cover_thumbnail_url ||
-                    l.book?.cover_thumbnail_url ||
-                    l.book?.cover_url ||
-                    l.cover_source_url ||
-                    null
-                  }
+                  cover={l.book?.cover_url || l.cover_source_url || null}
                   condition={l.book_condition}
                   url={buildListingPath(l)}
                   city={l.user?.profile?.city?.name || null}
@@ -298,12 +292,7 @@ export default function ListingsSearch({
 }
 
 function ArticleListRow({ listing }: { listing: ListingSummary }) {
-  const cover =
-    listing.cover_thumbnail_url ||
-    listing.book?.cover_thumbnail_url ||
-    listing.book?.cover_url ||
-    listing.cover_source_url ||
-    null;
+  const cover = listing.book?.cover_url || listing.cover_source_url || null;
   const author = listing.book?.authors
     ? Array.isArray(listing.book.authors)
       ? listing.book.authors.join(", ")
