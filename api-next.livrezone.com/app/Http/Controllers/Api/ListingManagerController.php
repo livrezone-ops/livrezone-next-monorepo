@@ -12,6 +12,7 @@ use App\Services\ListingProcessorService;
 use App\Services\ListingValidationService;
 use App\Services\SubscriptionService;
 use App\Services\TelegramNotificationService;
+use App\Services\ThumbnailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -128,6 +129,9 @@ class ListingManagerController extends Controller
         ];
 
         $listing = Listing::create($payload);
+
+        // Miniatures paresseuses (160/320) de la couverture sollicitée — échec silencieux
+        ThumbnailService::ensureThumbnailsExist($coverPath);
 
         try {
             app(TelegramNotificationService::class)->notifyAdminNewListing($listing);
@@ -248,6 +252,9 @@ class ListingManagerController extends Controller
 
         $oldStatus = $listing->status;
         $listing->update($payload);
+
+        // Miniatures paresseuses (160/320) si la couverture a changé — échec silencieux
+        ThumbnailService::ensureThumbnailsExist($coverPath);
 
         if ($oldStatus === 'published' && $status === 'pending_admin') {
             try {
