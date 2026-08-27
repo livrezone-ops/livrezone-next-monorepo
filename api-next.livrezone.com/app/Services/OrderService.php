@@ -6,6 +6,7 @@ use App\Jobs\ProcessBookOrderNotifications;
 use App\Models\Book;
 use App\Models\Category;
 use App\Models\Language;
+use App\Models\Listing;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -427,7 +428,34 @@ class OrderService
             ProcessBookOrderNotifications::dispatch($order);
         }
 
+        // Signal front : le livre demandé est déjà en vente sur le site →
+        // le client peut afficher « voir les vendeurs » (/annonces?isbn=...).
+        $order->available_listings_count = $this->countMatchingListings($order);
+
         return $order->load(['book', 'category']);
+    }
+
+    /**
+     * Nombre d'annonces publiées correspondant à une demande (ISBN ou titre normalisé).
+     */
+    public function countMatchingListings(Order $order): int
+    {
+        if (empty($order->isbn) && empty($order->title)) {
+            return 0;
+        }
+
+        $normalizedTitle = mb_strtolower(trim((string) $order->title));
+
+        return (int) Listing::where('status', 'published')
+            ->where(function ($q) use ($order, $normalizedTitle) {
+                if (! empty($order->isbn)) {
+                    $q->orWhere('isbn_13', $order->isbn);
+                }
+                if ($normalizedTitle !== '') {
+                    $q->orWhereRaw('LOWER(TRIM(title)) = ?', [$normalizedTitle]);
+                }
+            })
+            ->count();
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\NotifyDemandersOnListingPublished;
 use App\Models\DiscountCode;
 use App\Models\HeroMessage;
 use App\Models\Listing;
@@ -128,7 +129,18 @@ class AdminController extends Controller
             'delete' => 'deleted',
         };
 
+        // Le mass update ne déclenche pas les événements modèle : on capture
+        // les annonces qui passent réellement en "published" pour notifier
+        // les demandeurs correspondants.
+        $becomingPublished = $newStatus === 'published'
+            ? Listing::whereIn('id', $validated['ids'])->where('status', '!=', 'published')->get()
+            : collect();
+
         $updated = Listing::whereIn('id', $validated['ids'])->update(['status' => $newStatus]);
+
+        foreach ($becomingPublished as $listing) {
+            NotifyDemandersOnListingPublished::dispatch($listing);
+        }
 
         return response()->json([
             'message' => $this->actionMessage($validated['action']),

@@ -133,6 +133,14 @@ class ListingSearchService
             $query->where('id', '!=', $request->get('exclude'));
         }
 
+        // Filtre ISBN exact (ex : lien « voir les vendeurs » d'une demande → /annonces?isbn=...)
+        if ($request->filled('isbn')) {
+            $isbn = preg_replace('/[^0-9Xx]/', '', (string) $request->get('isbn'));
+            if ($isbn !== '') {
+                $query->where('isbn_13', $isbn);
+            }
+        }
+
         // 8. Recherche textuelle globale (via Meilisearch)
         if ($request->filled('search')) {
             $search = $request->get('search');

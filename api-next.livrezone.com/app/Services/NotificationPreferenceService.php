@@ -9,7 +9,7 @@ class NotificationPreferenceService
 {
     public const ALLOWED_TYPES = ['book_orders', 'newsletter', 'promos'];
 
-    public const ALLOWED_CHANNELS = ['email', 'in_app', 'telegram'];
+    public const ALLOWED_CHANNELS = ['email', 'in_app', 'telegram', 'whatsapp'];
 
     /**
      * Récupère les préférences de notification d'un utilisateur.

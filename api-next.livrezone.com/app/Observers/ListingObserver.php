@@ -2,12 +2,34 @@
 
 namespace App\Observers;
 
+use App\Jobs\NotifyDemandersOnListingPublished;
 use App\Models\Listing;
 use App\Models\Profile;
 use App\Services\ProfileSearchService;
 
 class ListingObserver
 {
+    /**
+     * Annonce créée directement publiée (auto-validée) : alerter les demandeurs
+     * dont la demande correspond (ISBN / titre).
+     */
+    public function created(Listing $listing): void
+    {
+        if ($listing->status === 'published') {
+            NotifyDemandersOnListingPublished::dispatch($listing);
+        }
+    }
+
+    /**
+     * Annonce qui vient de passer en "published" : même alerte aux demandeurs.
+     */
+    public function updated(Listing $listing): void
+    {
+        if ($listing->status === 'published' && $listing->wasChanged('status')) {
+            NotifyDemandersOnListingPublished::dispatch($listing);
+        }
+    }
+
     /**
      * Met à jour les statistiques de recherche du vendeur lorsqu'une annonce
      * change de statut, de condition, ou de propriétaire.
