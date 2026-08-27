@@ -52,12 +52,12 @@ class ProcessBookOrderNotifications implements ShouldQueue
                 continue;
             }
 
-            // Vérifier les préférences (si non défini, on suppose true par défaut pour email et in_app)
+            // Vérifier les préférences (si non défini, on suppose true par défaut pour tous les canaux)
             $prefs = $user->notificationPreferences->where('notification_type', 'book_orders');
 
             $wantsEmail = $prefs->where('channel', 'email')->first()?->is_enabled ?? true;
             $wantsInApp = $prefs->where('channel', 'in_app')->first()?->is_enabled ?? true;
-            $wantsTelegram = $prefs->where('channel', 'telegram')->first()?->is_enabled ?? false;
+            $wantsTelegram = $prefs->where('channel', 'telegram')->first()?->is_enabled ?? true;
 
             if (! $wantsEmail && ! $wantsInApp && ! $wantsTelegram) {
                 continue; // L'utilisateur a tout désactivé

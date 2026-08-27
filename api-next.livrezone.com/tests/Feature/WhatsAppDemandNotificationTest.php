@@ -109,21 +109,34 @@ class WhatsAppDemandNotificationTest extends TestCase
         });
     }
 
-    public function test_no_whatsapp_without_explicit_opt_in(): void
+    public function test_whatsapp_defaults_and_explicit_opt_out(): void
     {
         $this->enableWhatsappConfig();
         Http::fake();
+        // Sync queue : sans Queue::fake(), l'observer exécuterait déjà le job
+        // à chaque création d'annonce (double envoi avec l'appel manuel).
+        Queue::fake();
 
-        // Cas 1 : préférence non activée
-        $withoutPref = $this->makeUserWithProfile('0661234567', hasWhatsapp: true);
+        // Cas 1 : aucune préférence enregistrée + has_whatsapp → défaut activé, envoi attendu
+        $withDefault = $this->makeUserWithProfile('0661234567', hasWhatsapp: true);
         Order::withoutSyncingToSearch(fn () => Order::create([
-            'user_id' => $withoutPref->id,
+            'user_id' => $withDefault->id,
             'title' => 'Antigone',
             'isbn' => '9780000000001',
             'status' => 'published',
         ]));
 
-        // Cas 2 : préférence activée mais numéro sans WhatsApp
+        // Cas 2 : préférence explicitement désactivée → aucun envoi
+        $optedOut = $this->makeUserWithProfile('0664234571', hasWhatsapp: true);
+        $this->setWhatsappPreference($optedOut, false);
+        Order::withoutSyncingToSearch(fn () => Order::create([
+            'user_id' => $optedOut->id,
+            'title' => 'Médée',
+            'isbn' => '9780000000005',
+            'status' => 'published',
+        ]));
+
+        // Cas 3 : préférence activée mais numéro sans WhatsApp → aucun envoi
         $withoutWhatsapp = $this->makeUserWithProfile('0662234568', hasWhatsapp: false);
         $this->setWhatsappPreference($withoutWhatsapp, true);
         Order::withoutSyncingToSearch(fn () => Order::create([
@@ -134,20 +147,28 @@ class WhatsAppDemandNotificationTest extends TestCase
         ]));
 
         $seller = User::factory()->create();
-        $listing = $this->createPublishedListing($seller, 'Livre sans rapport', '9789999999999');
 
-        // Match par titre sur les deux demandes ci-dessus
-        $titles = ['Antigone', 'Hamlet'];
-        foreach ($titles as $index => $title) {
-            (new NotifyDemandersOnListingPublished(
-                $this->createPublishedListing($seller, $title)
-            ))->handle(app(WhatsAppNotificationService::class));
-        }
+        // Défaut activé : le demandeur sans préférence reçoit le message
+        (new NotifyDemandersOnListingPublished(
+            $this->createPublishedListing($seller, 'Antigone')
+        ))->handle(app(WhatsAppNotificationService::class));
 
-        // L'annonce sans correspondance + les deux demandeurs exclusifs : aucun envoi
-        (new NotifyDemandersOnListingPublished($listing))->handle(app(WhatsAppNotificationService::class));
+        Http::assertSent(fn ($request) => $request['number'] === '212661234567');
 
-        Http::assertNothingSent();
+        // Désactivation explicite et numéro sans WhatsApp : aucun envoi
+        (new NotifyDemandersOnListingPublished(
+            $this->createPublishedListing($seller, 'Médée')
+        ))->handle(app(WhatsAppNotificationService::class));
+        (new NotifyDemandersOnListingPublished(
+            $this->createPublishedListing($seller, 'Hamlet')
+        ))->handle(app(WhatsAppNotificationService::class));
+
+        // Annonce sans correspondance : aucun envoi supplémentaire
+        (new NotifyDemandersOnListingPublished(
+            $this->createPublishedListing($seller, 'Livre sans rapport', '9789999999999')
+        ))->handle(app(WhatsAppNotificationService::class));
+
+        Http::assertSentCount(1);
     }
 
     public function test_no_self_notification_for_own_listing(): void

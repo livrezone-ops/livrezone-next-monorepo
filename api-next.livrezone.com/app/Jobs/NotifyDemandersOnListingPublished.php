@@ -14,7 +14,9 @@ use Illuminate\Queue\SerializesModels;
 /**
  * Notifie les demandeurs (WhatsApp) quand une annonce publiée correspond
  * à leur demande de livre (match par ISBN ou titre normalisé).
- * Opt-in strict : profile.has_whatsapp + préférence "whatsapp" activée.
+ * Canal activé par défaut (préférence absente = activé) ; désactivation
+ * explicite possible dans le dashboard. Garde-fous : profiles.has_whatsapp
+ * + numéro de mobile, auto-exclusion vendeur lui-même.
  */
 class NotifyDemandersOnListingPublished implements ShouldQueue
 {
@@ -54,11 +56,12 @@ class NotifyDemandersOnListingPublished implements ShouldQueue
                 continue;
             }
 
-            // Canal opt-in explicite (désactivé par défaut)
+            // Canal activé par défaut (préférence absente = activé) ;
+            // la désactivation explicite (is_enabled = false) est respectée.
             $wantsWhatsApp = $user->notificationPreferences
                 ->where('notification_type', 'book_orders')
                 ->where('channel', 'whatsapp')
-                ->first()?->is_enabled ?? false;
+                ->first()?->is_enabled ?? true;
 
             if (! $wantsWhatsApp) {
                 continue;
