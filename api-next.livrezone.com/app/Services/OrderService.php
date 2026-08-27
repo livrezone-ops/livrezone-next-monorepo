@@ -428,6 +428,9 @@ class OrderService
             ProcessBookOrderNotifications::dispatch($order);
         }
 
+        // Miniatures paresseuses (160/320) de la couverture catalogue demandée — échec silencieux
+        ThumbnailService::ensureThumbnailsExist($order->cover_path);
+
         // Signal front : le livre demandé est déjà en vente sur le site →
         // le client peut afficher « voir les vendeurs » (/annonces?isbn=...).
         $order->available_listings_count = $this->countMatchingListings($order);
@@ -479,6 +482,9 @@ class OrderService
             'cover_path' => $coverPath,
             'comment' => $data['comment'] ?? $order->comment,
         ]);
+
+        // Miniatures paresseuses (160/320) si la couverture catalogue a changé — échec silencieux
+        ThumbnailService::ensureThumbnailsExist($coverPath);
 
         return $order->fresh()->load(['book', 'category']);
     }
