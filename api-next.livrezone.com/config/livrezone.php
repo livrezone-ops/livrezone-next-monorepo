@@ -29,6 +29,9 @@ return [
 
     'book_covers_url' => env('BOOK_COVERS_URL', null),
 
+    // Image affichée si aucune couverture n'est trouvée (fallback final du trait HasCoverUrls)
+    'cover_placeholder_url' => env('COVER_PLACEHOLDER_URL', null),
+
     /*
     |--------------------------------------------------------------------------
     | Simulateur de paiement (tests)

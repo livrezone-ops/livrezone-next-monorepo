@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasCoverUrls;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,7 +13,7 @@ use Laravel\Scout\Searchable;
 
 class Listing extends Model
 {
-    use HasFactory, Searchable;
+    use HasCoverUrls, HasFactory, Searchable;
 
     /**
      * Get the indexable data array for the model.
@@ -37,20 +38,7 @@ class Listing extends Model
     }
 
     // ----------------------------------------------------------------
-    // Sécurité des couvertures
-
-    /** Préfixe de dossier pour les couvertures uploadées par les utilisateurs */
-    public const USER_COVER_DIR = 'book-covers/user-uploads';
-
-    /**
-     * Retourne true uniquement si le chemin appartient aux uploads utilisateurs.
-     * Les couvertures catalogue (books) ne contiennent jamais de '/' dans leur nom.
-     */
-    public static function isUserUploadedCover(?string $coverPath): bool
-    {
-        return $coverPath !== null
-            && str_starts_with($coverPath, self::USER_COVER_DIR.'/');
-    }
+    // Sécurité des couvertures (logique partagée : trait HasCoverUrls)
 
     protected static function boot(): void
     {
@@ -302,68 +290,6 @@ class Listing extends Model
             'child_listing_id',
             'pack_listing_id'
         )->withPivot('sort_order')->withTimestamps();
-    }
-
-    public function getCoverUrlAttribute(): ?string
-    {
-        $path = trim((string) ($this->cover_path ?? ''));
-
-        if ($path !== '') {
-            if (Str::startsWith($path, ['http://', 'https://'])) {
-                return $path;
-            }
-
-            if (self::isUserUploadedCover($path)) {
-                return asset('storage/'.$path);
-            }
-
-            // Couverture catalogue : nom de fichier simple (9782294788222.jpg)
-            $cleanPath = ltrim(str_replace('originals/', '', $path), '/');
-            $baseUrl = env('BOOK_COVERS_URL', url('/book-cover-proxy'));
-
-            return rtrim($baseUrl, '/').'/'.$cleanPath;
-        }
-
-        $external = trim((string) ($this->cover_source_url ?? ''));
-
-        return $external !== '' ? $external : null;
-    }
-
-    public function getCoverThumbnailUrlAttribute(): ?string
-    {
-        return $this->getCoverThumbnailUrl(160);
-    }
-
-    public function getCoverThumbnailUrl(int $size = 160): ?string
-    {
-        $path = trim((string) ($this->cover_path ?? ''));
-
-        if ($path !== '') {
-            if (Str::startsWith($path, ['http://', 'https://'])) {
-                return $path;
-            }
-
-            if (self::isUserUploadedCover($path)) {
-                $filename = basename($path);
-                $thumbPath = 'book-covers/user-uploads/thumbnails/'.$size.'/'.$filename;
-                // If it doesn't exist, we fallback to the original user upload (though ThumbnailService should ensure it)
-                if (file_exists(public_path($thumbPath))) {
-                    return asset($thumbPath);
-                }
-
-                return asset($path);
-            }
-
-            $cleanPath = ltrim(str_replace('originals/', '', $path), '/');
-            $cleanPathWebp = preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $cleanPath);
-            $baseUrl = env('BOOK_COVERS_URL', url('/book-cover-proxy'));
-
-            return rtrim($baseUrl, '/')."/thumbnails/{$size}/".$cleanPathWebp;
-        }
-
-        $external = trim((string) ($this->cover_source_url ?? ''));
-
-        return $external !== '' ? $external : null;
     }
 
     /**

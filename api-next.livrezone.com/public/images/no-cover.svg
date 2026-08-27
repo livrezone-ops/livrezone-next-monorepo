@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 320" role="img" aria-label="Pas de couverture disponible">
+  <rect width="240" height="320" fill="#f4f4f5"/>
+  <rect x="1" y="1" width="238" height="318" fill="none" stroke="#e4e4e7" stroke-width="2"/>
+  <g transform="translate(84 104)" fill="none" stroke="#a1a1aa" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M0 0 h56 a16 16 0 0 1 16 16 v88 a16 16 0 0 1 -16 16 h-56 z"/>
+    <path d="M0 0 v120"/>
+    <path d="M22 34 h28 M22 58 h28"/>
+  </g>
+  <text x="120" y="288" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#a1a1aa">Pas de couverture</text>
+</svg>
