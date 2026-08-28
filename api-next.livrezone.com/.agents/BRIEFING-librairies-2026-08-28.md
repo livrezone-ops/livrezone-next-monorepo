@@ -30,6 +30,8 @@ La base contient **4 profils `librairie`** (ids 1 ouahiblibrary, 2 rachidlibrary
 4. Vérifier la queue : `php artisan queue:failed` / table `jobs` (`SCOUT_QUEUE=database`) — une suppression en attente peut rejouer APRÈS une réparation manuelle (piège : réparer l'index sans vider la queue = réparé puis re-supprimé).
 
 ## 5. Fix proposé (traiter la CAUSE, pas seulement resynchroniser)
+
+> ✅ **TRAITÉ le 28/08 soir (commit `4fe0df1`, poussé)** — voir section « ✅ RÉSOLU (définitif) » de l'audit : anti-dérive `Profile` livrée, resync quotidien 03:30 en place, test unitaire 5 cas (79/79), réindexation + suppression du doc stale 8 effectuées, `GET /api/libraries` total: 4 stable. Cause précise de la récidive : jobs de suppression Scout en retard rejoués à 01:07 UTC, 13 min après la réparation manuelle (piège §4.4 confirmé).
 - [ ] **Anti-dérive dans `app/Models/Profile.php`** (option hygiène de l'audit, à implémenter) :
   hook `saving` capturant le `profile_type` pré-save + override `wasSearchableBeforeUpdate()`
   pour qu'un profil qui RESTE librairie ne soit jamais marqué unsearchable, et qu'une bascule
