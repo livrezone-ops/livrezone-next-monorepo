@@ -12,6 +12,15 @@ class Profile extends Model
     use HasFactory, Searchable;
 
     /**
+     * Anti-dérive Scout : `profile_type` AVANT le save courant.
+     * Capturé dans le hook `saving` (voir boot) car après save, Eloquent
+     * re-synchronise `original` avec les attributs modifiés.
+     *
+     * @var string|null
+     */
+    public $scoutProfileTypeBeforeSave;
+
+    /**
      * Nicknames réservés : mots clés des routes statiques du frontend et zones sensibles.
      * Source unique de vérité (validation + hook de sauvegarde).
      */
@@ -80,6 +89,13 @@ class Profile extends Model
         parent::boot();
 
         static::saving(function ($profile) {
+            // Anti-dérive Scout : capture du profile_type pré-save pour que
+            // wasSearchableBeforeUpdate() reflète l'état AVANT ce save
+            // (après save, Eloquent re-synchronise `original`).
+            if ($profile->exists) {
+                $profile->scoutProfileTypeBeforeSave = $profile->getOriginal('profile_type');
+            }
+
             // Détection automatique WhatsApp selon le type de numéro marocain (fixe vs portable)
             if (! empty($profile->phone)) {
                 $clean = preg_replace('/[^\d]/', '', $profile->phone);
@@ -151,6 +167,28 @@ class Profile extends Model
     public function shouldBeSearchable(): bool
     {
         return $this->profile_type === 'librairie';
+    }
+
+    /**
+     * Anti-dérive Scout : neutralise le comportement par défaut de
+     * ModelObserver::saved, qui appelle unsearchable() (suppression du doc
+     * Meilisearch) à CHAQUE save d'un profil non-librairie déjà existant —
+     * y compris un profil qui n'a jamais été indexé. C'est la cause racine
+     * des disparitions de docs dans l'index `profiles` (bug annuaire
+     * /librairies, 25-28/08).
+     *
+     * Règles :
+     *  - profil qui RESTE librairie  → true  (jamais marqué unsearchable,
+     *    l'observer appelle searchable() = no-op/réindexation sûre) ;
+     *  - bascule librairie → autre   → true  (suppression UNE fois, propre) ;
+     *  - profil qui reste NON-librairie → false (aucune suppression, plus de
+     *    tempête de suppressions no-op).
+     */
+    public function wasSearchableBeforeUpdate(): bool
+    {
+        $previousType = $this->scoutProfileTypeBeforeSave ?? $this->getOriginal('profile_type');
+
+        return $previousType === 'librairie';
     }
 
     public function searchableAs(): string

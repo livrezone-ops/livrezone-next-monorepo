@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Schedule;
 // Expiration des abonnements (downgrade Free + désactivation des annonces excédentaires).
 Schedule::command('app:process-subscriptions')->dailyAt('03:00');
 
+// Garde-fou anti-dérive : resynchronisation quotidienne de l'index Meilisearch
+// `profiles` (annuaire /librairies). Auto-heal < 24 h en cas de dérive de
+// l'index (historique : disparitions de docs de librairies, 25-28/08).
+Schedule::command('scout:import', ['App\\Models\\Profile'])->dailyAt('03:30');
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
