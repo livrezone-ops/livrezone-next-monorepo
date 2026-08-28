@@ -13,6 +13,10 @@ Schedule::command('app:process-subscriptions')->dailyAt('03:00');
 // l'index (historique : disparitions de docs de librairies, 25-28/08).
 Schedule::command('scout:import', ['App\\Models\\Profile'])->dailyAt('03:30');
 
+// Supervision de la queue `database` (jobs Scout + mails) : alerte dans les logs
+// (critical) si backlog, worker bloqué ou jobs échoués. Ne log rien si tout va bien.
+Schedule::command('app:queue-health')->everyFiveMinutes();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

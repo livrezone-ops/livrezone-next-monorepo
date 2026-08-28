@@ -164,6 +164,7 @@ Consulter selon le contexte :
 - .agents/DEPLOYMENT.md
 - .agents/ROADMAP.md
 - .agents/CHAT.md
+- .agents/QUEUE-SUPERVISION-2026-08-28.md
 - .agents/Next.js + Laravel + Axios rules.txt
 
 En cas de conflit documentaire, appliquer l'ordre suivant :
@@ -374,6 +375,37 @@ par dÃ©faut + `listing_count` calculÃ©) par :
 ```bash
 sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan profiles:configure-search
 ```
+
+---
+
+# Supervision de la queue (jobs Scout + mails)
+
+La queue est de type `database` (tables `jobs` / `failed_jobs`). `SCOUT_QUEUE=database`.
+
+Le runner est un **cron** : `/etc/cron.d/lz-schedule` execute chaque minute
+`queue:work --stop-when-empty` via `docker exec php-fpm-8.5`. Il n'y a pas de daemon
+persistant (option Supervisor/systemd documentee dans `.agents/QUEUE-SUPERVISION-2026-08-28.md`).
+
+La surveillance est automatique toutes les 5 minutes via `app:queue-health`
+(planifiee dans `routes/console.php`) :
+
+```bash
+# Etat de la queue (tableau de metriques + exit code)
+sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan app:queue-health
+
+# Echecs et rejeu
+sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan queue:failed
+sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan queue:retry {uuid}
+```
+
+En cas d'anomalie (backlog > 50 jobs, job en attente de plus de 30 min, job reserved
+bloque = worker mort en plein traitement, ou `failed_jobs` non vide), la commande ecrit
+un `Log::critical` (`storage/logs/laravel.log`, message : `Queue database en anomalie`)
+et retourne un exit code 1. Elle ne logge RIEN si tout va bien.
+
+IMPORTANT (piege historique) : reparer l'index Meilisearch sans vider/drainer la queue
+d'abord = reparé puis re-supprimé. Toujours drainer la queue AVANT une reparation
+manuelle de l'index. Voir `.agents/BRIEFING-librairies-2026-08-28.md`.
 
 ---
 
