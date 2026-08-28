@@ -72,6 +72,8 @@ doit rester vert après bascule.
 
 ## Reste à faire
 
-- [ ] Déployer en prod : `php artisan migrate` (crée `failed_jobs`) — aucun downtime.
-- [ ] Vérifier un cycle complet : pousser un job (test forgot-password) → `app:queue-health` vert.
+- [x] ~~Déployer en prod~~ ✅ 28/08 : commit `cd863a1` déjà présent sur le volume serveur (même volume que le workspace) ; `migrate:status` rien en attente ; `app:queue-health` premier run vert (0 partout, exit 0).
+- [x] ~~Vérifier l'enregistrement du scheduler~~ ✅ 28/08 : `schedule:list` → `*/5 * * * * app:queue-health` (next due 4 min).
+- [ ] Cycle complet avec un vrai job : déclencher un forgot-password (compte de test) → vérifier que `En attente` repasse à 0. Fait au passage : « test e-mail réel » resté ouvert dans l'audit depuis le 26/08.
 - [ ] Plus tard : brancher un canal d'alerte réel (Telegram admin, bot déjà opérationnel) si les logs critiques ne sont pas consultés régulièrement.
+

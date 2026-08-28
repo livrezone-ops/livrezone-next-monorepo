@@ -362,7 +362,11 @@ Toujours utiliser `lz`.
 # RÃ©indexation Meilisearch (moteur de recherche par dÃ©faut)
 
 Meilisearch est le moteur de recherche par dÃ©faut du projet (catalogue `books` et
-annuaire des librairies `profiles`). Pour (rÃ©)indexer un modÃ¨le :
+annuaire des librairies `profiles`). **Depuis le 28/08/2026, le conteneur tourne dans
+le daemon Docker ROOTLESS** (`DOCKER_HOST=unix:///run/user/1001/docker.sock`), rÃ©seau
+`livrezone_www`, port publiÃ© sur `192.168.1.202:7700` uniquement (jamais 0.0.0.0).
+Voir `.agents/meilisearch_install.txt` pour la commande de (re)crÃ©ation complÃ¨te.
+Pour (rÃ©)indexer un modÃ¨le :
 
 ```bash
 sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan scout:import "App\Models\Profile"

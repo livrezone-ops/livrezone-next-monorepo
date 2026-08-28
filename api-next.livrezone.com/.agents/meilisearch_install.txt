@@ -2,17 +2,33 @@
 INSTALLATION DE MEILISEARCH ET CONFIGURATION LARAVEL
 =========================================================
 
-1. CREATION DU CONTENEUR DOCKER (A lancer sur le serveur via SSH)
+⚠️ MISE A JOUR 28/08/2026 : Meilisearch est désormais dans le DAEMON DOCKER ROOTLESS
+(DOCKER_HOST=unix:///run/user/1001/docker.sock), sur le reseau `livrezone_www`
+(meme reseau que php-fpm-8.5). Le port 7700 est publie UNIQUEMENT sur l'IP LAN
+(192.168.1.202) — plus jamais sur 0.0.0.0. Sauvegarde pre-migration :
+/home/livrezone/docker-data/meilisearch_data_backup_2026-08-28 (fichiers chown 1001:1001).
+
+1. CREATION DU CONTENEUR (A lancer sur le serveur via SSH, daemon ROOTLESS)
 ---------------------------------------------------------
-docker run -d \
+sudo DOCKER_HOST=unix:///run/user/1001/docker.sock docker run -d \
   --name meilisearch \
   --restart unless-stopped \
-  -p 7700:7700 \
-  -e MEILI_MASTER_KEY="LIVREZONE_MEILI_MASTER_KEY_2026" \
+  --network livrezone_www \
+  -p 192.168.1.202:7700:7700 \
+  -e MEILI_MASTER_KEY="$(grep -oP '^MEILISEARCH_KEY=\K.*' /home/livrezone/docker-data/volumes/livrezone_html_data/_data/api-next.livrezone.com/.env | tr -d '\"')" \
   -e MEILI_NO_ANALYTICS=true \
   -e MEILI_ENV=production \
   -v /home/livrezone/docker-data/meilisearch_data:/meili_data \
   getmeili/meilisearch:v1.10
+
+IMPORTANT :
+- La master key reelle est la valeur de MEILISEARCH_KEY dans le .env de l'API
+  (cle hexa generee — l'ancienne cle "LIVREZONE_MEILI_MASTER_KEY_2026" documentee
+  ici n'est PLUS valide).
+- NE JAMAIS publier le port sur 0.0.0.0 (le bind 192.168.1.202 suffit : php-fpm
+  et code-server passent par l'IP LAN, le monde extérieur n'y accede pas).
+- Verification post-install : sudo DOCKER_HOST=... docker port meilisearch
+  doit afficher "7700/tcp -> 192.168.1.202:7700" et PAS "0.0.0.0:7700".
 
 
 2. CONFIGURATION LARAVEL (Fichier .env de l'API)
