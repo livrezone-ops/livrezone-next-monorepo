@@ -803,7 +803,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                 <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className="mb-1 block text-sm font-semibold text-slate-700">Prix (MAD) <span className="text-red-500">*</span></label>
-                        <input type="number" step="1" min="0"
+                        <input type="number" step="0.01" min="0"
                                {...form.register("price", { valueAsNumber: true })}
                                onChange={(e) => {
                                    form.register("price", { valueAsNumber: true }).onChange(e);
@@ -826,7 +826,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                     </div>
                     <div>
                         <label className="mb-1 block text-sm font-semibold text-slate-700">Prix réduit</label>
-                        <input type="number" step="1" min="0"
+                        <input type="number" step="0.01" min="0"
                                {...form.register("discount_price", { setValueAs: v => (v === "" || v === null || isNaN(v)) ? null : parseFloat(v) })}
                                onChange={(e) => {
                                    form.register("discount_price").onChange(e);
