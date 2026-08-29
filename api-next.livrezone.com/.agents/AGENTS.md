@@ -470,3 +470,46 @@ Toujours :
 Au dÃ©but d'une nouvelle session rÃ©pondre uniquement :
 
 Contexte LivreZone chargÃ©. PrÃªt Ã  optimiser et factoriser le code ! Quelle tÃ¢che souhaites-tu accomplir ?
+
+---
+
+# Accès sudo lecture seule (serveur 192.168.1.202, user `ouahib`)
+
+Mis en place et **testé le 28/08/2026**. Finalité : permettre à l'agent ZCode (session SSH `ouahib`) de diagnostiquer la prod sans possibilité de création/modification.
+
+## Ce qui marche (validé)
+
+| Commande | Usage | Test réel |
+|---|---|---|
+| `sudo -n ls / cat / tail / grep` | lecture fichiers système | ✅ |
+| `sudo -n docker ps *` / `docker logs *` | conteneurs daemon système | ✅ |
+| `sudo -n docker exec *` | artisan/ops **dans le daemon système uniquement** (ex. `openpanel_mysql`) | ✅ |
+| `sudo -n docker inspect *` / `docker images *` | config conteneurs, tailles d'images | ✅ |
+| `sudo -n docker compose ps *` / `compose logs *` | ⚠️ **au moins 1 argument après la sous-commande** (le `*` du pattern) : `compose ps -a` OK, `compose ps` nu → mot de passe demandé | ✅ |
+| `sudo -n ss` | ports/sockets (a permis d'identifier 127.0.0.1:3306 = openpanel_mysql) | ✅ |
+| `sudo -n journalctl` | logs systemd (docker.service, sessions user) | ✅ |
+| `sudo -n curl` | tests endpoints en direct | ✅ (200 api-next) |
+| `sudo -n systemctl status *` | état des services | ✅ |
+| `sudo -n tail /var/log/caddy-watchdog.log` | surveillance slirp4netns | ✅ |
+
+## Limitations connues
+
+1. **Daemon Docker rootless (user `livrezone`, uid 1001) INJOIGNABLE via sudo** : `sudo` efface `DOCKER_HOST` (env_reset) et refuse `-E` (« pas autorisé à conserver l'environnement »). Donc **pas de `php artisan` prod via sudo** (php-fpm-8.5, mariadb, redis, meilisearch sont rootless). Contournements utilisés : API publique + `storage/logs/laravel.log` (bind mount) + `queue:monitor` indirect.
+   → Amélioration possible (1 ligne sudoers, décision propriétaire) : `Defaults env_keep += "DOCKER_HOST"` — alors `DOCKER_HOST=unix:///run/user/1001/docker.sock sudo -n docker exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan app:queue-health` fonctionnerait.
+2. **`/usr/sbin/nginx -T`** : nginx n'est pas installé sur ce serveur — entrée sans objet, peut être retirée.
+3. Rappel : `127.0.0.1:3306` = `openpanel_mysql` (daemon système), **PAS** la base de l'app (MariaDB rootless sans port publié, voulu).
+
+## Éthique
+
+- Ces accès servent uniquement au diagnostic/lecture. Toute action d'écriture (restart, retrait de cron, migrations) reste exécutée par le propriétaire ou explicitement demandée.
+
+### Mise à jour 28/08 nuit — limitation 1 levée
+
+`Defaults env_keep += "DOCKER_HOST"` ajouté au sudoers (propriétaire). **Testé et fonctionnel** :
+
+```bash
+DOCKER_HOST=unix:///run/user/1001/docker.sock sudo -n docker exec php-fpm-8.5 \
+  php /var/www/html/api-next.livrezone.com/artisan app:queue-health
+```
+
+→ `app:queue-health` : 0 pending / 0 delayed / 0 bloqué / 0 failed / âge 0 min ; `queue:monitor database` : aucun job. ⚠️ Toujours préfixer la commande par `DOCKER_HOST=...` (variable héritée à travers sudo grâce à env_keep) ; sinon `docker exec` tombe sur le daemon système.

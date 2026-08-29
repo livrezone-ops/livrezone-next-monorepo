@@ -13,30 +13,15 @@ use Illuminate\Support\Facades\DB;
 
 class ImportBooksFromSqlite extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'books:import-sqlite {--path= : Le chemin absolu vers la base SQLite nextlivrezonedb.db}';
+    protected $description = 'Importe et met à jour les livres en masse brute (Upsert) avec gestion automatique des deadlocks';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Importe les livres en masse brute avec gestion automatique des deadlocks';
-
-    /**
-     * Execute the console command.
-     */
     public function handle()
     {
         $sqlitePath = $this->option('path') ?: base_path('nextlivrezonedb.db');
 
         if (! file_exists($sqlitePath)) {
             $this->error("Le fichier SQLite est introuvable à ce chemin : {$sqlitePath}");
-
             return Command::FAILURE;
         }
 
@@ -48,34 +33,29 @@ class ImportBooksFromSqlite extends Command
             $sqlite->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
         } catch (\PDOException $e) {
             $this->error('Impossible de se connecter à SQLite : '.$e->getMessage());
-
             return Command::FAILURE;
         }
 
-        // Récupérer le nombre total de livres
         try {
             $total = $sqlite->query('SELECT COUNT(*) FROM books')->fetchColumn();
         } catch (\Exception $e) {
             $this->error('Erreur lors de la lecture de la table books dans SQLite : '.$e->getMessage());
-
             return Command::FAILURE;
         }
 
         if ($total == 0) {
             $this->warn('La table books de SQLite est vide.');
-
             return Command::SUCCESS;
         }
 
-        $this->info("Nombre total de livres à importer : {$total}");
+        $this->info("Nombre total de livres à importer/mettre à jour : {$total}");
 
-        // Charger les clés valides de MariaDB pour éviter les violations de clés étrangères
         $validLanguages = Language::pluck('id')->toArray();
         $validCategories = Category::pluck('id')->toArray();
         $validLevels = Level::pluck('id')->toArray();
         $validSubjects = Subject::pluck('id')->toArray();
 
-        $chunkSize = 200; // Taille réduite pour éviter d'occuper de trop gros verrous
+        $chunkSize = 200;
         $offset = 0;
         $importedCount = 0;
         $now = now()->toDateTimeString();
@@ -91,19 +71,15 @@ class ImportBooksFromSqlite extends Command
             $stmt->execute();
             $rows = $stmt->fetchAll();
 
-            if (empty($rows)) {
-                break;
-            }
+            if (empty($rows)) break;
 
             $batch = [];
             foreach ($rows as $row) {
-                // Valider ou annuler les clés étrangères invalides
                 $langId = in_array($row['language_id'], $validLanguages) ? $row['language_id'] : null;
                 $catId = in_array($row['default_category_id'], $validCategories) ? $row['default_category_id'] : null;
                 $levelId = in_array($row['default_level_id'], $validLevels) ? $row['default_level_id'] : null;
                 $subId = in_array($row['default_subject_id'], $validSubjects) ? $row['default_subject_id'] : null;
 
-                // Formater la date de publication
                 $pubDate = null;
                 if (! empty($row['publication_date'])) {
                     try {
@@ -113,7 +89,6 @@ class ImportBooksFromSqlite extends Command
                     }
                 }
 
-                // S'assurer que les auteurs sont bien stockés sous forme de chaîne JSON brute
                 $authorsJson = null;
                 if (! empty($row['authors'])) {
                     $decoded = json_decode($row['authors'], true);
@@ -142,27 +117,32 @@ class ImportBooksFromSqlite extends Command
                 ];
             }
 
-            // Tentative d'insertion avec retry automatique en cas de deadlock
             $maxRetries = 3;
             $retryCount = 0;
             $success = false;
 
             while ($retryCount < $maxRetries && ! $success) {
                 try {
-                    DB::table('books')->insertOrIgnore($batch);
+                    DB::table('books')->upsert(
+                        $batch,
+                        ['isbn_13'], 
+                        [ 
+                            'title', 'normalized_title', 'authors', 'publisher', 'description',
+                            'publication_date', 'language_id', 'page_count', 'indicative_price',
+                            'indicative_price_currency', 'cover_path', 'cover_source_url',
+                            'default_category_id', 'default_level_id', 'default_subject_id', 'updated_at'
+                        ]
+                    );
                     $importedCount += count($batch);
                     $success = true;
                 } catch (QueryException $e) {
-                    // Code SQLSTATE 40001 (Deadlock / Serialization failure)
                     if ($e->getCode() === '40001' || str_contains($e->getMessage(), '1213 Deadlock')) {
                         $retryCount++;
                         $this->warn("\n[Deadlock] Essai {$retryCount}/{$maxRetries} pour le lot offset {$offset}. Pause 100ms...");
-                        usleep(100000); // Pause de 100ms avant de réinsérer
+                        usleep(100000);
                     } else {
-                        // Pour tout autre type d'erreur de requête, on arrête
                         $this->newLine();
                         $this->error('Erreur de requête SQL : '.$e->getMessage());
-
                         return Command::FAILURE;
                     }
                 }
@@ -171,7 +151,6 @@ class ImportBooksFromSqlite extends Command
             if (! $success) {
                 $this->newLine();
                 $this->error("Échec d'insertion du lot après {$maxRetries} tentatives de résolution de deadlock.");
-
                 return Command::FAILURE;
             }
 
@@ -181,7 +160,7 @@ class ImportBooksFromSqlite extends Command
 
         $bar->finish();
         $this->newLine();
-        $this->info("Importation Bulk terminée avec succès ! {$importedCount} livres synchronisés.");
+        $this->info("Importation et Mise à jour Bulk terminées avec succès ! {$importedCount} livres synchronisés.");
 
         return Command::SUCCESS;
     }
