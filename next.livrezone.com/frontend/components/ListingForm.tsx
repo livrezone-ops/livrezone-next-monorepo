@@ -573,7 +573,13 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                   onKeyDown={(e) => {
                       if (e.key === "Enter") {
                           e.preventDefault();
-                          handleManualSearch();
+                          // Entrée = sélectionner la première suggestion (titre, auteur ou ISBN) ;
+                          // recherche exacte /books/{saisie} uniquement si aucune suggestion.
+                          if (showSuggestions && bookSuggestions.length > 0) {
+                              fetchBookDetails(bookSuggestions[0].id);
+                          } else {
+                              handleManualSearch();
+                          }
                       }
                   }}
                   placeholder="Tapez le titre, l'auteur ou l'ISBN..."
