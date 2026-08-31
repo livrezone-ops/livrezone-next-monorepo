@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>LivreZone — Prévisualisation des mails de notification</title>
+</head>
+<body style="margin:0;background:#fff;font-family:Arial,Helvetica,sans-serif;">
+<div style="max-width:640px;margin:0 auto;padding:24px 16px;">
+  <h1 style="font-size:20px;color:#111827;">Prévisualisation des e-mails de notification — LivreZone</h1>
+  <p style="font-size:13px;color:#6b7280;">Rendu fidèle du gabarit <code>resources/views/mails/notifications/mail.blade.php</code> (sections 1 à 6) et des templates existants (7 à 9), avec des données d'exemple. Généré le 31/08/2026 — fichier local, à ouvrir dans un navigateur.</p>
+  
+    <section style="margin:40px 0;">
+      <h2 style="font-size:16px;color:#111827;margin:0 0 4px;">1. Demande de livre — type <code>book_orders</code></h2>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 2px;"><strong>Objet :</strong> Nouvelle demande de livre : L'Étranger</p>
+      <p style="font-size:12px;color:#9ca3af;margin:0 0 12px;">Émise par <code>BookOrderedNotification::toMail()</code> via <code>NotificationContentService</code> + gabarit <code>mails/notifications/mail.blade.php</code>.</p>
+      <div style="margin:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;padding:24px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(109,40,217,0.12);">
+                    <tr>
+                        <td style="background:#6D28D9;padding:28px 32px;">
+                            <span style="color:#ffffff;font-size:22px;font-weight:700;">LivreZone</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px;">
+                            <h1 style="color:#1f2937;font-size:20px;margin:0 0 16px;">Nouvelle demande de livre</h1>
+                            <div style="background:#f9fafb;border-radius:12px;margin-bottom:24px;">
+                                <div style="padding:16px 20px;color:#374151;font-size:14px;line-height:2;">
+                                    
+                                            Un utilisateur cherche le livre suivant sur LivreZone :<br>
+                                    
+                                            <strong>L'Étranger</strong><br>
+                                    
+                                            Auteur : Albert Camus<br>
+                                    
+                                            Catégorie : Romans contemporains<br>
+                                    
+                                </div>
+                            </div>
+                            <a href="https://next.livrezone.com/demandes?search=L%27%C3%89tranger"
+                               style="display:inline-block;background:#6D28D9;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 28px;border-radius:12px;">
+                                Voir la demande
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background:#f9fafb;padding:18px 32px;">
+                            <p style="color:#9ca3af;font-size:11px;margin:0;">
+                                Vous recevez cet e-mail car vous avez un compte LivreZone. Gérez vos préférences
+                                dans le paramétrage des notifications de votre espace.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+    </section>
+    <section style="margin:40px 0;">
+      <h2 style="font-size:16px;color:#111827;margin:0 0 4px;">2. Digest des messages — type <code>messages</code></h2>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 2px;"><strong>Objet :</strong> Vous avez 3 nouveau(x) message(s)</p>
+      <p style="font-size:12px;color:#9ca3af;margin:0 0 12px;">Émise par <code>ChatDigestNotification::toMail()</code> (une seule par fenêtre de X h, réglage admin <code>chat_digest_hours</code>).</p>
+      <div style="margin:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;padding:24px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(109,40,217,0.12);">
+                    <tr>
+                        <td style="background:#6D28D9;padding:28px 32px;">
+                            <span style="color:#ffffff;font-size:22px;font-weight:700;">LivreZone</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px;">
+                            <h1 style="color:#1f2937;font-size:20px;margin:0 0 16px;">Nouveaux messages</h1>
+                            <div style="background:#f9fafb;border-radius:12px;margin-bottom:24px;">
+                                <div style="padding:16px 20px;color:#374151;font-size:14px;line-height:2;">
+                                    
+                                            Vous avez 3 nouveau(x) message(s) dans 2 conversation(s).<br>
+                                    
+                                </div>
+                            </div>
+                            <a href="https://next.livrezone.com/dashboard/messages"
+                               style="display:inline-block;background:#6D28D9;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 28px;border-radius:12px;">
+                                Lire mes messages
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background:#f9fafb;padding:18px 32px;">
+                            <p style="color:#9ca3af;font-size:11px;margin:0;">
+                                Vous recevez cet e-mail car vous avez un compte LivreZone. Gérez vos préférences
+                                dans le paramétrage des notifications de votre espace.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+    </section>
+    <section style="margin:40px 0;">
+      <h2 style="font-size:16px;color:#111827;margin:0 0 4px;">3. Newsletter — type <code>newsletter</code></h2>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 2px;"><strong>Objet :</strong> Notre sélection du mois</p>
+      <p style="font-size:12px;color:#9ca3af;margin:0 0 12px;">Contenu prêt dans le service (aucun sender encore branché).</p>
+      <div style="margin:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;padding:24px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(109,40,217,0.12);">
+                    <tr>
+                        <td style="background:#6D28D9;padding:28px 32px;">
+                            <span style="color:#ffffff;font-size:22px;font-weight:700;">LivreZone</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px;">
+                            <h1 style="color:#1f2937;font-size:20px;margin:0 0 16px;">Notre sélection du mois</h1>
+                            <div style="background:#f9fafb;border-radius:12px;margin-bottom:24px;">
+                                <div style="padding:16px 20px;color:#374151;font-size:14px;line-height:2;">
+                                    
+                                            Découvrez les pépites ajoutées cette semaine par nos libraires.<br>
+                                    
+                                </div>
+                            </div>
+                            <a href="https://next.livrezone.com/"
+                               style="display:inline-block;background:#6D28D9;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 28px;border-radius:12px;">
+                                Lire la newsletter
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background:#f9fafb;padding:18px 32px;">
+                            <p style="color:#9ca3af;font-size:11px;margin:0;">
+                                Vous recevez cet e-mail car vous avez un compte LivreZone. Gérez vos préférences
+                                dans le paramétrage des notifications de votre espace.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+    </section>
+    <section style="margin:40px 0;">
+      <h2 style="font-size:16px;color:#111827;margin:0 0 4px;">4. Promotions — type <code>promos</code></h2>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 2px;"><strong>Objet :</strong> Offre exclusive</p>
+      <p style="font-size:12px;color:#9ca3af;margin:0 0 12px;">Contenu prêt dans le service (aucun sender encore branché).</p>
+      <div style="margin:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;padding:24px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(109,40,217,0.12);">
+                    <tr>
+                        <td style="background:#6D28D9;padding:28px 32px;">
+                            <span style="color:#ffffff;font-size:22px;font-weight:700;">LivreZone</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px;">
+                            <h1 style="color:#1f2937;font-size:20px;margin:0 0 16px;">Offre exclusive</h1>
+                            <div style="background:#f9fafb;border-radius:12px;margin-bottom:24px;">
+                                <div style="padding:16px 20px;color:#374151;font-size:14px;line-height:2;">
+                                    
+                                            -20% sur une sélection de romans policiers jusqu'à dimanche.<br>
+                                    
+                                </div>
+                            </div>
+                            <a href="https://next.livrezone.com/promos"
+                               style="display:inline-block;background:#6D28D9;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 28px;border-radius:12px;">
+                                Voir l'offre
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background:#f9fafb;padding:18px 32px;">
+                            <p style="color:#9ca3af;font-size:11px;margin:0;">
+                                Vous recevez cet e-mail car vous avez un compte LivreZone. Gérez vos préférences
+                                dans le paramétrage des notifications de votre espace.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+    </section>
+    <section style="margin:40px 0;">
+      <h2 style="font-size:16px;color:#111827;margin:0 0 4px;">5. Mises à jour du site — type <code>site_updates</code></h2>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 2px;"><strong>Objet :</strong> Maintenance planifiée</p>
+      <p style="font-size:12px;color:#9ca3af;margin:0 0 12px;">Contenu prêt dans le service (aucun sender encore branché).</p>
+      <div style="margin:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;padding:24px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(109,40,217,0.12);">
+                    <tr>
+                        <td style="background:#6D28D9;padding:28px 32px;">
+                            <span style="color:#ffffff;font-size:22px;font-weight:700;">LivreZone</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px;">
+                            <h1 style="color:#1f2937;font-size:20px;margin:0 0 16px;">Maintenance planifiée</h1>
+                            <div style="background:#f9fafb;border-radius:12px;margin-bottom:24px;">
+                                <div style="padding:16px 20px;color:#374151;font-size:14px;line-height:2;">
+                                    
+                                            La plateforme sera indisponible dimanche de 3h à 5h pour maintenance.<br>
+                                    
+                                </div>
+                            </div>
+                            <a href="https://next.livrezone.com/"
+                               style="display:inline-block;background:#6D28D9;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 28px;border-radius:12px;">
+                                Voir les détails
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background:#f9fafb;padding:18px 32px;">
+                            <p style="color:#9ca3af;font-size:11px;margin:0;">
+                                Vous recevez cet e-mail car vous avez un compte LivreZone. Gérez vos préférences
+                                dans le paramétrage des notifications de votre espace.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+    </section>
+    <section style="margin:40px 0;">
+      <h2 style="font-size:16px;color:#111827;margin:0 0 4px;">6. Nouvelles fonctionnalités — type <code>features</code></h2>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 2px;"><strong>Objet :</strong> Nouvelle fonctionnalité</p>
+      <p style="font-size:12px;color:#9ca3af;margin:0 0 12px;">Contenu prêt dans le service (aucun sender encore branché).</p>
+      <div style="margin:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;padding:24px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(109,40,217,0.12);">
+                    <tr>
+                        <td style="background:#6D28D9;padding:28px 32px;">
+                            <span style="color:#ffffff;font-size:22px;font-weight:700;">LivreZone</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px;">
+                            <h1 style="color:#1f2937;font-size:20px;margin:0 0 16px;">Nouvelle fonctionnalité</h1>
+                            <div style="background:#f9fafb;border-radius:12px;margin-bottom:24px;">
+                                <div style="padding:16px 20px;color:#374151;font-size:14px;line-height:2;">
+                                    
+                                            Les listes de favoris sont disponibles dans votre dashboard !<br>
+                                    
+                                </div>
+                            </div>
+                            <a href="https://next.livrezone.com/dashboard"
+                               style="display:inline-block;background:#6D28D9;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 28px;border-radius:12px;">
+                                Découvrir
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background:#f9fafb;padding:18px 32px;">
+                            <p style="color:#9ca3af;font-size:11px;margin:0;">
+                                Vous recevez cet e-mail car vous avez un compte LivreZone. Gérez vos préférences
+                                dans le paramétrage des notifications de votre espace.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+    </section>
+    <section style="margin:40px 0;">
+      <h2 style="font-size:16px;color:#111827;margin:0 0 4px;">7. Paiement confirmé (existant, hors registre)</h2>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 2px;"><strong>Objet :</strong> Paiement confirmé 🎉</p>
+      <p style="font-size:12px;color:#9ca3af;margin:0 0 12px;">Template existant <code>mails/payment-confirmed.blade.php</code>.</p>
+      <div style="margin:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;padding:24px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(109,40,217,0.12);">
+                    <tr>
+                        <td style="background:#6D28D9;padding:28px 32px;">
+                            <span style="color:#ffffff;font-size:22px;font-weight:700;">LivreZone</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px;">
+                            <h1 style="color:#1f2937;font-size:20px;margin:0 0 8px;">Paiement confirmé 🎉</h1>
+                            <p style="color:#4b5563;font-size:15px;line-height:1.6;margin:0 0 24px;">
+                                Merci ! Votre paiement a bien été reçu et votre abonnement est dès à présent actif.
+                            </p>
+                            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:12px;margin-bottom:24px;">
+                                <tr>
+                                    <td style="padding:16px 20px;color:#374151;font-size:14px;line-height:2;">
+                                        <strong>Offre :</strong> Premium (annuel)<br>
+                                        <strong>Montant :</strong> 499 MAD<br>
+                                        <strong>Actif jusqu'au :</strong> 31/08/2027
+                                    </td>
+                                </tr>
+                            </table>
+                            <a href="https://next.livrezone.com/dashboard/paiements"
+                               style="display:inline-block;background:#6D28D9;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 28px;border-radius:12px;">
+                                Gérer mon abonnement
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="background:#f9fafb;padding:18px 32px;">
+                            <p style="color:#9ca3af;font-size:11px;margin:0;">
+                                LivreZone — La marketplace marocaine du livre d'occasion.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+    </section>
+    <section style="margin:40px 0;">
+      <h2 style="font-size:16px;color:#111827;margin:0 0 4px;">8. Réinitialisation de mot de passe (existant)</h2>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 2px;"><strong>Objet :</strong> Réinitialisation de mot de passe</p>
+      <p style="font-size:12px;color:#9ca3af;margin:0 0 12px;">Template existant <code>mails/reset-password.blade.php</code>.</p>
+      <div style="margin:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;padding:24px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(109,40,217,0.12);">
+                    <tr>
+                        <td style="background:#6D28D9;padding:28px 32px;">
+                            <span style="color:#ffffff;font-size:22px;font-weight:700;">LivreZone</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px;">
+                            <h1 style="color:#1f2937;font-size:20px;margin:0 0 16px;">Bonjour Karim,</h1>
+                            <p style="color:#4b5563;font-size:15px;line-height:1.6;margin:0 0 24px;">
+                                Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte
+                                LivreZone. Cliquez sur le bouton ci-dessous pour en choisir un nouveau.
+                            </p>
+                            <a href="https://next.livrezone.com/reset-password?token=abc123" style="display:inline-block;background:#6D28D9;color:#ffffff;text-decoration:none;font-weight:600;padding:14px 28px;border-radius:10px;font-size:15px;">Réinitialiser mon mot de passe</a>
+                            <p style="color:#9ca3af;font-size:13px;line-height:1.6;margin:24px 0 0;">
+                                Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.
+                                Le lien expirera dans 60&nbsp;minutes.<br>
+                                <span style="color:#6D28D9;word-break:break-all;">https://next.livrezone.com/reset-password?token=abc123</span>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+    </section>
+    <section style="margin:40px 0;">
+      <h2 style="font-size:16px;color:#111827;margin:0 0 4px;">9. Vérification d'email (existant)</h2>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 2px;"><strong>Objet :</strong> Vérification d'adresse email</p>
+      <p style="font-size:12px;color:#9ca3af;margin:0 0 12px;">Template existant <code>mails/verify-email.blade.php</code>.</p>
+      <div style="margin:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;padding:24px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(109,40,217,0.12);">
+                    <tr>
+                        <td style="background:#6D28D9;padding:28px 32px;">
+                            <span style="color:#ffffff;font-size:22px;font-weight:700;">LivreZone</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px;">
+                            <h1 style="color:#1f2937;font-size:20px;margin:0 0 16px;">Bonjour Karim,</h1>
+                            <p style="color:#4b5563;font-size:15px;line-height:1.6;margin:0 0 24px;">
+                                Merci de rejoindre LivreZone&nbsp;! Confirmez votre adresse email pour activer votre
+                                compte et accéder à votre bibliothèque et à vos annonces.
+                            </p>
+                            <a href="https://next.livrezone.com/verify-email?token=xyz789" style="display:inline-block;background:#6D28D9;color:#ffffff;text-decoration:none;font-weight:600;padding:14px 28px;border-radius:10px;font-size:15px;">Confirmer mon email</a>
+                            <p style="color:#9ca3af;font-size:13px;line-height:1.6;margin:24px 0 0;">
+                                Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur&nbsp;:<br>
+                                <span style="color:#6D28D9;word-break:break-all;">https://next.livrezone.com/verify-email?token=xyz789</span>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+    </section>
+  
+<section style="margin:40px 0;">
+  <h2 style="font-size:16px;color:#111827;">Telegram — textes envoyés via <code>TelegramNotificationService::sendToChat()</code></h2>
+  <p style="font-size:13px;color:#6b7280;margin:0 0 12px;">Produits par <code>NotificationContentService::telegramText()</code> (formatage *gras* Markdown Telegram).</p>
+  <h3 style="font-size:13px;color:#374151;">Demande de livre</h3>
+  <pre style="background:#17212b;color:#e1e6eb;padding:16px;border-radius:12px;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:monospace;">📚 *Nouvelle demande de livre*
+━━━━━━━━━━━━━━━━━━
+📖 Titre : L'Étranger
+✍️ Auteur : Albert Camus
+🏷️ Catégorie : Romans contemporains
+🔗 Lien : https://next.livrezone.com/demandes?search=L%27%C3%89tranger</pre>
+  <h3 style="font-size:13px;color:#374151;">Digest des messages</h3>
+  <pre style="background:#17212b;color:#e1e6eb;padding:16px;border-radius:12px;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:monospace;">📚 *Nouveaux messages*
+━━━━━━━━━━━━━━━━━━
+Vous avez 3 nouveau(x) message(s) dans 2 conversation(s).
+🔗 Lien : https://next.livrezone.com/dashboard/messages</pre>
+</section>
+</div>
+</body>
+</html>
