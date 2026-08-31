@@ -55,17 +55,6 @@ export default function DemandesPage() {
   const [cancellingOrderId, setCancellingOrderId] = useState<number | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push("/login");
-      return;
-    }
-
-    if (isAuthenticated) {
-      fetchOrders();
-    }
-  }, [isAuthenticated, authLoading, statusFilter]);
-
   const fetchOrders = async () => {
     try {
       setLoading(true);
@@ -78,6 +67,33 @@ export default function DemandesPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+    if (!isAuthenticated) return;
+
+    // setState uniquement dans les callbacks (asynchrones) — la règle
+    // react-hooks/set-state-in-effect est en "error".
+    let active = true;
+    api.get(`/orders?status=${statusFilter}`)
+      .then(({ data }) => {
+        if (active) setOrders(data.orders || []);
+      })
+      .catch((err) => {
+        console.error("Erreur chargement demandes:", err);
+        if (active) toastError("Impossible de charger vos demandes.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated, authLoading, statusFilter]);
 
   const handleCancelOrder = async (orderId: number) => {
     setIsCancelling(true);

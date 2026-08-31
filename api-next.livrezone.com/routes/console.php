@@ -13,6 +13,16 @@ Schedule::command('app:process-subscriptions')->dailyAt('03:00');
 // l'index (historique : disparitions de docs de librairies, 25-28/08).
 Schedule::command('scout:import', ['App\\Models\\Profile'])->dailyAt('03:30');
 
+// Rejeu quotidien des settings Meilisearch (filterable/sortable) sur les 4 index
+// métier. Idempotent et léger. Auto-heal < 24 h après une restauration de dump
+// (le dump via API /dumps peut ne pas réappliquer les settings à l'identique)
+// ou une recréation d'index — sans cela, facettes/filtres/tri front se dégradent.
+// En cas d'index absent, l'échec est loggé par le scheduler sans impacter les autres.
+Schedule::command('books:configure-search')->dailyAt('03:40')->runInBackground();
+Schedule::command('listings:configure-search')->dailyAt('03:40')->runInBackground();
+Schedule::command('demandes:configure-search')->dailyAt('03:40')->runInBackground();
+Schedule::command('profiles:configure-search')->dailyAt('03:40')->runInBackground();
+
 // Supervision de la queue `database` (jobs Scout + mails) : alerte dans les logs
 // (critical) si backlog, worker bloqué ou jobs échoués. Ne log rien si tout va bien.
 Schedule::command('app:queue-health')->everyFiveMinutes();

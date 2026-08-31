@@ -1,7 +1,8 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { Suspense, FormEvent, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { getApiErrorMessage } from '../../lib/api-error';
 import {
@@ -18,10 +19,28 @@ import {
 } from 'lucide-react';
 
 export default function ResetPasswordPage() {
-    const { resetPassword } = useAuth();
+    // useSearchParams requiert une frontière Suspense pour le pré-rendu statique.
+    return (
+        <Suspense
+            fallback={
+                <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-slate-50 to-purple-50/20">
+                    <Loader2 className="animate-spin h-8 w-8 text-[#6D28D9]" />
+                </div>
+            }
+        >
+            <ResetPasswordForm />
+        </Suspense>
+    );
+}
 
-    const [token, setToken] = useState('');
-    const [email, setEmail] = useState('');
+function ResetPasswordForm() {
+    const { resetPassword } = useAuth();
+    const searchParams = useSearchParams();
+
+    // Token/email lus depuis l'URL via useSearchParams : SSR-safe et cohérent
+    // entre rendu serveur et hydratation (plus de setState dans un effet).
+    const token = searchParams.get('token') ?? '';
+    const [email, setEmail] = useState(searchParams.get('email') ?? '');
     const [password, setPassword] = useState('');
     const [passwordConfirmation, setPasswordConfirmation] = useState('');
     const [message, setMessage] = useState('');
@@ -30,12 +49,6 @@ export default function ResetPasswordPage() {
 
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
-
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        setToken(params.get('token') ?? '');
-        setEmail(params.get('email') ?? '');
-    }, []);
 
     const handleSubmit = async (event: FormEvent) => {
         event.preventDefault();

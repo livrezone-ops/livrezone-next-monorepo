@@ -375,6 +375,9 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
     const rawWishlist = pruneLines(safeGet(WS_KEY));
     const rawCart = pruneLines(safeGet(CT_KEY));
 
+    // Hydratation depuis localStorage : lecture d'un système externe au montage
+    // (modèle SSR-safe) — exclusion justifiée de set-state-in-effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWishlist(
       rawWishlist
         .filter((l) => l.listingId && l.listing)
@@ -454,6 +457,9 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
   // Galerie des données serveur vers l'état local (mode connecté).
   useEffect(() => {
     if (!isAuthenticated || !serverWishlist) return;
+    // Miroir local des données react-query (source externe) — exclusion
+    // justifiée : le state local est muté par les actions utilisateur.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWishlist(serverWishlist);
   }, [serverWishlist, isAuthenticated]);
 
@@ -463,6 +469,9 @@ export function CommerceProvider({ children }: { children: React.ReactNode }) {
     for (const group of serverCart) {
       lines.push(...group.items);
     }
+    // Miroir local des données react-query (source externe) — exclusion
+    // justifiée : le state local est muté par les actions utilisateur.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCart(lines);
   }, [serverCart, isAuthenticated]);
 

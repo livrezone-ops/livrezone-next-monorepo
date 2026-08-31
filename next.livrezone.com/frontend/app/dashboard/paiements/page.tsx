@@ -27,22 +27,26 @@ export default function PaiementsPage() {
             router.push('/login');
             return;
         }
+        if (!isAuthenticated) return;
 
-        if (isAuthenticated) {
-            fetchPayments();
-        }
+        // setState uniquement dans les callbacks (asynchrones) — la règle
+        // react-hooks/set-state-in-effect est en "error".
+        let active = true;
+        api.get('/payments')
+            .then(({ data }) => {
+                if (active) setPayments(data.payments || []);
+            })
+            .catch((error) => {
+                console.error("Erreur lors de la récupération des paiements:", error);
+            })
+            .finally(() => {
+                if (active) setLoading(false);
+            });
+
+        return () => {
+            active = false;
+        };
     }, [isAuthenticated, authLoading]);
-
-    const fetchPayments = async () => {
-        try {
-            const { data } = await api.get('/payments');
-            setPayments(data.payments || []);
-        } catch (error) {
-            console.error("Erreur lors de la récupération des paiements:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     if (authLoading || loading) {
         return (

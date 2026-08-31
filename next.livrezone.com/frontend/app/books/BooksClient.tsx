@@ -59,12 +59,13 @@ export default function BooksClient({
   const searchParams = useSearchParams();
   const { success, error: toastError } = useToast();
 
-  const [books, setBooks] = useState<BookSearchItem[]>(initialBooks);
-  const [total, setTotal] = useState(initialTotal);
-  const [page, setPage] = useState(initialPage);
-  const [lastPage, setLastPage] = useState(initialLastPage);
-  const [searchTerm, setSearchTerm] = useState(initialSearch);
-  const [view, setView] = useState<"grid" | "list">("list");
+  // Données directement dérivées des props SSR (déjà à jour à chaque
+  // navigation) — plus de copie props → state dans un effet
+  // (react-hooks/set-state-in-effect en "error").
+  const books = initialBooks;
+  const total = initialTotal;
+  const page = initialPage;
+  const lastPage = initialLastPage;
 
   // Autocomplete state
   const [suggestions, setSuggestions] = useState<BookSuggestion[]>([]);
@@ -72,15 +73,18 @@ export default function BooksClient({
   const [isSearching, setIsSearching] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [view, setView] = useState<"grid" | "list">("list");
+
   const filters = parseFilters((key) => searchParams.get(key));
 
-  useEffect(() => {
-    setBooks(initialBooks);
-    setTotal(initialTotal);
-    setPage(initialPage);
-    setLastPage(initialLastPage);
+  // Synchronisation du champ recherche avec l'URL : ajustement de state
+  // pendant le rendu (pattern officiel React), jamais dans un effet.
+  const [syncedSearch, setSyncedSearch] = useState(initialSearch);
+  if (syncedSearch !== initialSearch) {
+    setSyncedSearch(initialSearch);
     setSearchTerm(initialSearch);
-  }, [initialBooks, initialTotal, initialPage, initialLastPage, initialSearch]);
+  }
 
   // Click outside autocomplete dropdown
   useEffect(() => {
@@ -95,15 +99,17 @@ export default function BooksClient({
 
   // Fetch instant autocomplete suggestions
   useEffect(() => {
-    const term = searchTerm.trim();
-    if (!term || term.length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    setIsSearching(true);
+    // Toutes les mises à jour de state se font dans le callback du timer
+    // (asynchrone), jamais de façon synchrone dans le corps de l'effet.
     const timer = setTimeout(async () => {
+      const term = searchTerm.trim();
+      if (!term || term.length < 2) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      setIsSearching(true);
       try {
         const { data } = await api.get(`/books/autocomplete?q=${encodeURIComponent(term)}&limit=6`);
         setSuggestions(Array.isArray(data) ? (data as BookSuggestion[]) : []);

@@ -9,11 +9,11 @@ const eslintConfig = defineConfig([
     rules: {
       // Images externes (avatars vendeur) : on garde volontairement <img>.
       "@next/next/no-img-element": "off",
-      // TODO (moyen terme) : refactorer puis repasser ces règles en "error".
-      // Voir .agents/AUDIT-2026-08-25.md — dette lint React Compiler.
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/immutability": "warn",
-      "react-hooks/static-components": "warn",
+      // Règles React Compiler en "error" (dette du 26/08 clôturée le 30/08 :
+      // DemandesClient refactoré — plus de setState dans un effet).
+      "react-hooks/set-state-in-effect": "error",
+      "react-hooks/immutability": "error",
+      "react-hooks/static-components": "error",
     },
   },
   // Override default ignores of eslint-config-next.

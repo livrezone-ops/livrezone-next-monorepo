@@ -43,7 +43,7 @@ class BookDetailService
 
     private function loadDetails(Book $book): Book
     {
-        $book->load(['language', 'defaultCategory', 'defaultLevel'])
+        $book->load(['language', 'defaultCategory.parent', 'defaultLevel'])
             ->loadCount(['listings as active_listings_count' => function ($q) {
                 $q->where('status', 'published');
             }]);

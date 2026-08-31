@@ -45,6 +45,20 @@ const nextConfig: NextConfig = {
         destination: "/books/:path*",
         permanent: true,
       },
+      // /register n'existe pas en page dédiée : l'inscription est l'onglet
+      // "register" de /login (décision propriétaire 30/08 — pas de double page).
+      {
+        source: "/register",
+        destination: "/login?tab=register",
+        permanent: false,
+      },
+      // /demandes/create n'existe pas : la création de demande se fait dans le
+      // dashboard (formulaire avec recherche catalogue) — flow existant conservé.
+      {
+        source: "/demandes/create",
+        destination: "/dashboard/demandes/create",
+        permanent: false,
+      },
     ];
   },
   images: {

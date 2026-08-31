@@ -21,17 +21,9 @@ class BookAutocompleteService
 
         try {
             $books = Book::search($query)->take($limit)->get();
+            $books->load(['defaultCategory.parent']);
 
-            return $books->map(function ($book) {
-                return [
-                    'id' => $book->id,
-                    'title' => $book->title,
-                    'authors' => is_array($book->authors) ? implode(', ', $book->authors) : $book->authors,
-                    'isbn_13' => $book->isbn_13,
-                    'cover_url' => $book->cover_url,
-                    'cover_thumbnail_url' => $book->getCoverThumbnailUrl(160),
-                ];
-            })->all();
+            return $books->map(fn (Book $book) => $this->formatBook($book))->all();
         } catch (\Throwable $e) {
             // Fallback SQL si Meilisearch est momentanément indisponible
             $cleanIsbn = str_replace(['-', ' '], '', $query);
@@ -44,16 +36,30 @@ class BookAutocompleteService
                 ->take($limit)
                 ->get();
 
-            return $books->map(function ($book) {
-                return [
-                    'id' => $book->id,
-                    'title' => $book->title,
-                    'authors' => is_array($book->authors) ? implode(', ', $book->authors) : $book->authors,
-                    'isbn_13' => $book->isbn_13,
-                    'cover_url' => $book->cover_url,
-                    'cover_thumbnail_url' => $book->getCoverThumbnailUrl(160),
-                ];
-            })->all();
+            $books->load(['defaultCategory.parent']);
+
+            return $books->map(fn (Book $book) => $this->formatBook($book))->all();
         }
+    }
+
+    /**
+     * Représentation compacte d'un livre : vignette, ISBN et chemin de
+     * catégorie (parent > enfant) pour l'affichage dans le form de demande.
+     */
+    private function formatBook(Book $book): array
+    {
+        $category = $book->defaultCategory;
+
+        return [
+            'id' => $book->id,
+            'title' => $book->title,
+            'authors' => is_array($book->authors) ? implode(', ', $book->authors) : $book->authors,
+            'isbn_13' => $book->isbn_13,
+            'cover_url' => $book->cover_url,
+            'cover_thumbnail_url' => $book->getCoverThumbnailUrl(160),
+            'default_category_id' => $category?->id,
+            'category_parent' => $category?->parent?->name_fr,
+            'category_child' => $category?->name_fr,
+        ];
     }
 }

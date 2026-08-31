@@ -44,29 +44,39 @@ export default function DemandesClient({
   const searchParams = useSearchParams();
   const { isAuthenticated } = useAuth();
 
-  const [demandes, setDemandes] = useState<DemandItem[]>(initialDemandes);
-  const [total, setTotal] = useState(initialTotal);
-  const [page, setPage] = useState(initialPage);
-  const [lastPage, setLastPage] = useState(initialLastPage);
+  // Données "connecté" : récupérées côté client car la visibilité des demandes
+  // dépend de l'abonnement, connu uniquement via un appel authentifié.
+  // Pour les visiteurs non connectés, les props SSR sont utilisées directement
+  // (déjà à jour à chaque navigation) — plus de copie props → state en effet
+  // (règle react-hooks/set-state-in-effect passée en "error").
+  const [authData, setAuthData] = useState<{
+    demandes: DemandItem[];
+    total: number;
+    page: number;
+    lastPage: number;
+    canViewDemandes: boolean;
+  } | null>(null);
+
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [view, setView] = useState<"grid" | "list">("list");
-  const [canViewDemandes, setCanViewDemandes] = useState(initialCanViewDemandes);
-  const [clientLoaded, setClientLoaded] = useState(false);
 
   const filters = parseFilters((key) => searchParams.get(key));
 
-  // Synchronisation depuis le rendu serveur (visiteurs non authentifiés).
-  // Les utilisateurs connectés sont servis côté client (voir effet ci-dessous)
-  // afin de refléter leur abonnement réel via le flag can_view_demandes.
-  useEffect(() => {
-    if (isAuthenticated) return;
-    setDemandes(initialDemandes);
-    setTotal(initialTotal);
-    setPage(initialPage);
-    setLastPage(initialLastPage);
+  const demandes = authData?.demandes ?? initialDemandes;
+  const total = authData?.total ?? initialTotal;
+  const page = authData?.page ?? initialPage;
+  const lastPage = authData?.lastPage ?? initialLastPage;
+  const canViewDemandes = authData?.canViewDemandes ?? initialCanViewDemandes;
+  const clientLoaded = authData !== null;
+
+  // Synchronisation du champ recherche avec l'URL (navigation, filtres) :
+  // ajustement de state pendant le rendu (pattern officiel React), jamais
+  // dans un effet.
+  const [syncedSearch, setSyncedSearch] = useState(initialSearch);
+  if (syncedSearch !== initialSearch) {
+    setSyncedSearch(initialSearch);
     setSearchTerm(initialSearch);
-    setCanViewDemandes(initialCanViewDemandes);
-  }, [initialDemandes, initialTotal, initialPage, initialLastPage, initialSearch, initialCanViewDemandes, isAuthenticated]);
+  }
 
   // Récupération côté client pour les utilisateurs connectés : la visibilité
   // des demandes dépend de l'abonnement, connu uniquement via un appel authentifié.
@@ -87,17 +97,25 @@ export default function DemandesClient({
       .then((res) => {
         if (!active) return;
         const d = res.data ?? {};
-        setDemandes(d.data ?? []);
-        setTotal(d.total ?? 0);
-        setPage(d.current_page ?? filters.page);
-        setLastPage(d.last_page ?? 1);
-        setCanViewDemandes(Boolean(d.can_view_demandes));
+        setAuthData({
+          demandes: d.data ?? [],
+          total: d.total ?? 0,
+          page: d.current_page ?? filters.page,
+          lastPage: d.last_page ?? 1,
+          canViewDemandes: Boolean(d.can_view_demandes),
+        });
       })
       .catch(() => {
-        if (active) setDemandes([]);
-      })
-      .finally(() => {
-        if (active) setClientLoaded(true);
+        if (active) {
+          // En cas d'échec : liste vide, on conserve le reste des valeurs connues.
+          setAuthData((prev) => ({
+            demandes: [],
+            total: prev?.total ?? initialTotal,
+            page: prev?.page ?? initialPage,
+            lastPage: prev?.lastPage ?? initialLastPage,
+            canViewDemandes: prev?.canViewDemandes ?? initialCanViewDemandes,
+          }));
+        }
       });
 
     return () => {

@@ -47,7 +47,13 @@ function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    const [tab, setTab] = useState<Tab>('login');
+    // Onglet initial depuis l'URL (?tab=register|forgot) :
+    // la route /register (inexistante) est redirigée vers /login?tab=register
+    // par next.config.ts — l'inscription est un onglet de /login, pas une page dédiée.
+    const [tab, setTab] = useState<Tab>(() => {
+        const tabParam = searchParams.get('tab');
+        return tabParam === 'register' || tabParam === 'forgot' ? tabParam : 'login';
+    });
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [pending, setPending] = useState(false);

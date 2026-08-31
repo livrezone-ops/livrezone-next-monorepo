@@ -31,15 +31,17 @@ export default function HeaderSearch({ onCloseMobile, isMobile = false }: Header
   }, [isMobile]);
 
   useEffect(() => {
-    const term = searchQuery.trim();
-    if (term.length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    setIsSearching(true);
+    // Toutes les mises à jour de state se font dans le callback du timer
+    // (asynchrone), jamais de façon synchrone dans le corps de l'effet.
     const delay = setTimeout(async () => {
+      const term = searchQuery.trim();
+      if (term.length < 2) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      setIsSearching(true);
       try {
         const res = await api.get(`/listings?search=${encodeURIComponent(term)}&limit=5&compact=1`);
         setSuggestions(res.data?.data || []);

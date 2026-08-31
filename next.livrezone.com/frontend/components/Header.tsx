@@ -98,14 +98,23 @@ export default function Header() {
             Bienvenue sur <strong className="text-white font-bold">LivreZone</strong>
           </div>
 
-          {/* Bouton Orange Vendre un livre */}
-          <Link
-            href="/annonces/create"
-            className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-[#F97316] hover:bg-[#ea630a] text-white font-bold text-xs normal-case tracking-normal shadow-sm hover:shadow transition-all active:scale-[0.98] shrink-0"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Vendre un livre</span>
-          </Link>
+          {/* Boutons d'action : Vendre + Demander un livre */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/dashboard/demandes/create"
+              className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-[#6D28D9] hover:bg-violet-800 text-white font-bold text-xs normal-case tracking-normal shadow-sm hover:shadow transition-all active:scale-[0.98]"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Demander un livre</span>
+            </Link>
+            <Link
+              href="/annonces/create"
+              className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-[#F97316] hover:bg-[#ea630a] text-white font-bold text-xs normal-case tracking-normal shadow-sm hover:shadow transition-all active:scale-[0.98]"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Vendre un livre</span>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -299,13 +308,25 @@ export default function Header() {
                 )}
               </div>
             ) : (
-              <Link
-                href="/login"
-                className="text-black hover:text-[#6D28D9] transition-colors p-1"
-                aria-label="Connexion"
-              >
-                <User className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.75} />
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/login"
+                  className="text-black hover:text-[#6D28D9] transition-colors p-1"
+                  aria-label="Connexion"
+                >
+                  <User className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.75} />
+                </Link>
+                {/* CTA inscription : l'inscription est l'onglet "register" de /login
+                    (pas de page /register dédiée, cf. next.config.ts redirects).
+                    Masqué sur mobile pour préserver la largeur du topbar. */}
+                <Link
+                  href="/login?tab=register"
+                  className="hidden sm:inline-flex items-center px-3 py-1.5 bg-[#6D28D9] hover:bg-violet-800 text-white text-[11px] sm:text-xs font-bold rounded-lg transition-colors"
+                  aria-label="Créer un compte"
+                >
+                  S&apos;inscrire
+                </Link>
+              </div>
             )}
           </div>
         </div>

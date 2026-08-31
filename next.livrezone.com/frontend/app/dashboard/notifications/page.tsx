@@ -29,6 +29,19 @@ interface NotificationPreference {
   filters?: Record<string, unknown> | null;
 }
 
+// Toggle : composant stable défini au niveau module (jamais recréé à chaque
+// rendu — règle React Compiler "Cannot create components during render").
+function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <button
+      onClick={onChange}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${checked ? "bg-[#6D28D9]" : "bg-gray-200"}`}
+    >
+      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`} />
+    </button>
+  );
+}
+
 export default function NotificationsPage() {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const router = useRouter();
@@ -58,29 +71,6 @@ export default function NotificationsPage() {
     enabled: isAuthenticated,
   });
 
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push("/login");
-      return;
-    }
-
-    if (isAuthenticated) {
-      fetchPreferences();
-      refreshTelegram();
-    }
-  }, [isAuthenticated, authLoading]);
-
-  const fetchPreferences = async () => {
-    try {
-      const { data } = await api.get("/profile/notifications");
-      setPreferences(data.preferences || []);
-    } catch (error) {
-      console.error("Erreur:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const refreshTelegram = async () => {
     setGenerating(true);
     try {
@@ -92,6 +82,40 @@ export default function NotificationsPage() {
       setGenerating(false);
     }
   };
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push("/login");
+      return;
+    }
+    if (!isAuthenticated) return;
+
+    // setState uniquement dans les callbacks (asynchrones) — la règle
+    // react-hooks/set-state-in-effect est en "error". refreshTelegram reste
+    // utilisée par l'action utilisateur (régénération du lien).
+    let active = true;
+    api.get("/profile/notifications")
+      .then(({ data }) => {
+        if (active) setPreferences(data.preferences || []);
+      })
+      .catch((error) => console.error("Erreur:", error))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    api.get("/profile/telegram/link")
+      .then(({ data }) => {
+        if (active) setTelegram({ linked: !!data.linked, deep_link: data.deep_link, token_expires_at: data.token_expires_at });
+      })
+      .catch((e) => console.error("Erreur Telegram:", e))
+      .finally(() => {
+        if (active) setGenerating(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated, authLoading]);
 
   const unlinkTelegram = async () => {
     setUnlinking(true);
@@ -239,15 +263,6 @@ export default function NotificationsPage() {
       </div>
     );
   }
-
-  const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
-    <button
-      onClick={onChange}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${checked ? "bg-[#6D28D9]" : "bg-gray-200"}`}
-    >
-      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`} />
-    </button>
-  );
 
   const isCategorySelected = (id: number) => {
     const stored = getFilters("book_orders").categories as number[] | undefined;
