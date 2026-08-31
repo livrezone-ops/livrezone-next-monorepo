@@ -38,7 +38,7 @@ laisser un fichier en erreur en fin de session.
 | T3. Digest des messages de chat | ⬜ À FAIRE |
 | T4. Service de contenu + gabarits par canal | ⬜ À FAIRE |
 | T5. Toggles admin (telegram_pro_enabled, chat_digest_hours) | ⬜ À FAIRE |
-| Z. Clôture session (lint, tests, migration, déploiement) | ⏳ PARTIELLE (Z1/Z3/Z5/Z6 faits, Z2/Z4/Z7 pour le propriétaire) |
+| Z. Clôture session (lint, tests, migration, déploiement) | ⏳ PARTIELLE (Z1/Z2/Z3/Z5/Z6 faits, Z4/Z7 pour le propriétaire) |
 
 **Ordre de réalisation conseillé : A1+A2 (bugs) → A3/A4/A5 (avec T3.5) → T5 → T1 → T2 → T3 → T4 → Z.**
 
@@ -125,7 +125,7 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
 ## PHASE Z — CLÔTURE DE SESSION (imperative, règle projet)
 
 - [x] ✅ Z1 FAITE 31/08 : `php -l` OK sur les 16 fichiers PHP touchés.
-- [ ] ⏳ Z2 BLOQUÉE (sudo nécessaire) : à faire par le propriétaire — `migrate:status` puis `migrate` si besoin. Voir AUDIT-2026-08-31.md.
+- [x] ✅ Z2 FAITE 31/08 (22h50) : migration `2026_08_31_000001_add_pinned_and_dismissed_to_notifications_table` exécutée en prod dans `php-fpm-8.5` (batch 29, 31 ms) — `migrate:status` → Ran, requête `whereNull('dismissed_at')` OK (50 notifs), `GET /api/notifications` + `POST pin` répondent 401 JSON propre. ~~BLOQUÉE (sudo nécessaire)~~ accès rootless via `DOCKER_HOST=unix:///run/user/1001/docker.sock sudo -n docker exec` (env_keep sudoers). Recette connectée → Z7.
 -[x] ✅ Z3 FAITE 31/08 : ESLint 0 erreur, TSC 0 erreur (2 warnings préexistants AdminPaymentsClient, hors périmètre).
 -[ ] ⏳ Z4 BLOQUÉE (conteneur) : pint + phpunit + exécution manuelle du digest, par le propriétaire.
 -[x] ✅ Z5 FAITE 31/08 : commits 53c9f34 + 52150e6 (dépôt racine _data unique). Push GitHub à lancer.
@@ -157,3 +157,4 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
 - 2026-08-31 : **T4 ✅** — NotificationContentService + 3 gabarits ; BookOrderedNotification, ChatDigestNotification et job Telegram branchés sur le service. `php -l` OK. Rendu visuel à comparer en Z7.
 - 2026-08-31 : **TOUTES LES TÂCHES DE CODE TERMINÉES (A1-A5, T1-T5). Reste la phase Z.**
 - 2026-08-31 : **Z1/Z3/Z5/Z6 ✅, Z2/Z4/Z7 ⏳ pour le propriétaire** (sudo + déploiement lz). Voir `.agents/AUDIT-2026-08-31.md`. Session V2 close côté agent.
+- 2026-08-31 (22h50) : **Z2 ✅** — accès rootless retrouvé (`DOCKER_HOST=unix:///run/user/1001/docker.sock sudo -n docker exec`, env_keep sudoers du 28/08) ; `migrate:status` révélait `2026_08_31_000001` PENDING → `migrate --force` exécuté (batch 29) ; vérifs : requête `whereNull('dismissed_at')` OK, `/api/notifications` + `pin` → 401 JSON (le 500 « Route [login] not defined » sans header Accept est un artefact curl, comportement antérieur). Au passage : `livrezone-redis` est de nouveau attaché au réseau `livrezone_db` (erreurs DNS du log arrêtées à 18:49, queue-health 0/0/0/0). Restent Z4 (pint/phpunit + digest) et Z7 (recette connectée + `lz`).
