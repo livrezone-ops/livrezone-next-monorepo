@@ -38,7 +38,7 @@ laisser un fichier en erreur en fin de session.
 | T3. Digest des messages de chat | ⬜ À FAIRE |
 | T4. Service de contenu + gabarits par canal | ⬜ À FAIRE |
 | T5. Toggles admin (telegram_pro_enabled, chat_digest_hours) | ⬜ À FAIRE |
-| Z. Clôture session (lint, tests, migration, déploiement) | ⬜ À FAIRE |
+| Z. Clôture session (lint, tests, migration, déploiement) | ⏳ PARTIELLE (Z1/Z3/Z5/Z6 faits, Z2/Z4/Z7 pour le propriétaire) |
 
 **Ordre de réalisation conseillé : A1+A2 (bugs) → A3/A4/A5 (avec T3.5) → T5 → T1 → T2 → T3 → T4 → Z.**
 
@@ -124,12 +124,12 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
 
 ## PHASE Z — CLÔTURE DE SESSION (imperative, règle projet)
 
-- [ ] Z1. `php -l` sur tous les fichiers PHP modifiés/créés (API live en bind mount — jamais laisser un fichier en erreur).
-- [ ] Z2. Confirmer l'exécution de la migration `2026_08_31_000001` en base : `sudo docker --context livrezone exec php-fpm-8.5 php /var/www/html/api-next.livrezone.com/artisan migrate:status` — sinon routes pin/hide cassées en prod.
-- [ ] Z3. Front : ESLint 0 erreur (règles React Compiler en `error`) + TSC 0 erreur.
-- [ ] Z4. Tests backend verts (pint + phpunit) dans le conteneur.
-- [ ] Z5. Commit des 2 repos + push GitHub (rappel : le socle V1 entier était encore non commité au 31/08 matin).
-- [ ] Z6. Créer `.agents/AUDIT-2026-08-31.md` (ou mise à jour du 30/08) : avant/après de chaque tâche.
+- [x] ✅ Z1 FAITE 31/08 : `php -l` OK sur les 16 fichiers PHP touchés.
+- [ ] ⏳ Z2 BLOQUÉE (sudo nécessaire) : à faire par le propriétaire — `migrate:status` puis `migrate` si besoin. Voir AUDIT-2026-08-31.md.
+-[x] ✅ Z3 FAITE 31/08 : ESLint 0 erreur, TSC 0 erreur (2 warnings préexistants AdminPaymentsClient, hors périmètre).
+-[ ] ⏳ Z4 BLOQUÉE (conteneur) : pint + phpunit + exécution manuelle du digest, par le propriétaire.
+-[x] ✅ Z5 FAITE 31/08 : commits 53c9f34 + 52150e6 (dépôt racine _data unique). Push GitHub à lancer.
+-[x] ✅ Z6 FAITE 31/08 : `.agents/AUDIT-2026-08-31.md` créé.
 - [ ] Z7. Demander au propriétaire le déploiement front (`lz`) + tests de recette :
       1. Paramétrage : plus d'encart « Rappel de règle » (T1)
       2. Toggle Telegram grisé avec mention selon abonnement Free/Pro/Premium (T2)
@@ -156,3 +156,4 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
 - 2026-08-31 : **T3 ✅** — SendChatDigests + ChatDigestNotification + schedule hourly. Anti-doublon via dernier digest. NOTE : pas de titre de livre dans les threads (modèle sans référence listing) → résumé = nb messages + nb conversations + lien. Exécution réelle à tester dans le conteneur (Z).
 - 2026-08-31 : **T4 ✅** — NotificationContentService + 3 gabarits ; BookOrderedNotification, ChatDigestNotification et job Telegram branchés sur le service. `php -l` OK. Rendu visuel à comparer en Z7.
 - 2026-08-31 : **TOUTES LES TÂCHES DE CODE TERMINÉES (A1-A5, T1-T5). Reste la phase Z.**
+- 2026-08-31 : **Z1/Z3/Z5/Z6 ✅, Z2/Z4/Z7 ⏳ pour le propriétaire** (sudo + déploiement lz). Voir `.agents/AUDIT-2026-08-31.md`. Session V2 close côté agent.
