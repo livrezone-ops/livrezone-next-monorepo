@@ -1,0 +1,205 @@
+================================================================================
+LIVREZONE — PROMPT DE SESSION « NOTIFICATIONS V2 » (points 1 à 5)
+Fichier : .agents/PROMPT-SESSION-NOTIFICATIONS-V2.txt
+Date d'audit : 2026-08-31
+Repos : api-next.livrezone.com (API Laravel) + next.livrezone.com/frontend (Next.js)
+LIRE AUSSI : .agents/AGENTS.md, .agents/RULES.md, .agents/WORKFLOW.md,
+.agents/PROMPT-SESSION-NOTIFICATIONS.md (session V1, livrée)
+================================================================================
+
+SECTION 0 — CONTEXTE ET RÈGLES NON NÉGOCIABLES
+--------------------------------------------------------------------------------
+R0.1  Les notifications INTERNES (in-app / canal database) sont TOUJOURS
+      actives : aucun utilisateur ne peut les désactiver, aucun toggle ne
+      les mentionne dans l'UI, et la préférence historique (book_orders,
+      in_app) n'est plus consultée par ProcessBookOrderNotifications.
+R0.2  La messagerie interne (chat) n'est PAS un canal de notification.
+      Aucun envoi automatique dans le chat (aucun ->notify() ne cible le
+      chat ; ChatMessage/ChatThread restent exclusivement réservés aux
+      échanges entre utilisateurs). Le digest (T3) est une notification
+      ENVOYÉE À l'utilisateur, jamais écrite DANS le chat.
+R0.3  Évolutivité : tout nouveau type de notification = 1 entrée dans
+      App\Services\NotificationTypeService::FILTERABLE (+ 1 ligne de miroir
+      front lib/notifications.ts NOTIFICATION_TYPE_LABELS). Aucune refonte.
+R0.4  Canaux par abonnement : source unique =
+      SubscriptionService::allowedNotificationChannels(Profile)
+        - Premium : mail + database + telegram (toujours)
+        - Pro     : database + telegram SI l'admin a activé le réglage
+                    'telegram_pro_enabled' (défaut : désactivé)
+        - Free    : database uniquement
+      WhatsApp : réservé au type book_orders (notifications de demandes de
+      livres uniquement — décision validée), non soumis à l'abonnement
+      (garde-fous existants has_whatsapp + numéro conservés).
+R0.5  Réglages admin : n'ajouter une clé QUE via la chaîne complète
+      SubscriptionService::EDITABLE_SETTINGS (clé => ENV de repli)
+      + getEditableSettings() + règle de validation updateSettings
+      (AdminController) + UI admin. Écritures en POST uniquement (WAF).
+R0.6  Toute la UI est en français, style existant (violet #6D28D9, rounded-xl,
+      font-bold, Tailwind). Toast au lieu d'alert(). Composants React définis
+      au niveau module (règle React Compiler), setState jamais appelé
+      directement dans un useEffect (callback async uniquement).
+
+SECTION 1 — ÉTAT DES LIEUX (AUDIT RÉEL DU 2026-08-31, DÉJÀ EN PLACE)
+--------------------------------------------------------------------------------
+F1.1  App\Services\SubscriptionService
+        - EDITABLE_SETTINGS : 'telegram_pro_enabled' => 'TELEGRAM_PRO_ENABLED'
+          et 'chat_digest_hours' => 'CHAT_DIGEST_HOURS' présents (l.46-47).
+        - isTelegramForProEnabled() (l.232), allowedNotificationChannels()
+          mis à jour (l.243-256), getChatDigestHours() défaut 6 h (l.262).
+        - getEditableSettings() expose les 2 clés (l.135-136).
+F1.2  AdminController::updateSettings : règles de validation
+      'telegram_pro_enabled' => nullable|boolean et
+      'chat_digest_hours' => nullable|integer|min:1|max:168 présentes.
+F1.3  ProfileController::getNotificationPreferences : contrat S1/S2 complet
+      (channels/types/categories) + 'telegram_allowed' (déduit de
+      allowedNotificationChannels) + 'telegram_mention' (texte différencié
+      Premium / Pro activé / Pro non activé / Free) (l.270-322).
+F1.4  ProfileController::updateNotificationPreferences : validation
+      channels/types/categories, matrice type×canal recalculée, whatsapp
+      écrit uniquement pour book_orders, in_app jamais écrit (l.327-380+).
+F1.5  NotificationController : filtre ?type= (Rule::in registre, SQL
+      data->type), exclusion dismissed_at de la liste ET du unread_count,
+      togglePin(), hide(), markRead(), markAllRead().
+F1.6  Routes : POST /api/notifications/{id}/pin et
+      POST /api/notifications/{id}/hide (routes/api.php l.75-76).
+F1.7  Migration 2026_08_31_000001_add_pinned_and_dismissed_to_notifications_
+      table.php (colonnes pinned_at, dismissed_at).
+F1.8  App\Services\NotificationTypeService : registre 6 types
+      (book_orders=Demandes, messages=Messages, newsletter=Newsletter,
+      promos=Promotions, site_updates=Mises à jour du site,
+      features=Nouvelles fonctionnalités).
+F1.9  Front V1 livré : app/dashboard/notifications/page.tsx (filtre types,
+      pagination fenêtrée, liens /demandes?search=, bouton Paramétrage),
+      app/dashboard/notifications/parametrage/page.tsx (S1 canaux, S2 types +
+      catégories, S3 Telegram), lib/notifications.ts (miroir types, dates
+      timezone-fixe).
+
+SECTION 2 — TÂCHES À RÉALISER (le reste, par point utilisateur)
+--------------------------------------------------------------------------------
+
+[T1] RETIRER LE BLOC DE MENTION DANS LE PARAMÉTRAGE (point 1)
+  Fichier : next.livrezone.com/frontend/app/dashboard/notifications/
+            parametrage/page.tsx
+  - Supprimer le bloc JSX « Rappel de règle : notifications internes
+    toujours actives » (l.209-218 : encart ShieldCheck violet répétant que
+    les notifications internes ne peuvent pas être désactivées et que le
+    chat n'est pas un canal).
+  - Nettoyer le commentaire de code associé (l.55) et l'import ShieldCheck
+    devenu inutile (ainsi que tout import mort).
+  - Ne rien changer d'autre sur cette page dans cette tâche.
+
+[T2] TELEGRAM : GRISER LE TOGGLE SELON L'ABONNEMENT (point 2)
+  Fichier : app/dashboard/notifications/parametrage/page.tsx
+  Le backend renvoie déjà (GET /profile/notifications) :
+    - telegram_allowed : boolean (Premium = true ; Pro = true ssi réglage
+      admin telegram_pro_enabled ; Free = false)
+    - telegram_mention : string FR prête à afficher
+      (« Inclus avec votre compte Premium. » / « Activé pour les comptes Pro
+      par l'administrateur. » / « Canal Telegram non activé pour les comptes
+      Pro. Contactez l'équipe LivreZone. » / « Réservé aux comptes Premium. »)
+  À faire :
+  - Stocker ces 2 champs dans le state au chargement.
+  - Toggle Telegram : disabled={!telegramAllowed} + styles grisés
+    (opacity, cursor-not-allowed) quand non autorisé ; son état ne peut pas
+    être passé à true par l'utilisateur quand il est désactivé.
+  - Afficher telegram_mention sous le toggle (text-xs) — remplacer la
+    description statique actuelle de la ligne Telegram du tableau CHANNELS
+    par cette mention dynamique.
+  - Section 3 (connexion Telegram) : si !telegramAllowed, afficher la mention
+    à la place des actions connexion/copie/déconnexion.
+  - Sauvegarde : ne pas envoyer channels.telegram=true quand
+    !telegramAllowed (forcer false côté client avant POST ; le backend
+    ignore de toute façon le canal non autorisé).
+
+[T3] DIGEST DES MESSAGES DE CHAT (point 3 — 1 notification par fenêtre X h)
+  Rappel produit : « bonjour » puis « ça va » = UNE seule notification
+  récapitulative, pas deux mails. Type = 'messages' (déjà dans le registre).
+  Backend à créer :
+  3.1 App\Console\Commands\SendChatDigests (signature
+      notifications:send-chat-digest) :
+      - Fenêtre = app(SubscriptionService::class)->getChatDigestHours() (h).
+      - Cibles : utilisateurs ayant des ChatMessage non lus (is_read=false)
+        dont created_at >= now - fenêtre, en excluant l'expéditeur
+        (sender_id), et les threads soft-deleted pour l'utilisateur.
+      - Anti-doublon : ne pas re-notifier les messages déjà couverts par un
+        digest précédent -> filtrer sur les messages dont created_at est
+        postérieur au dernier digest 'messages' reçu par l'utilisateur
+        (chercher dans notifications la dernière entrée avec
+        data->type = 'messages' et data->kind = 'chat_digest').
+      - Si aucun message éligible : ne rien envoyer (jamais de notif vide).
+      - Contenu du résumé : nombre total de nouveaux messages + nombre de
+        conversations concernées + titre du livre/annonce du thread si
+        disponible + lien https://next.livrezone.com/dashboard/messages.
+      - Distribution : IN-APP toujours (règle R0.1) ; email et Telegram
+        selon les préférences (type 'messages' × canal email/telegram) ET
+        allowedNotificationChannels (mail = Premium ; telegram = Premium ou
+        Pro si toggle admin ; Free = in-app uniquement).
+  3.2 App\Notifications\ChatDigestNotification (Laravel Notification) :
+      - data : ['type' => 'messages', 'kind' => 'chat_digest', 'title',
+        'message', 'url'] (type EST LA CLÉ DE FILTRAGE de la boîte de
+        réception — même convention que BookOrderedNotification).
+      - via() dynamique (database + mail + telegram selon les canaux
+        calculés par la commande), toMail() via le service de contenu (T4),
+        sendToChat() de TelegramNotificationService pour Telegram.
+  3.3 Planification : routes/console.php ->
+      Schedule::command('notifications:send-chat-digest')->hourly();
+      (la granularité fine est portée par la fenêtre X h du réglage admin ;
+      ne PAS planifier toutes les X minutes).
+  3.4 Réglage admin chat_digest_hours : chaîne backend déjà complète
+      (F1.1/F1.2) ; il ne manque que le toggle UI (T5) et l'usage dans la
+      commande.
+  3.5 Nettoyage : App\Services\NotificationPreferenceService — constantes
+      obsolètes : ALIGNER ALLOWED_TYPES sur NotificationTypeService::keys()
+      (6 types) et retirer 'in_app' de ALLOWED_CHANNELS (canaux externes
+      email/telegram/whatsapp uniquement). Vérifier les usages avant.
+
+[T4] SERVICE DE CONTENU + TEMPLATES PAR CANAL (point 4)
+  Décision validée : les gabarits sont STABLES PAR CANAL (3 gabarits), le
+  contenu varie PAR TYPE via un service central. Un nouveau type = contenu
+  dans le service, aucun nouveau blade.
+  4.1 App\Services\NotificationContentService (nouveau) — source unique :
+      - pour chaque type du registre : titre FR, sujet mail, lignes de
+        corps (à partir des data de la notification), CTA + url
+        (https://next.livrezone.com/...), texte Telegram (formatage *gras*
+        + emoji, style des messages existants du job), texte WhatsApp.
+      - API suggérée : build(string $type, array $data, string $channel)
+        retournant ['subject' => ..., 'lines' => [...], 'cta_label' => ...,
+        'url' => ...] + helpers telegramText()/whatsappText().
+      - Fallback générique pour tout type inconnu (ne jamais crasher).
+  4.2 Gabarits canal (resources/views/mails/notifications/) :
+      - mail.blade.php : gabarit e-mail stable (en-tête LivreZone, corps =
+        lignes injectées, bouton CTA, pied de page) — s'inspirer de
+        mails/payment-confirmed.blade.php pour le style.
+      - telegram.blade.php et whatsapp.blade.php : gabarits texte brut
+        stables (composer le texte à partir des lignes du service).
+      - Ces 3 gabarits reçoivent le contenu du service ; AUCUNE logique
+        métier par type dans les blades.
+  4.3 Brancher les senders existants :
+      - BookOrderedNotification : toMail() -> vue mail.blade.php via le
+        service (sujet + lignes + CTA /demandes?search= conservés) ;
+        le texte Telegram du job ProcessBookOrderNotifications
+        (buildTelegramMessage) -> délégué au service (même rendu).
+      - ChatDigestNotification (T3) : idem, type 'messages'.
+      - Newsletter / promos / site_updates / features : contenus prêts dans
+        le service même sans sender encore implémenté.
+
+[T5] TOGGLES ADMIN (point 5 — lié aux conditions Telegram du paramétrage)
+  Fichier : next.livrezone.com/frontend/components/admin/AdminPaymentsClient.tsx
+  (ou section la plus adaptée de l'UI admin — l'endpoint est
+  GET/POST /api/admin/settings, déjà branché sur getEditableSettings()).
+  - Ajouter le toggle « Telegram pour les comptes Pro »
+    (clé telegram_pro_enabled, booléen, défaut désactivé) avec un libellé
+    explicite : « Active le canal Telegram pour les abonnés Pro. Les comptes
+    Premium ont toujours Telegram. »
+  - Ajouter le champ « Intervalle du résumé des messages (heures) »
+    (clé chat_digest_hours, entier 1-168, défaut 6).
+  - Comportement identique aux toggles existants (method_*/gateway_*) :
+    lecture via GET /admin/settings, écriture via POST /admin/settings,
+    états de chargement et messages d'erreur en français.
+  - EFFET DE CHAÎNE attendu (à vérifier en testant) : activer le toggle
+    autorise Telegram côté paramétrage utilisateur pour les Pro
+    (telegram_allowed=true + mention « Activé pour les comptes Pro... »).
+
+// __SECTION2C__
+
+

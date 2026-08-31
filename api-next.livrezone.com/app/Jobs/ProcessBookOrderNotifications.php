@@ -5,8 +5,10 @@ namespace App\Jobs;
 use App\Models\Order;
 use App\Models\Profile;
 use App\Notifications\BookOrderedNotification;
+use App\Services\NotificationContentService;
 use App\Services\SubscriptionService;
 use App\Services\TelegramNotificationService;
+use App\Support\NotificationChannels;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -55,13 +57,12 @@ class ProcessBookOrderNotifications implements ShouldQueue
             // Vérifier les préférences (si non défini, on suppose true par défaut pour tous les canaux)
             $prefs = $user->notificationPreferences->where('notification_type', 'book_orders');
 
-            $wantsEmail = $prefs->where('channel', 'email')->first()?->is_enabled ?? true;
-            $wantsInApp = $prefs->where('channel', 'in_app')->first()?->is_enabled ?? true;
-            $wantsTelegram = $prefs->where('channel', 'telegram')->first()?->is_enabled ?? true;
+            $wantsEmail = $prefs->where('channel', NotificationChannels::PREF_EMAIL)->first()?->is_enabled ?? true;
+            $wantsTelegram = $prefs->where('channel', NotificationChannels::PREF_TELEGRAM)->first()?->is_enabled ?? true;
 
-            if (! $wantsEmail && ! $wantsInApp && ! $wantsTelegram) {
-                continue; // L'utilisateur a tout désactivé
-            }
+            // Règle produit : les notifications internes (in-app) sont TOUJOURS
+            // actives et ne peuvent pas être désactivées par l'utilisateur.
+            // La préférence historique `in_app` n'est plus consultée ici.
 
             // Vérifier le filtre de catégorie si présent
             $book = $this->order->book;
@@ -83,13 +84,14 @@ class ProcessBookOrderNotifications implements ShouldQueue
             $laravelChannels = [];
             $telegramChatId = null;
 
-            if (in_array('database', $allowedChannels) && $wantsInApp) {
-                $laravelChannels[] = 'database';
+            if (in_array(NotificationChannels::DATABASE, $allowedChannels)) {
+                // In-app toujours active (règle produit)
+                $laravelChannels[] = NotificationChannels::DATABASE;
             }
-            if (in_array('mail', $allowedChannels) && $wantsEmail) {
-                $laravelChannels[] = 'mail';
+            if (in_array(NotificationChannels::MAIL, $allowedChannels) && $wantsEmail) {
+                $laravelChannels[] = NotificationChannels::MAIL;
             }
-            if (in_array('telegram', $allowedChannels) && $wantsTelegram && $profile->telegram_id) {
+            if (in_array(NotificationChannels::TELEGRAM, $allowedChannels) && $wantsTelegram && $profile->telegram_id) {
                 $telegramChatId = $profile->telegram_id;
             }
 
@@ -106,26 +108,17 @@ class ProcessBookOrderNotifications implements ShouldQueue
             }
 
             if ($telegramChatId) {
-                $message = $this->buildTelegramMessage();
+                // Texte délégué au service de contenu (rendu identique à
+                // l'ancien buildTelegramMessage, source unique désormais).
+                $message = app(NotificationContentService::class)->telegramText('book_orders', [
+                    'title' => $this->order->title,
+                    'author' => $this->order->author ?? 'N/A',
+                    'category' => $this->order->category?->name_fr ?? ($this->order->book?->defaultCategory?->name_fr ?? 'N/A'),
+                    'url' => BookOrderedNotification::demandUrl($this->order->title),
+                ]);
                 app(TelegramNotificationService::class)->sendToChat($telegramChatId, $message);
             }
         }
     }
 
-    /**
-     * Construit le message Telegram pour une nouvelle demande de livre.
-     */
-    protected function buildTelegramMessage(): string
-    {
-        $order = $this->order;
-        $url = 'https://next.livrezone.com/annonces';
-        $category = $order->category?->name_fr ?? ($order->book?->defaultCategory?->name_fr ?? 'N/A');
-
-        return "📚 *Nouvelle demande de livre sur LivreZone !*\n"
-            ."━━━━━━━━━━━━━━━━━━\n"
-            ."📖 Titre : {$order->title}\n"
-            .'✍️ Auteur : '.($order->author ?? 'N/A')."\n"
-            ."🏷️ Catégorie : {$category}\n"
-            ."🔗 Lien : {$url}";
-    }
 }

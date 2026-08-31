@@ -27,6 +27,11 @@ Schedule::command('profiles:configure-search')->dailyAt('03:40')->runInBackgroun
 // (critical) si backlog, worker bloqué ou jobs échoués. Ne log rien si tout va bien.
 Schedule::command('app:queue-health')->everyFiveMinutes();
 
+// Digest des messages de chat (T3) : UNE notification récapitulative par
+// fenêtre X h (réglage admin chat_digest_hours, défaut 6 h). La granularité
+// fine est portée par la fenêtre, pas par la fréquence du scheduler.
+Schedule::command('notifications:send-chat-digest')->hourly()->runInBackground();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

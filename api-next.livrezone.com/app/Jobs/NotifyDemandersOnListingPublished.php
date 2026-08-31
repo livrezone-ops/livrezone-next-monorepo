@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Listing;
 use App\Models\Order;
 use App\Services\WhatsAppNotificationService;
+use App\Support\NotificationChannels;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -60,7 +61,7 @@ class NotifyDemandersOnListingPublished implements ShouldQueue
             // la désactivation explicite (is_enabled = false) est respectée.
             $wantsWhatsApp = $user->notificationPreferences
                 ->where('notification_type', 'book_orders')
-                ->where('channel', 'whatsapp')
+                ->where('channel', NotificationChannels::PREF_WHATSAPP)
                 ->first()?->is_enabled ?? true;
 
             if (! $wantsWhatsApp) {

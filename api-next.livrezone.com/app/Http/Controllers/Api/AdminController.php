@@ -233,6 +233,8 @@ class AdminController extends Controller
             'notification_delay_hours' => 'nullable|integer|min:0|max:720',
             'subscription_grace_period_days' => 'nullable|integer|min:0|max:365',
             'subscriptions_disabled' => 'nullable|boolean',
+            'telegram_pro_enabled' => 'nullable|boolean',
+            'chat_digest_hours' => 'nullable|integer|min:1|max:168',
             'method_virement' => 'nullable|boolean',
             'method_especes' => 'nullable|boolean',
             'method_cheque' => 'nullable|boolean',

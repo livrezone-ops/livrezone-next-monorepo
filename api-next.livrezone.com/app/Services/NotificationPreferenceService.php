@@ -3,13 +3,32 @@
 namespace App\Services;
 
 use App\Models\NotificationPreference;
+use App\Support\NotificationChannels;
 use Illuminate\Database\Eloquent\Collection;
-
 class NotificationPreferenceService
 {
-    public const ALLOWED_TYPES = ['book_orders', 'newsletter', 'promos'];
+    /**
+     * Types de notifications autorisés dans les préférences.
+     * Délègue au registre central : aucune divergence possible.
+     */
+    public static function allowedTypes(): array
+    {
+        return NotificationTypeService::keys();
+    }
 
-    public const ALLOWED_CHANNELS = ['email', 'in_app', 'telegram', 'whatsapp'];
+    /**
+     * Canaux externes autorisés dans les préférences (email, telegram,
+     * whatsapp). Le canal interne (in-app) n'est PAS une préférence :
+     * les notifications internes sont toujours actives (règle produit).
+     */
+    public static function allowedChannels(): array
+    {
+        return [
+            NotificationChannels::PREF_EMAIL,
+            NotificationChannels::PREF_TELEGRAM,
+            NotificationChannels::PREF_WHATSAPP,
+        ];
+    }
 
     /**
      * Récupère les préférences de notification d'un utilisateur.

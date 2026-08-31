@@ -72,6 +72,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
+    Route::post('/notifications/{id}/pin', [NotificationController::class, 'togglePin']);
+    Route::post('/notifications/{id}/hide', [NotificationController::class, 'hide']);
 });
 
 Route::middleware('auth:sanctum')->prefix('orders')->group(function () {

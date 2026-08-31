@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Order;
+use App\Support\NotificationChannels;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -29,6 +30,15 @@ class BookOrderedNotification extends Notification implements ShouldQueue
     }
 
     /**
+     * URL front pour consulter une demande dans l'espace /demandes (recherche
+     * par titre, la liste /demandes n'ayant pas de page détail par id).
+     */
+    public static function demandUrl(string $title): string
+    {
+        return 'https://next.livrezone.com/demandes?search='.urlencode($title);
+    }
+
+    /**
      * Get the notification's delivery channels.
      *
      * @return array<int, string>
@@ -40,21 +50,42 @@ class BookOrderedNotification extends Notification implements ShouldQueue
 
     /**
      * Get the mail representation of the notification.
+     * Contenu construit par NotificationContentService, gabarit stable
+     * mails/notifications/mail.blade.php.
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $order = $this->order;
-        $category = $order->category?->name_fr ?? ($order->book?->defaultCategory?->name_fr ?? 'N/A');
+        $content = app(\App\Services\NotificationContentService::class)
+            ->build('book_orders', $this->toArrayData(), NotificationChannels::MAIL);
 
         return (new MailMessage)
-            ->subject("Nouvelle demande de livre : {$order->title}")
-            ->greeting("Bonjour {$notifiable->name},")
-            ->line('Un utilisateur cherche le livre suivant sur LivreZone :')
-            ->line("**{$order->title}**")
-            ->line('Auteur : '.($order->author ?? 'N/A'))
-            ->line("Catégorie : {$category}")
-            ->action('Voir la demande', url('/annonces'))
-            ->line('Merci de votre confiance.');
+            ->subject($content['subject'])
+            ->view('mails.notifications.mail', [
+                'title' => $content['title'],
+                'lines' => $content['lines'],
+                'cta_label' => $content['cta_label'],
+                'url' => $content['url'],
+            ]);
+    }
+
+    /**
+     * Data normalisée pour le service de contenu (titre, auteur, catégorie).
+     *
+     * @return array<string, mixed>
+     */
+    protected function toArrayData(): array
+    {
+        $order = $this->order;
+
+        return [
+            'type' => 'book_orders',
+            'order_id' => $order->id,
+            'title' => $order->title,
+            'author' => $order->author ?? 'N/A',
+            'category' => $order->category?->name_fr ?? ($order->book?->defaultCategory?->name_fr ?? 'N/A'),
+            'message' => "Nouvelle demande de livre : {$order->title}",
+            'url' => self::demandUrl($order->title),
+        ];
     }
 
     /**
@@ -64,14 +95,9 @@ class BookOrderedNotification extends Notification implements ShouldQueue
      */
     public function toArray(object $notifiable): array
     {
-        $order = $this->order;
+        $data = $this->toArrayData();
+        $data['link'] = '/demandes?search='.urlencode($this->order->title);
 
-        return [
-            'type' => 'book_orders',
-            'order_id' => $order->id,
-            'title' => $order->title,
-            'message' => "Nouvelle demande de livre : {$order->title}",
-            'link' => '/annonces',
-        ];
+        return $data;
     }
 }

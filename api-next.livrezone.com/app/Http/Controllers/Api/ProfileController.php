@@ -8,7 +8,11 @@ use App\Models\Profile;
 use App\Models\Rating;
 use App\Services\ImageUploadService;
 use App\Services\NotificationPreferenceService;
+use App\Services\NotificationSettingsService;
+use App\Services\NotificationTypeService;
 use App\Services\RatingService;
+use App\Support\NotificationChannels;
+use App\Services\SubscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -266,28 +270,97 @@ class ProfileController extends Controller
 
     public function getNotificationPreferences(Request $request): JsonResponse
     {
-        $prefs = app(NotificationPreferenceService::class)->getForUser($request->user()->id);
+        $userId = $request->user()->id;
+        $prefs = app(NotificationPreferenceService::class)->getForUser($userId);
+        $subscriptions = app(SubscriptionService::class);
+        $profile = $request->user()->profile;
 
-        return response()->json(['preferences' => $prefs]);
+        // Reconstitution de l'état agrégé (S1/S2) depuis la matrice type×canal :
+        // un canal est actif si au moins un type l'utilise ; un type est actif
+        // si au moins un canal externe est coché pour lui.
+        $channels = [NotificationChannels::PREF_EMAIL => false, NotificationChannels::PREF_TELEGRAM => false, NotificationChannels::PREF_WHATSAPP => false];
+        $types = array_fill_keys(NotificationTypeService::keys(), false);
+        $categories = [];
+
+        foreach ($prefs as $pref) {
+            $type = $pref->notification_type;
+            $channel = $pref->channel;
+
+            if ($pref->is_enabled && array_key_exists($channel, $channels)) {
+                $channels[$channel] = true;
+            }
+            if ($pref->is_enabled && array_key_exists($type, $types) && $channel !== NotificationChannels::PREF_IN_APP) {
+                $types[$type] = true;
+            }
+            if ($pref->is_enabled
+                && $type === 'book_orders'
+                && is_array($pref->filters)
+                && isset($pref->filters['categories'])) {
+                $categories = array_values(array_unique(array_merge(
+                    $categories,
+                    array_map('intval', (array) $pref->filters['categories'])
+                )));
+            }
+        }
+
+        // Éligibilité Telegram selon l'abonnement (+ toggle admin pour les Pro).
+        $allowed = $subscriptions->allowedNotificationChannels($profile);
+        $telegramAllowed = in_array(NotificationChannels::TELEGRAM, $allowed, true);
+        $telegramMention = match ($subscriptions->getEffectiveSubscription($profile)) {
+            'premium' => 'Inclus avec votre compte Premium.',
+            'pro' => $telegramAllowed
+                ? 'Activé pour les comptes Pro par l\'administrateur.'
+                : 'Canal Telegram non activé pour les comptes Pro. Contactez l\'équipe LivreZone.',
+            default => 'Réservé aux comptes Premium.',
+        };
+
+        return response()->json([
+            'channels' => $channels,
+            'types' => $types,
+            'categories' => $categories,
+            'telegram_allowed' => $telegramAllowed,
+            'telegram_mention' => $telegramMention,
+        ]);
     }
 
+    /**
+     * Sauvegarde du paramétrage (S1 canaux externes × S2 types + catégories).
+     * Contrat : { channels: {email,telegram,whatsapp}, types: {<type>: bool},
+     * categories: number[] }. La matrice type×canal est recalculée :
+     * - email/telegram × tous les types du registre ;
+     * - whatsapp uniquement pour book_orders (réservé aux notifications de
+     *   demandes de livres) ;
+     * - les canaux internes (in_app) ne sont jamais écrits : les
+     *   notifications internes sont toujours actives.
+     */
     public function updateNotificationPreferences(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'preferences' => 'required|array',
-            'preferences.*.notification_type' => 'required|string|in:'.implode(',', NotificationPreferenceService::ALLOWED_TYPES),
-            'preferences.*.channel' => 'required|string|in:'.implode(',', NotificationPreferenceService::ALLOWED_CHANNELS),
-            'preferences.*.is_enabled' => 'required|boolean',
-            'preferences.*.filters' => 'nullable|array',
+            'channels' => 'required|array',
+            'channels.email' => 'required|boolean',
+            'channels.telegram' => 'required|boolean',
+            'channels.whatsapp' => 'required|boolean',
+            'types' => 'required|array',
+            'types.*' => 'required|boolean',
+            'categories' => 'present|array',
+            'categories.*' => 'integer|exists:categories,id',
         ]);
 
-        $prefs = app(NotificationPreferenceService::class)
-            ->updateForUser($request->user()->id, $validated['preferences']);
+        $typeKeys = NotificationTypeService::keys();
+        $unknownTypes = array_diff(array_keys($validated['types']), $typeKeys);
+        if ($unknownTypes !== []) {
+            return response()->json([
+                'message' => 'Types de notification inconnus : '.implode(', ', $unknownTypes).'.',
+            ], 422);
+        }
 
-        return response()->json([
-            'message' => 'Préférences mises à jour avec succès.',
-            'preferences' => $prefs,
+        app(NotificationSettingsService::class)->save($request->user()->id, [
+            'channels' => $validated['channels'],
+            'types' => $validated['types'],
+            'categories' => array_values(array_unique(array_map('intval', $validated['categories']))),
         ]);
+
+        return response()->json(['message' => 'Préférences mises à jour avec succès.']);
     }
 
     /**

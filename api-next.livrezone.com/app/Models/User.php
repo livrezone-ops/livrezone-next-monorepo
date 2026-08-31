@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -37,6 +38,20 @@ class User extends Authenticatable
     public function notificationPreferences()
     {
         return $this->hasMany(NotificationPreference::class);
+    }
+
+    /**
+     * Notifications in-app (modèle étendu UserNotification) :
+     * épinglées en premier (pinned_at desc), puis les plus récentes.
+     * Les notifications masquées (dismissed_at) restent filtrables par
+     * requête explicite (exclues dans NotificationController).
+     */
+    public function notifications(): MorphMany
+    {
+        return $this->morphMany(UserNotification::class, 'notifiable')
+            ->orderByRaw('CASE WHEN pinned_at IS NULL THEN 1 ELSE 0 END')
+            ->orderByDesc('pinned_at')
+            ->orderByDesc('created_at');
     }
 
     // Un utilisateur est considéré « en ligne » si sa dernière ACTIVITÉ

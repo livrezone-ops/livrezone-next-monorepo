@@ -6,6 +6,7 @@ use App\Models\Listing;
 use App\Models\Profile;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\NotificationChannels;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +44,8 @@ class SubscriptionService
         'method_autre' => 'PAYMENT_METHOD_AUTRE',
         'gateway_cmi' => 'CMI_ENABLED',
         'gateway_fatourati' => 'FATOURATI_ENABLED',
+        'telegram_pro_enabled' => 'TELEGRAM_PRO_ENABLED',
+        'chat_digest_hours' => 'CHAT_DIGEST_HOURS',
     ];
 
     /**
@@ -130,6 +133,8 @@ class SubscriptionService
             'notification_delay_hours' => $this->getNotificationDelayHours(),
             'subscription_grace_period_days' => $this->getGracePeriodDays(),
             'subscriptions_disabled' => (int) $this->areSubscriptionsDisabled(),
+            'telegram_pro_enabled' => (int) $this->isTelegramForProEnabled(),
+            'chat_digest_hours' => $this->getChatDigestHours(),
             'method_virement' => (int) in_array('virement', $this->enabledPaymentMethods(), true),
             'method_especes' => (int) in_array('especes', $this->enabledPaymentMethods(), true),
             'method_cheque' => (int) in_array('cheque', $this->enabledPaymentMethods(), true),
@@ -222,15 +227,42 @@ class SubscriptionService
     }
 
     /**
+     * Telegram ouvert aux comptes Pro par l'admin ?
+     * (Premium l'a toujours — voir allowedNotificationChannels.)
+     */
+    public function isTelegramForProEnabled(): bool
+    {
+        return (bool) $this->setting('telegram_pro_enabled', 'TELEGRAM_PRO_ENABLED', false);
+    }
+
+    /**
      * Canaux de notification autorisés selon l'abonnement.
-     * Pro     : in-app (database) uniquement.
-     * Premium : in-app + email + telegram.
+     * Free    : in-app (database) uniquement.
+     * Pro     : in-app + Telegram si l'admin a activé `telegram_pro_enabled`.
+     * Premium : in-app + email + telegram (toujours).
      */
     public function allowedNotificationChannels(?Profile $profile): array
     {
-        return $this->getEffectiveSubscription($profile) === 'premium'
-            ? ['mail', 'database', 'telegram']
-            : ['database'];
+        $effective = $this->getEffectiveSubscription($profile);
+
+        if ($effective === 'premium') {
+            return [NotificationChannels::MAIL, NotificationChannels::DATABASE, NotificationChannels::TELEGRAM];
+        }
+
+        if ($effective === 'pro' && $this->isTelegramForProEnabled()) {
+            return [NotificationChannels::DATABASE, NotificationChannels::TELEGRAM];
+        }
+
+        return [NotificationChannels::DATABASE];
+    }
+
+    /**
+     * Fenêtre du digest des messages de chat (heures) : une seule notification
+     * récapitulative par fenêtre, configurable depuis l'admin (1 à 168 h).
+     */
+    public function getChatDigestHours(): int
+    {
+        return max(1, (int) $this->setting('chat_digest_hours', 'CHAT_DIGEST_HOURS', 6));
     }
 
     public function canViewDemandes(?Profile $profile): bool
