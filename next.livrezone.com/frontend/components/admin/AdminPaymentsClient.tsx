@@ -202,6 +202,7 @@ export default function AdminPaymentsClient() {
         premium_price_yearly: Math.round(Number(settings.premium_price_yearly ?? 0)),
         notification_delay_hours: Math.round(Number(settings.notification_delay_hours)),
         subscription_grace_period_days: Math.round(Number(settings.subscription_grace_period_days)),
+        chat_digest_hours: Math.min(168, Math.max(1, Math.round(Number(settings.chat_digest_hours ?? 6)))),
       });
       setSettings(res.data.settings);
       pushToast(res.data.message ?? "Réglages mis à jour.");
@@ -460,6 +461,17 @@ export default function AdminPaymentsClient() {
                 className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
               />
             </label>
+            <label className="block">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Résumé des messages (h)</span>
+              <input
+                type="number"
+                min="1"
+                max="168"
+                value={settings.chat_digest_hours ?? 6}
+                onChange={(e) => updateSettingField("chat_digest_hours", e.target.value)}
+                className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316]/40"
+              />
+            </label>
           </div>
 
           {/* Blocage des inscriptions + modes de paiement manuels */}
@@ -503,6 +515,15 @@ export default function AdminPaymentsClient() {
                   compact
                 />
               ))}
+            </div>
+            <div className="pt-3 border-t border-gray-100">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-2">Notifications</span>
+              <SwitchRow
+                label="Telegram pour les comptes Pro"
+                hint="Active le canal Telegram pour les abonnés Pro. Les comptes Premium ont toujours Telegram."
+                checked={!!settings.telegram_pro_enabled}
+                onChange={(v) => instantApply("telegram_pro_enabled", v)}
+              />
             </div>
           </div>
         </section>
