@@ -67,6 +67,11 @@ export default function NotificationsPage() {
   const [toast, setToast] = useState<string | null>(null);
   // Mode d'affichage, identique au dashboard (tableau sm+ / cartes partout).
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
+  // Confirmation avant masquage (même pattern que la modale du dashboard).
+  const [confirmHide, setConfirmHide] = useState<{ isOpen: boolean; id: string | null }>({
+    isOpen: false,
+    id: null,
+  });
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -265,7 +270,7 @@ export default function NotificationsPage() {
               {pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
             </button>
             <button
-              onClick={() => hideNotification(n.id)}
+              onClick={() => setConfirmHide({ isOpen: true, id: n.id })}
               title="Masquer"
               aria-label="Masquer la notification"
               className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-600 transition-colors cursor-pointer"
@@ -315,7 +320,7 @@ export default function NotificationsPage() {
             {pinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
           </button>
           <button
-            onClick={guard(() => hideNotification(n.id))}
+            onClick={guard(() => setConfirmHide({ isOpen: true, id: n.id }))}
             title="Masquer"
             aria-label="Masquer la notification"
             className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:border-red-200 hover:text-red-600 transition-colors cursor-pointer"
@@ -577,6 +582,41 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
+
+      {/* Modale de confirmation du masquage — même design que le dashboard. */}
+      {confirmHide.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-in zoom-in-95 duration-200 border border-gray-100">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center mb-4 border border-rose-100">
+                <EyeOff className="w-6 h-6 text-rose-500" />
+              </div>
+              <h3 className="text-lg font-black text-gray-900 mb-2">Masquer cette notification ?</h3>
+              <p className="text-xs text-gray-500 mb-6 px-2">
+                Elle disparaîtra de votre boîte de réception. Êtes-vous sûr ?
+              </p>
+              <div className="flex items-center gap-3 w-full">
+                <button
+                  onClick={() => setConfirmHide({ isOpen: false, id: null })}
+                  className="flex-1 py-2.5 bg-white border border-gray-200 text-gray-700 font-bold text-xs rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => {
+                    const id = confirmHide.id;
+                    setConfirmHide({ isOpen: false, id: null });
+                    if (id) hideNotification(id);
+                  }}
+                  className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 border border-rose-600 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-sm"
+                >
+                  Confirmer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && <Toast message={toast} />}
     </div>

@@ -13,8 +13,8 @@ export interface NotificationTypeInfo {
 }
 
 export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
-  book_orders: "Demandes",
-  messages: "Messages",
+  book_orders: "Demandes de livre",
+  messages: "Les messages du chat",
   newsletter: "Newsletter",
   promos: "Promotions",
   site_updates: "Mises à jour du site",

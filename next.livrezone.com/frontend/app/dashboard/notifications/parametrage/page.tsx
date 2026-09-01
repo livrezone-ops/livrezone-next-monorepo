@@ -55,7 +55,7 @@ interface ChannelRow {
 // affichées ici) et la messagerie interne (chat) n'est pas un canal.
 const CHANNELS: ChannelRow[] = [
   { key: "email", label: "Email", description: "Résumés et alertes sur votre adresse e-mail." },
-  { key: "telegram", label: "Telegram", description: "Alertes instantanées via le bot LivreZone (voir la section ci-dessous)." },
+  { key: "telegram", label: "Telegram", description: "Alertes instantanées via le bot LivreZone (configuration ci-dessous)." },
   { key: "whatsapp", label: "WhatsApp", description: "Alerte quand un livre que vous cherchez est mis en vente. Nécessite un numéro de mobile dans votre profil." },
 ];
 
@@ -125,7 +125,7 @@ export default function NotificationSettingsPage() {
     enabled: isAuthenticated,
   });
 
-  // --- Section 3 : Telegram (connexion / état / déconnexion) ---
+  // --- Telegram : connexion / état / déconnexion (sous-bloc de la section 1) ---
   const {
     data: telegram,
     refetch: refetchTelegram,
@@ -220,7 +220,7 @@ export default function NotificationSettingsPage() {
       <div className="space-y-6">
         {/* ===== Section 1 : Canaux de notification ===== */}
         <section className="bg-white rounded-xl border border-gray-150 p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">Canaux de notification</h2>
+          <h2 className="text-lg font-bold text-gray-900 mb-1">Recevoir des notifications par :</h2>
           <p className="text-sm text-gray-500 mb-5">Par quels canaux externes souhaitez-vous être alerté ?</p>
 
           <div className="space-y-4">
@@ -245,17 +245,96 @@ export default function NotificationSettingsPage() {
                     </div>
                   </div>
                   <div className={locked ? "cursor-not-allowed" : ""}>
-                    <Toggle checked={!!channels[ch.key]} onChange={() => toggleChannel(ch.key)} />
+                    {/* Canal verrouillé par l'abonnement : toggle grisé ET forcé
+                        en position désactivée (quoi qu'ait été enregistré). */}
+                    <Toggle
+                      checked={locked ? false : !!channels[ch.key]}
+                      onChange={() => toggleChannel(ch.key)}
+                    />
                   </div>
                 </div>
               );
             })}
           </div>
+
+          {/* Sous-bloc « Telegram sur téléphone » (ancienne section 3) :
+              imbriqué dans la section 1, visible uniquement quand le canal
+              Telegram est activé et autorisé par l'abonnement. */}
+          {telegramAllowed && !!channels.telegram && (
+            <div className="mt-6 pt-5 border-t border-gray-100">
+              <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2">
+                <Send className="w-4 h-4 text-[#6D28D9]" /> Paramétrer Telegram sur téléphone
+              </h3>
+              <p className="text-xs text-gray-500 mb-4">
+                Connectez votre compte pour recevoir vos notifications en direct via le bot LivreZone.
+              </p>
+
+              <div className="flex items-start justify-between gap-4 pb-4 border-b border-gray-100">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
+                    <Send className="w-4.5 h-4.5 text-[#6D28D9]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">
+                      État de connexion :{" "}
+                      {telegramLoading ? (
+                        <span className="text-gray-400">vérification…</span>
+                      ) : telegram?.linked ? (
+                        <span className="text-green-600">connecté</span>
+                      ) : (
+                        <span className="text-red-500">non connecté</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {telegram?.linked
+                        ? "Votre compte Telegram est lié à LivreZone. Vous recevez les alertes sur ce canal."
+                        : "Générez un lien, ouvrez-le dans Telegram puis appuyez sur « Démarrer » pour associer votre compte."}
+                    </p>
+                  </div>
+                </div>
+                {telegram?.linked ? (
+                  <button
+                    onClick={unlinkTelegram}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 text-xs font-bold transition-colors shrink-0 cursor-pointer"
+                  >
+                    <Unlink className="w-4 h-4" /> Déconnecter
+                  </button>
+                ) : (
+                  <button
+                    onClick={generateTelegramLink}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#6D28D9] text-white text-xs font-bold hover:bg-violet-800 transition-colors shrink-0 cursor-pointer"
+                  >
+                    <Link2 className="w-4 h-4" /> {telegram?.deep_link ? "Régénérer le lien" : "Connecter"}
+                  </button>
+                )}
+              </div>
+
+              {!telegram?.linked && telegram?.deep_link && (
+                <div className="mt-4 bg-gray-50 rounded-lg p-4">
+                  <p className="text-xs text-gray-600 mb-2">
+                    Lien de connexion valable 30 minutes :
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs bg-white border border-gray-200 rounded-lg px-3 py-2 break-all text-gray-700">
+                      {telegram.deep_link}
+                    </code>
+                    <button
+                      onClick={copyLink}
+                      className="flex items-center gap-1 px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:text-violet-700 hover:border-violet-200 transition-colors cursor-pointer shrink-0"
+                    >
+                      {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                      {copied ? "Copié" : "Copier"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         {/* ===== Section 2 : Types de notifications à recevoir ===== */}
         <section className="bg-white rounded-xl border border-gray-150 p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">Types de notifications à recevoir</h2>
+          <h2 className="text-lg font-bold text-gray-900 mb-1">Recevoir des notifications par rapport à</h2>
           <p className="text-sm text-gray-500 mb-5">Quelles notifications souhaitez-vous recevoir ?</p>
 
           <div className="space-y-4">
@@ -307,83 +386,6 @@ export default function NotificationSettingsPage() {
               <p className="text-xs text-gray-400">Catégories indisponibles pour le moment.</p>
             )}
           </div>
-        </section>
-
-        {/* ===== Section 3 : Paramétrage Telegram ===== */}
-        <section className="bg-white rounded-xl border border-gray-150 p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">Telegram</h2>
-          <p className="text-sm text-gray-500 mb-5">
-            Connectez votre compte pour recevoir vos notifications en direct via le bot LivreZone.
-          </p>
-
-          <div className="flex items-start justify-between gap-4 pb-4 border-b border-gray-100">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
-                <Send className="w-4.5 h-4.5 text-[#6D28D9]" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-gray-900">
-                  État de connexion :{" "}
-                  {telegramLoading ? (
-                    <span className="text-gray-400">vérification…</span>
-                  ) : telegram?.linked ? (
-                    <span className="text-green-600">connecté</span>
-                  ) : (
-                    <span className="text-red-500">non connecté</span>
-                  )}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {telegram?.linked
-                    ? "Votre compte Telegram est lié à LivreZone. Vous recevez les alertes sur ce canal."
-                    : "Générez un lien, ouvrez-le dans Telegram puis appuyez sur « Démarrer » pour associer votre compte."}
-                </p>
-              </div>
-            </div>
-            {telegram?.linked ? (
-              <button
-                onClick={unlinkTelegram}
-                disabled={!telegramAllowed}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold transition-colors shrink-0 ${
-                  telegramAllowed
-                    ? "border-red-200 text-red-500 hover:bg-red-50 cursor-pointer"
-                    : "border-gray-200 text-gray-400 cursor-not-allowed"
-                }`}
-              >
-                <Unlink className="w-4 h-4" /> Déconnecter
-              </button>
-            ) : telegramAllowed ? (
-              <button
-                onClick={generateTelegramLink}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#6D28D9] text-white text-xs font-bold hover:bg-violet-800 transition-colors shrink-0 cursor-pointer"
-              >
-                <Link2 className="w-4 h-4" /> {telegram?.deep_link ? "Régénérer le lien" : "Connecter"}
-              </button>
-            ) : (
-              <span className="text-xs text-gray-400 font-bold shrink-0 max-w-[180px] text-right">
-                {telegramMention ?? "Canal indisponible avec votre abonnement."}
-              </span>
-            )}
-          </div>
-
-          {!telegram?.linked && telegram?.deep_link && telegramAllowed && (
-            <div className="mt-4 bg-gray-50 rounded-lg p-4">
-              <p className="text-xs text-gray-600 mb-2">
-                Lien de connexion valable 30 minutes :
-              </p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs bg-white border border-gray-200 rounded-lg px-3 py-2 break-all text-gray-700">
-                  {telegram.deep_link}
-                </code>
-                <button
-                  onClick={copyLink}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:text-violet-700 hover:border-violet-200 transition-colors cursor-pointer shrink-0"
-                >
-                  {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                  {copied ? "Copié" : "Copier"}
-                </button>
-              </div>
-            </div>
-          )}
         </section>
 
         {/* Sauvegarde (sections 1 & 2) */}
