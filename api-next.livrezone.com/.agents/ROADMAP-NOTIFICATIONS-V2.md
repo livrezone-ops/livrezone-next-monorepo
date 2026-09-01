@@ -32,15 +32,65 @@ laisser un fichier en erreur en fin de session.
 | Bloc | Statut |
 |---|---|
 | Socle V1 (Section 1 du prompt, F1.1-F1.9) | ✅ LIVRÉ (31/08) |
-| A. Correctifs architecture (A1-A5) | ⬜ À FAIRE (avant T3/T4) |
-| T1. Retirer bloc « Rappel de règle » | ⬜ À FAIRE |
-| T2. Griser toggle Telegram selon abonnement | ⬜ À FAIRE |
-| T3. Digest des messages de chat | ⬜ À FAIRE |
-| T4. Service de contenu + gabarits par canal | ⬜ À FAIRE |
-| T5. Toggles admin (telegram_pro_enabled, chat_digest_hours) | ⬜ À FAIRE |
-| Z. Clôture session (lint, tests, migration, déploiement) | ⏳ PARTIELLE (Z1/Z2/Z3/Z5/Z6 faits, Z4/Z7 pour le propriétaire) |
+| A. Correctifs architecture (A1-A5) | ✅ FAITS (31/08) |
+| T1. Retirer bloc « Rappel de règle » | ✅ FAIT (31/08) |
+| T2. Griser toggle Telegram selon abonnement | ✅ FAIT (31/08 + affine 01/09 : forcé OFF) |
+| T3. Digest des messages de chat | ✅ FAIT (31/08 + test prod Z4 le 01/09) |
+| T4. Service de contenu + gabarits par canal | ✅ FAIT (31/08) |
+| T5. Toggles admin (telegram_pro_enabled, chat_digest_hours) | ✅ FAITS (31/08) |
+| Retours propriétaire 01/09 (points 1, 1 bis, 2, 2 bis) | ✅ FAITS (01/09) |
+| Z. Clôture session (lint, tests, migration, déploiement) | ⏳ Z1-Z6 ✅, Z4 ✅ (01/09), `lz` ✅ — **reste Z7 uniquement** |
 
-**Ordre de réalisation conseillé : A1+A2 (bugs) → A3/A4/A5 (avec T3.5) → T5 → T1 → T2 → T3 → T4 → Z.**
+**Ordre de réalisation conseillé : A1+A2 (bugs) → A3/A4/A5 (avec T3.5) → T5 → T1 → T2 → T3 → T4 → Z.** *(historique : tout est réalisé sauf Z7)*
+
+---
+
+## 🎯 PROCHAINES ÉTAPES (état au 01/09/2026)
+
+### Immédiat — Notifications V2
+
+1. **Z7 — Recette front connectée sur la prod** *(propriétaire ; déploiement `lz` déjà fait)*
+   Checklist de validation :
+   - [ ] `/dashboard/notifications/parametrage` : encart « Rappel de règle » absent (T1) ;
+   - [ ] toggle Telegram **grisé et forcé en position désactivée** pour un compte non
+     éligible (`telegram_allowed=false`), actif pour un compte autorisé (T2 + 01/09) ;
+   - [ ] sous-bloc **« Paramétrer Telegram sur téléphone »** visible uniquement quand le
+     toggle Telegram est activé (connexion, deep-link, copier, déconnecter) ;
+   - [ ] titres de sections : « Recevoir des notifications par : » / « Recevoir des
+     notifications par rapport à » ; libellés « Demandes de livre » / « Les messages du chat » ;
+   - [ ] `/dashboard/notifications` : vues tableau ↔ cartes commutables (comme le
+     dashboard), pagination fenêtrée, « Tout marquer comme lu » ;
+   - [ ] épingler une vieille notification → remonte en tête de page 1 (A1) ;
+   - [ ] masquer une notification → **modale de confirmation**, puis disparition de la
+     liste et décrément du badge non-lues (A2) ;
+   - [ ] toggles admin (`telegram_pro_enabled`, `chat_digest_hours`) → effet immédiat
+     côté paramétrage d'un compte Pro (T5) ;
+   - [ ] mail + Telegram d'une commande de livre : rendu inchangé via les gabarits (T4).
+
+2. **Clôture de la session** *(agent, après recette)*
+   - [ ] Cocher Z7 dans la roadmap + section audit, statut final « SESSION CLOSE » ;
+   - [ ] push final.
+
+### Court terme — rapporté des audits 25-26/08 (hors périmètre Notifications V2)
+
+- [ ] **Intégration réelle CMI/Fatourati** dans `PaymentGatewayService`
+      (initiate + signature webhook) — les toggles admin existent déjà ; plus gros
+      chantier métier restant ;
+- [ ] **Test e-mail réel** (forgot-password) → `app:queue-health` vert (ouvert depuis le 26/08) ;
+- [ ] **Optimisation images Next + AbortController systématique** ;
+- [ ] **Form Requests** pour les controllers Profile/Auth/Admin restants +
+      fusion store/update complète ;
+- [ ] **Factories métier + tests Auth/OAuth** ;
+- [ ] **Repasser les 3 règles React Compiler en `error`** (après refactoring des
+      monolithes front — fin de la dette lint) ;
+- [ ] Poser les 4 variables `WHATSAPP_*` dans le `.env` prod si le canal WhatsApp
+      doit être activé (`WHATSAPP_ENABLED`, `WHATSAPP_API_KEY`, `WHATSAPP_API_URL`, …).
+
+### Long terme (vision, non planifié)
+
+- [ ] API `/v1`, découpage des monolithes front, monitoring/alerting,
+      centralisation des URLs front, gestionnaire `.env` complet
+      (dont page admin de gestion des settings — sécurité forte, à traiter en dernier).
 
 ---
 
