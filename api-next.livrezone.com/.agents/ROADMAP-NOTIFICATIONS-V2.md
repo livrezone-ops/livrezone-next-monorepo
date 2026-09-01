@@ -67,16 +67,38 @@ laisser un fichier en erreur en fin de session.
      côté paramétrage d'un compte Pro (T5) ;
    - [ ] mail + Telegram d'une commande de livre : rendu inchangé via les gabarits (T4).
 
-2. **Clôture de la session** *(agent, après recette)*
+2. **🔴 URGENT — Bascule du mailing sur Amazon SES** *(côté Amazon : OK — reste le
+   paramétrage serveur)*
+   - [ ] **SDK AWS absent de `composer.json`** (vérifié 01/09, Laravel ^13.8 :
+     mailer SES natif) → `composer require aws/aws-sdk-php` dans le conteneur ;
+   - [ ] Variables `.env` prod : `MAIL_MAILER=ses`, `AWS_ACCESS_KEY_ID` /
+     `AWS_SECRET_ACCESS_KEY` (utilisateur IAM dédié avec policy SES restreinte
+     à l'envoi), `AWS_DEFAULT_REGION` (région de l'identité SES validée),
+     `MAIL_FROM_ADDRESS` (identité vérifiée SES) — le `.env.example` actuel
+     (vérifié 01/09) est encore en `MAIL_MAILER=log` sans bloc `AWS_*` →
+     le mettre à jour également ;
+   - [ ] DNS du domaine : enregistrements **SPF + DKIM** (CNAME fournis par SES)
+     pour l'authentification — indispensable pour la délivrabilité ;
+   - [ ] Sortir du sandbox SES si nécessaire (demande de quota de production) ;
+   - [ ] Vider le cache de config : `artisan config:clear` (API live en bind mount) ;
+   - [ ] Test d'envoi réel (forgot-password) + vérifier les files (`queue:monitor`)
+     et `app:queue-health` vert ; cocher au passage le « test e-mail réel » ouvert
+     depuis le 26/08 ;
+   - [ ] Surveiller le dashboard SES (bounces/complaints) pendant 24-48 h.
+
+3. **Clôture de la session** *(agent, après recette)*
    - [ ] Cocher Z7 dans la roadmap + section audit, statut final « SESSION CLOSE » ;
    - [ ] push final.
 
 ### Court terme — rapporté des audits 25-26/08 (hors périmètre Notifications V2)
 
-- [ ] **Intégration réelle CMI/Fatourati** dans `PaymentGatewayService`
-      (initiate + signature webhook) — les toggles admin existent déjà ; plus gros
-      chantier métier restant ;
-- [ ] **Test e-mail réel** (forgot-password) → `app:queue-health` vert (ouvert depuis le 26/08) ;
+- [ ] **Intégration CMI/Fatourati** dans `PaymentGatewayService` (initiate +
+      signature webhook) — ⚠️ **pas de compte CMI/Fatourati valide dans l'immédiat**,
+      mais **réalisable sans compte valide** : développer contre le simulateur
+      existant (`PAYMENT_SIMULATOR`) + gabarits des contrats CMI/Fatourati
+      (payload initiate, signature HMAC, webhook idempotent), toggles admin déjà
+      en place ; bascule réelle au moment de l'obtention du compte (config seule).
+      → **peut être priorisé dès maintenant** ;
 - [ ] **Optimisation images Next + AbortController systématique** ;
 - [ ] **Form Requests** pour les controllers Profile/Auth/Admin restants +
       fusion store/update complète ;
