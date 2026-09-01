@@ -10,7 +10,6 @@ use App\Services\NotificationContentService;
 use App\Services\SubscriptionService;
 use App\Services\TelegramNotificationService;
 use App\Support\NotificationChannels;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -50,7 +49,7 @@ class SendChatDigests extends Command
             ->whereRaw("(t.deleted_for_user_one_at IS NULL OR {$recipientSql} <> t.user_one_id)")
             ->whereRaw("(t.deleted_for_user_two_at IS NULL OR {$recipientSql} <> t.user_two_id)")
             ->groupBy('u.id', 'p.telegram_id')
-            ->selectRaw("u.id as user_id, p.telegram_id, COUNT(*) as messages_count, COUNT(DISTINCT m.chat_thread_id) as threads_count")
+            ->selectRaw('u.id as user_id, p.telegram_id, COUNT(*) as messages_count, COUNT(DISTINCT m.chat_thread_id) as threads_count')
             ->get();
 
         if ($recipients->isEmpty()) {

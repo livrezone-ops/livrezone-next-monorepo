@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Console\Commands;
 
 use App\Models\Book;
@@ -8,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 class UpdateMeiliTitles extends Command
 {
     protected $signature = 'books:update-meili';
+
     protected $description = 'Etape 2 : Envoie uniquement les livres corrigés vers Meilisearch';
 
     public function handle()
@@ -21,11 +23,12 @@ class UpdateMeiliTitles extends Command
             ->orWhere('normalized_title', 'LIKE', '%:%')
             ->orWhereRaw('LENGTH(title) >= 250')
             ->orWhereRaw('LENGTH(normalized_title) >= 250');
-            
+
         $total = $query->count();
-        
+
         if ($total === 0) {
-            $this->info("Aucun livre ne correspond.");
+            $this->info('Aucun livre ne correspond.');
+
             return Command::SUCCESS;
         }
 
@@ -36,17 +39,18 @@ class UpdateMeiliTitles extends Command
         $query->chunkById(500, function ($books) use ($bar, $host, $key) {
             try {
                 $books->searchable();
-            } catch (\Exception $e) {}
-            
+            } catch (\Exception $e) {
+            }
+
             $this->waitForMeilisearch($host, $key);
             $bar->advance($books->count());
         });
 
         $bar->finish();
         $this->newLine();
-        $this->info("✅ Meilisearch est à jour !");
+        $this->info('✅ Meilisearch est à jour !');
     }
-    
+
     private function waitForMeilisearch($host, $key)
     {
         while (true) {
@@ -54,11 +58,12 @@ class UpdateMeiliTitles extends Command
                 $response = Http::withToken($key)->timeout(10)->get("{$host}/tasks", ['statuses' => 'enqueued,processing']);
                 if ($response->successful()) {
                     $tasks = $response->json('results', []);
-                    if (count($tasks) < 20) { 
+                    if (count($tasks) < 20) {
                         break;
                     }
                 }
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+            }
             sleep(1);
         }
     }

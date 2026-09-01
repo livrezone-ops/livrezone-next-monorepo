@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Services\NotificationContentService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -43,7 +44,7 @@ class ChatDigestNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $content = app(\App\Services\NotificationContentService::class)
+        $content = app(NotificationContentService::class)
             ->build('messages', $this->toArray($notifiable), 'mail');
 
         return (new MailMessage)

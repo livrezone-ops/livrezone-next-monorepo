@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 class ImportBooksFromSqlite extends Command
 {
     protected $signature = 'books:import-sqlite {--path= : Le chemin absolu vers la base SQLite nextlivrezonedb.db}';
+
     protected $description = 'Importe et met à jour les livres en masse brute (Upsert) avec gestion automatique des deadlocks';
 
     public function handle()
@@ -22,6 +23,7 @@ class ImportBooksFromSqlite extends Command
 
         if (! file_exists($sqlitePath)) {
             $this->error("Le fichier SQLite est introuvable à ce chemin : {$sqlitePath}");
+
             return Command::FAILURE;
         }
 
@@ -33,6 +35,7 @@ class ImportBooksFromSqlite extends Command
             $sqlite->setAttribute(\PDO::ATTR_DEFAULT_FETCH_MODE, \PDO::FETCH_ASSOC);
         } catch (\PDOException $e) {
             $this->error('Impossible de se connecter à SQLite : '.$e->getMessage());
+
             return Command::FAILURE;
         }
 
@@ -40,11 +43,13 @@ class ImportBooksFromSqlite extends Command
             $total = $sqlite->query('SELECT COUNT(*) FROM books')->fetchColumn();
         } catch (\Exception $e) {
             $this->error('Erreur lors de la lecture de la table books dans SQLite : '.$e->getMessage());
+
             return Command::FAILURE;
         }
 
         if ($total == 0) {
             $this->warn('La table books de SQLite est vide.');
+
             return Command::SUCCESS;
         }
 
@@ -71,7 +76,9 @@ class ImportBooksFromSqlite extends Command
             $stmt->execute();
             $rows = $stmt->fetchAll();
 
-            if (empty($rows)) break;
+            if (empty($rows)) {
+                break;
+            }
 
             $batch = [];
             foreach ($rows as $row) {
@@ -125,12 +132,12 @@ class ImportBooksFromSqlite extends Command
                 try {
                     DB::table('books')->upsert(
                         $batch,
-                        ['isbn_13'], 
-                        [ 
+                        ['isbn_13'],
+                        [
                             'title', 'normalized_title', 'authors', 'publisher', 'description',
                             'publication_date', 'language_id', 'page_count', 'indicative_price',
                             'indicative_price_currency', 'cover_path', 'cover_source_url',
-                            'default_category_id', 'default_level_id', 'default_subject_id', 'updated_at'
+                            'default_category_id', 'default_level_id', 'default_subject_id', 'updated_at',
                         ]
                     );
                     $importedCount += count($batch);
@@ -143,6 +150,7 @@ class ImportBooksFromSqlite extends Command
                     } else {
                         $this->newLine();
                         $this->error('Erreur de requête SQL : '.$e->getMessage());
+
                         return Command::FAILURE;
                     }
                 }
@@ -151,6 +159,7 @@ class ImportBooksFromSqlite extends Command
             if (! $success) {
                 $this->newLine();
                 $this->error("Échec d'insertion du lot après {$maxRetries} tentatives de résolution de deadlock.");
+
                 return Command::FAILURE;
             }
 

@@ -20,14 +20,20 @@ final class NotificationChannels
 {
     // Canaux Laravel (via() / allowedNotificationChannels)
     public const MAIL = 'mail';
+
     public const DATABASE = 'database';
+
     public const TELEGRAM = 'telegram';
+
     public const WHATSAPP = 'whatsapp';
 
     // Clés de préférences (table notification_preferences + API)
     public const PREF_EMAIL = 'email';
+
     public const PREF_IN_APP = 'in_app';
+
     public const PREF_TELEGRAM = 'telegram';
+
     public const PREF_WHATSAPP = 'whatsapp';
 
     /** Clé de préférence => canal Laravel. */

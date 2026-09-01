@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Order;
+use App\Services\NotificationContentService;
 use App\Support\NotificationChannels;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -55,7 +56,7 @@ class BookOrderedNotification extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $content = app(\App\Services\NotificationContentService::class)
+        $content = app(NotificationContentService::class)
             ->build('book_orders', $this->toArrayData(), NotificationChannels::MAIL);
 
         return (new MailMessage)

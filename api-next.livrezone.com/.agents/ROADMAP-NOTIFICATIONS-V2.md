@@ -127,7 +127,7 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
 - [x] ✅ Z1 FAITE 31/08 : `php -l` OK sur les 16 fichiers PHP touchés.
 - [x] ✅ Z2 FAITE 31/08 (22h50) : migration `2026_08_31_000001_add_pinned_and_dismissed_to_notifications_table` exécutée en prod dans `php-fpm-8.5` (batch 29, 31 ms) — `migrate:status` → Ran, requête `whereNull('dismissed_at')` OK (50 notifs), `GET /api/notifications` + `POST pin` répondent 401 JSON propre. ~~BLOQUÉE (sudo nécessaire)~~ accès rootless via `DOCKER_HOST=unix:///run/user/1001/docker.sock sudo -n docker exec` (env_keep sudoers). Recette connectée → Z7.
 -[x] ✅ Z3 FAITE 31/08 : ESLint 0 erreur, TSC 0 erreur (2 warnings préexistants AdminPaymentsClient, hors périmètre).
--[ ] ⏳ Z4 BLOQUÉE (conteneur) : pint + phpunit + exécution manuelle du digest, par le propriétaire.
+-[x] ✅ Z4 FAITE 01/09 (agent, accès rootless) : pint `--test` → 15 écarts (dont les fichiers V2) → corrigés, re-test **PASS 209 fichiers** ; phpunit **OK 84 tests / 257 assertions** (après correctifs) ; `notifications:send-chat-digest` exécuté 2× en prod → « Aucun destinataire éligible (fenêtre 6 h) » les deux fois (aucun message de chat non lu : cas vide OK, pas de crash ; le scénario complet 2 messages → 1 notif est couvert par la suite phpunit).
 -[x] ✅ Z5 FAITE 31/08 : commits 53c9f34 + 52150e6 (dépôt racine _data unique). Push GitHub à lancer.
 -[x] ✅ Z6 FAITE 31/08 : `.agents/AUDIT-2026-08-31.md` créé.
 - [ ] Z7. Demander au propriétaire le déploiement front (`lz`) + tests de recette :
@@ -201,4 +201,15 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
   contient les évolutions du 31/08-01/09 (et le correctif pending_admin du
   28/08 qui attendait ce déploiement). Restent Z4 (pint/phpunit + test digest)
   et Z7 (recette front connectée, déploiement non requis).
+- 2026-09-01 : **Z4 ✅ (agent, accès rootless)** — dans le conteneur
+  (`php-fpm-8.5`) : pint `--test` → 15 écarts de style (dont les fichiers V2
+  NotificationContentService, NotificationPreferenceService, NotificationChannels,
+  ChatDigestNotification, BookOrderedNotification, ProcessBookOrderNotifications,
+  ProfileController, SendChatDigests…) → `pint` correctif appliqué, re-test
+  **PASS 209 fichiers** ; phpunit **OK 84 tests / 257 assertions** (exécuté après
+  correctifs) ; `notifications:send-chat-digest` lancé 2× en prod →
+  « Aucun destinataire éligible (fenêtre 6 h) » les 2 fois : cas vide propre,
+  pas de crash, pas de doublon. ⚠️ Quirk rootless documenté : `cd`/`-w` sans effet
+  sur le cwd PHP (toujours `/var/www/html`) → utiliser des chemins absolus et
+  passer les répertoires cibles à pint. Reste Z7 (recette front connectée).
 

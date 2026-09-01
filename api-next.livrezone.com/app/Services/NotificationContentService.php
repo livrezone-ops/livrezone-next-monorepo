@@ -73,7 +73,7 @@ class NotificationContentService
         $category = $data['category'] ?? null;
 
         $lines = [
-            "Un utilisateur cherche le livre suivant sur LivreZone :",
+            'Un utilisateur cherche le livre suivant sur LivreZone :',
             $title,
         ];
         if ($author !== null) {

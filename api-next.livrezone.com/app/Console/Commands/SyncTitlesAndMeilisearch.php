@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Http;
 class SyncTitlesAndMeilisearch extends Command
 {
     protected $signature = 'books:sync-titles {--path= : Le chemin absolu vers la base SQLite}';
+
     protected $description = 'Met à jour uniquement les titres restaurés depuis SQLite et les pousse vers Meilisearch';
 
     public function handle()
@@ -17,6 +18,7 @@ class SyncTitlesAndMeilisearch extends Command
         $sqlitePath = $this->option('path') ?: base_path('nextlivrezonedb.db');
         if (! file_exists($sqlitePath)) {
             $this->error("Fichier SQLite introuvable : {$sqlitePath}");
+
             return Command::FAILURE;
         }
 
@@ -32,19 +34,20 @@ class SyncTitlesAndMeilisearch extends Command
 
         // On ne prend que les livres qui ont un ':' ou qui dépassaient les 250 caractères
         $query = "SELECT isbn_13, title, normalized_title FROM books WHERE title LIKE '%:%' OR normalized_title LIKE '%:%' OR LENGTH(title) >= 250 OR LENGTH(normalized_title) >= 250";
-        
-        $this->info("Analyse de la base SQLite pour trouver les titres à corriger...");
+
+        $this->info('Analyse de la base SQLite pour trouver les titres à corriger...');
         $stmt = $sqlite->query($query);
         $rows = $stmt->fetchAll();
         $total = count($rows);
 
         if ($total === 0) {
-            $this->info("Aucun titre à corriger.");
+            $this->info('Aucun titre à corriger.');
+
             return Command::SUCCESS;
         }
 
         $this->info("🎯 {$total} livres identifiés pour correction dans MariaDB et synchronisation Meilisearch.");
-        
+
         $bar = $this->output->createProgressBar($total);
         $bar->start();
 
@@ -53,7 +56,7 @@ class SyncTitlesAndMeilisearch extends Command
 
         foreach ($chunks as $chunk) {
             $isbns = [];
-            
+
             // 1. Mise à jour hyper-rapide de MariaDB (en une seule transaction)
             DB::beginTransaction();
             try {
@@ -62,7 +65,7 @@ class SyncTitlesAndMeilisearch extends Command
                         ->where('isbn_13', $row['isbn_13'])
                         ->update([
                             'title' => mb_substr($row['title'], 0, 255),
-                            'normalized_title' => mb_substr($row['normalized_title'], 0, 255)
+                            'normalized_title' => mb_substr($row['normalized_title'], 0, 255),
                         ]);
                     $isbns[] = $row['isbn_13'];
                 }
@@ -70,7 +73,8 @@ class SyncTitlesAndMeilisearch extends Command
             } catch (\Exception $e) {
                 DB::rollBack();
                 $this->newLine();
-                $this->error("Erreur SQL lors de l'Update: " . $e->getMessage());
+                $this->error("Erreur SQL lors de l'Update: ".$e->getMessage());
+
                 continue; // On passe au lot suivant en cas de bug
             }
 
@@ -83,9 +87,9 @@ class SyncTitlesAndMeilisearch extends Command
                     $books->searchable();
                 } catch (\Exception $e) {
                     $this->newLine();
-                    $this->error("Erreur Meilisearch lors de l'envoi: " . $e->getMessage());
+                    $this->error("Erreur Meilisearch lors de l'envoi: ".$e->getMessage());
                 }
-                
+
                 // 4. Pause intelligente anti-engorgement
                 $this->waitForMeilisearch($host, $key);
             }
@@ -95,9 +99,9 @@ class SyncTitlesAndMeilisearch extends Command
 
         $bar->finish();
         $this->newLine();
-        $this->info("✅ Opération chirurgicale terminée !");
-        $this->info("MariaDB et Meilisearch sont désormais 100% à jour avec les bons titres.");
-        
+        $this->info('✅ Opération chirurgicale terminée !');
+        $this->info('MariaDB et Meilisearch sont désormais 100% à jour avec les bons titres.');
+
         return Command::SUCCESS;
     }
 
@@ -106,14 +110,14 @@ class SyncTitlesAndMeilisearch extends Command
         while (true) {
             try {
                 $response = Http::withToken($key)
-                                ->timeout(10)
-                                ->get("{$host}/tasks", [
-                                    'statuses' => 'enqueued,processing'
-                                ]);
-                                
+                    ->timeout(10)
+                    ->get("{$host}/tasks", [
+                        'statuses' => 'enqueued,processing',
+                    ]);
+
                 if ($response->successful()) {
                     $tasks = $response->json('results', []);
-                    if (count($tasks) == 0) { 
+                    if (count($tasks) == 0) {
                         break;
                     }
                 }

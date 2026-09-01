@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\NotificationPreference;
 use App\Support\NotificationChannels;
 use Illuminate\Database\Eloquent\Collection;
+
 class NotificationPreferenceService
 {
     /**

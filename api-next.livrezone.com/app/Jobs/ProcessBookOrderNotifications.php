@@ -120,5 +120,4 @@ class ProcessBookOrderNotifications implements ShouldQueue
             }
         }
     }
-
 }
