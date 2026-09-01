@@ -197,4 +197,8 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
   déclenchée depuis les boutons Masquer des vues tableau ET cartes ;
   épinglage et « Marquer comme lu » restent immédiats. Recette propriétaire
   validée (« tout est en place correctement »). TSC 0 erreur, ESLint 0 erreur.
+- 2026-09-01 : **`lz` ✅ (propriétaire)** — déploiement front effectué : la prod
+  contient les évolutions du 31/08-01/09 (et le correctif pending_admin du
+  28/08 qui attendait ce déploiement). Restent Z4 (pint/phpunit + test digest)
+  et Z7 (recette front connectée, déploiement non requis).
 
