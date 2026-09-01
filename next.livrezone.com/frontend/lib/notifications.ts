@@ -47,6 +47,8 @@ export interface AppNotification {
   data: Record<string, unknown>;
   read_at: string | null;
   created_at: string;
+  /** Date d'épinglage (null = non épinglée) — colonne ajoutée en V2. */
+  pinned_at?: string | null;
 }
 
 export interface InboxMeta {
@@ -65,11 +67,29 @@ export interface InboxMeta {
  *   recherche par titre (la liste /demandes n'a pas de page détail par id) ;
  * - Autres : suit `data.link` s'il s'agit d'un chemin interne.
  */
+/**
+ * Clé métier du type de notification : stockée dans `data.type` à l'émission ;
+ * retombe sur le champ `type` Laravel si absent (notification sans clé métier).
+ */
+export function notificationTypeKey(n: AppNotification): string {
+  const data = n.data || {};
+  return typeof data.type === "string" ? data.type : n.type;
+}
+
+/**
+ * Libellé FR du type (miroir front) ; tout type inconnu retombe sur sa clé
+ * technique afin de toujours afficher quelque chose d'exploitable.
+ */
+export function notificationTypeLabel(n: AppNotification): string {
+  const key = notificationTypeKey(n);
+  return NOTIFICATION_TYPE_LABELS[key] ?? key;
+}
+
 export function notificationHref(n: AppNotification): string | null {
   const data = n.data || {};
   // La clé métier est stockée dans data.type à l'émission ; le champ `type`
   // Laravel contient le nom de classe et n'est pas exploitable en l'état.
-  const notifType = typeof data.type === "string" ? data.type : n.type;
+  const notifType = notificationTypeKey(n);
   if (notifType === "book_orders") {
     const title = typeof data.title === "string" ? data.title : "";
     return "/demandes" + (title ? `?search=${encodeURIComponent(title)}` : "");
