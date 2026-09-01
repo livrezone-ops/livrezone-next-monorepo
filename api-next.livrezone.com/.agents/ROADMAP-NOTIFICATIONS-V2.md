@@ -181,3 +181,20 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
   déjà, apparait quand il y a des non-lues) ;
   (5) pagination re-stylée comme le dashboard (boutons bordés px-3 py-2) ;
   conteneur élargi max-w-3xl → max-w-5xl. TSC 0 erreur, ESLint 0 erreur.
+- 2026-09-01 : **POINT 2 (retours propriétaire) ✅** — page
+  /dashboard/notifications/parametrage : (1) toggle Telegram grisé ET forcé en
+  position désactivée pour les comptes non éligibles (`telegram_allowed=false`,
+  il gardait auparavant sa position enregistrée) ; (2) titres de sections
+  renommés : « Recevoir des notifications par : » (S1) et « Recevoir des
+  notifications par rapport à » (S2) ; (3) ancienne section 3 supprimée, son
+  contenu devient le sous-bloc « Paramétrer Telegram sur téléphone » imbriqué
+  en fin de S1, visible uniquement quand le toggle Telegram est activé ;
+  libellés S2 : « Demandes de livre » / « Les messages du chat »
+  (lib/notifications.ts, partagés). TSC 0 erreur, ESLint 0 erreur.
+- 2026-09-01 : **POINT 2 bis (retour propriétaire) ✅** — confirmation avant
+  masquage d'une notification (page /notifications) : modale identique au
+  design du dashboard (overlay blur, pastille rose EyeOff, Annuler / Confirmer),
+  déclenchée depuis les boutons Masquer des vues tableau ET cartes ;
+  épinglage et « Marquer comme lu » restent immédiats. Recette propriétaire
+  validée (« tout est en place correctement »). TSC 0 erreur, ESLint 0 erreur.
+
