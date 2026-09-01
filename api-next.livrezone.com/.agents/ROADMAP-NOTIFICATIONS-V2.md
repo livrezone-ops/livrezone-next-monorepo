@@ -69,8 +69,10 @@ laisser un fichier en erreur en fin de session.
 
 2. **🔴 URGENT — Bascule du mailing sur Amazon SES** *(côté Amazon : OK — reste le
    paramétrage serveur)*
-   - [ ] **SDK AWS absent de `composer.json`** (vérifié 01/09, Laravel ^13.8 :
-     mailer SES natif) → `composer require aws/aws-sdk-php` dans le conteneur ;
+   - [x] **SDK AWS absent de `composer.json`** (vérifié 01/09, Laravel ^13.8 :
+     mailer SES natif) → ✅ **FAIT 01/09** : `composer require aws/aws-sdk-php` dans le conteneur
+      (v3.394.6, `^3.394`) — `package:discover` OK, artisan boote (Laravel
+      13.24.0), `vendor/aws/` présent ; composer.json + composer.lock commités ;
    - [ ] Variables `.env` prod : `MAIL_MAILER=ses`, `AWS_ACCESS_KEY_ID` /
      `AWS_SECRET_ACCESS_KEY` (utilisateur IAM dédié avec policy SES restreinte
      à l'envoi), `AWS_DEFAULT_REGION` (région de l'identité SES validée),
@@ -273,6 +275,14 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
   contient les évolutions du 31/08-01/09 (et le correctif pending_admin du
   28/08 qui attendait ce déploiement). Restent Z4 (pint/phpunit + test digest)
   et Z7 (recette front connectée, déploiement non requis).
+- 2026-09-01 : **SES point 1 ✅ — SDK AWS installé** — `composer require
+  aws/aws-sdk-php` exécuté dans le conteneur `php-fpm-8.5` via
+  `composer --working-dir=/var/www/html/api-next.livrezone.com` (v3.394.6,
+  contrainte `^3.394`) : post-autoload-dump + `package:discover` OK (11
+  packages), `artisan --version` OK (Laravel 13.24.0), `vendor/aws/` présent
+  (aws-sdk-php + aws-crt-php). composer.json + composer.lock modifiés puis
+  commités. Constat au passage : le `.env` prod est en `MAIL_MAILER=smtp`
+  avec `AWS_ACCESS_KEY_ID` vide (région `us-east-1`) → étape 2 (variables).
 - 2026-09-01 : **Z4 ✅ (agent, accès rootless)** — dans le conteneur
   (`php-fpm-8.5`) : pint `--test` → 15 écarts de style (dont les fichiers V2
   NotificationContentService, NotificationPreferenceService, NotificationChannels,
