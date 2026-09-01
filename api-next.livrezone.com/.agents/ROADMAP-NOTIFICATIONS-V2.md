@@ -158,3 +158,26 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
 - 2026-08-31 : **TOUTES LES TÂCHES DE CODE TERMINÉES (A1-A5, T1-T5). Reste la phase Z.**
 - 2026-08-31 : **Z1/Z3/Z5/Z6 ✅, Z2/Z4/Z7 ⏳ pour le propriétaire** (sudo + déploiement lz). Voir `.agents/AUDIT-2026-08-31.md`. Session V2 close côté agent.
 - 2026-08-31 (22h50) : **Z2 ✅** — accès rootless retrouvé (`DOCKER_HOST=unix:///run/user/1001/docker.sock sudo -n docker exec`, env_keep sudoers du 28/08) ; `migrate:status` révélait `2026_08_31_000001` PENDING → `migrate --force` exécuté (batch 29) ; vérifs : requête `whereNull('dismissed_at')` OK, `/api/notifications` + `pin` → 401 JSON (le 500 « Route [login] not defined » sans header Accept est un artefact curl, comportement antérieur). Au passage : `livrezone-redis` est de nouveau attaché au réseau `livrezone_db` (erreurs DNS du log arrêtées à 18:49, queue-health 0/0/0/0). Restent Z4 (pint/phpunit + digest) et Z7 (recette connectée + `lz`).
+- 2026-09-01 : **POINT 1 (retour propriétaire) ✅** — la page /notifications du front
+  (`next.livrezone.com/frontend/app/dashboard/notifications/page.tsx`) n'exposait pas
+  les actions V2 : liste en cartes, sans boutons épingler/masquer (alors que les
+  endpoints `POST /notifications/{id}/pin` et `/hide` existaient côté API).
+  Refonte : liste en **tableau** (colonnes Titre de notification / Date / Type /
+  Actions avec 2 boutons : épingler-désépingler et masquer), badge épinglée,
+  « Marquer comme lu » conservé pour les notifs non cliquables. Pagination :
+  déjà en place (fenêtrée), confirmée inchangée. Lib : `pinned_at` ajouté à
+  `AppNotification` + helpers `notificationTypeKey()`/`notificationTypeLabel()`
+  (`lib/notifications.ts`). TSC 0 erreur, ESLint 0 erreur.
+- 2026-09-01 : **POINT 1 bis (retours propriétaire) ✅** — page /notifications affinée :
+  (1) plus aucun scroll horizontal — tableau en `table-fixed` avec colonnes dimensionnées ;
+  (2) bouton « Marquer comme lu » présent dans les DEUX vues ;
+  (3) deux vues commutables exactement comme le dashboard (segmented control
+  `Grid`/`List` dans l'en-tête de la boîte, `viewMode` "table" par défaut,
+  cartes visibles sur mobile même en mode tableau) ;
+  vue cartes = grille 2 à 3 cartes par ligne (`grid-cols-1 sm:grid-cols-2
+  lg:grid-cols-3`), badge type + épinglée + titre + aperçu + date + pied de
+  carte (Marquer comme lu / Lue + épingler + masquer, stopPropagation) ;
+  (4) « Tout marquer comme lu » re-stylé en bouton bordé visible (il existait
+  déjà, apparait quand il y a des non-lues) ;
+  (5) pagination re-stylée comme le dashboard (boutons bordés px-3 py-2) ;
+  conteneur élargi max-w-3xl → max-w-5xl. TSC 0 erreur, ESLint 0 erreur.
