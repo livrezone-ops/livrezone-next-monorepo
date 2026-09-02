@@ -88,21 +88,35 @@ laisser un fichier en erreur en fin de session.
       `.env.example` à jour (commit 62b096e) ; le mailer SDK `ses` reste
       activable plus tard (SDK installé, point 1) si clé IAM générée ;
    - [ ] DNS du domaine : enregistrements **SPF + DKIM** (CNAME fournis par SES)
-     pour l'authentification — ⏳ **EN COURS 02/09** : le propriétaire vérifie le
-      **domaine `livrezone.com` en `eu-west-3`** dans la console SES (couvre
-      toutes les adresses + fournit les CNAME DKIM) ; constat 02/09 : aucun SPF
-      ni DKIM SES posés sur le domaine (seulement un code Brevo) ;
-   - [ ] Sortir du sandbox SES si nécessaire (demande de quota de production) ;
+     pour l'authentification — ⏳ **EN COURS 02/09 (matin)** : identité domaine
+      `livrezone.com` (eu-west-3) désormais **VÉRIFIÉE côté SES** (envoi accepté,
+      cohérent avec le flux DKIM-only : pas de TXT `_amazonses` visible) et le
+      propriétaire confirme avoir publié les CNAME DKIM dans **Cloudflare** →
+      reste : vérification de propagation depuis le conteneur (`dns_get_record`,
+      il faut les 3 noms d'hôte CNAME exacts fournis par le propriétaire) ;
+      ⚠️ **SPF toujours absent** (TXT apex = seul code Brevo) → à ajouter
+      (`v=spf1 include:amazonses.com -all`, fusionné avec Brevo si conservé) ;
+   - [ ] Sortir du sandbox SES si nécessaire (demande de quota de production) —
+      ⛔ **BLOQUANT, preuve 02/09 (matin)** : envoi réel vers une adresse externe
+      NON vérifiée (`peecota@hotmail.com`) rejeté par SES (`554 Message rejected:
+      Email address is not verified … peecota@hotmail.com`) → SES est **toujours
+      en sandbox** ; à faire par le propriétaire : console SES →
+      « Request production access » ;
    - [x] Vider le cache de config : `artisan config:clear` (API live en bind mount) — ✅ FAIT 02/09 ;
    - [ ] Test d'envoi réel (forgot-password) + vérifier les files (`queue:monitor`)
      et `app:queue-health` vert ; cocher au passage le « test e-mail réel » ouvert
      depuis le 26/08 — ⏳ **EN COURS 02/09** : `554` initial (identité non
       vérifiée) puis **envoi réel SES RÉUSSI** (`Mail::raw` « Test SES LivreZone
       #2 » → `contact@livrezone.com`, `ENVOI-OK`) — l'identité d'expédition est
-      vérifiée ; reste : confirmation de réception dans la boîte + test
-      forgot-password sur un compte réel (aucun compte avec l'email `contact@…`
-      en base) ; **`app:queue-health` ✅ vert** (0 en attente / 0 bloqué /
-      0 échoué) ;
+      vérifiée ; **test forgot-password réel exécuté 02/09 (matin)** sur le
+      compte #12 (`peecota@hotmail.com`, accord du propriétaire) via
+      `POST /api/auth/forgot-password` (flow custom du projet :
+      `AuthController@forgotPassword` + `ResetPasswordMail` en queue — NE PAS
+      utiliser `Password::sendResetLink` direct, cf. journal) : API répond OK,
+      le worker traite le job, **SES rejette `554` (sandbox, voir point 4)** →
+      job échoué #18 dans `failed_jobs`, à re-trier (`php artisan queue:retry 18`)
+      après la sortie du sandbox (le lien de reset partira alors tout seul) ;
+      **`app:queue-health`** : 0 en attente / 0 bloqué / **1 échoué (#18)** ;
    - [ ] Surveiller le dashboard SES (bounces/complaints) pendant 24-48 h.
 
 3. **Clôture de la session** *(agent, après recette)*
@@ -305,6 +319,27 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
   SMTP SES du propriétaire, IAM `ses-smtp-user.20260902-004919` ; le mailer
   SDK `ses` exigerait une clé IAM brute — variante documentée en roadmap),
   `MAIL_FROM_ADDRESS=no-reply@livrezone.com`, région corrigée en `eu-west-3`,
+- 2026-09-02 (matin, suite SES) : **test forgot-password réel → preuve sandbox
+  ⛔** — état serveur revérifié : `.env` toujours sur le relais SMTP SES
+  eu-west-3 (creds présents, non affichés), `.aws.txt` absent confirmé,
+  rollback `.env.bak-20260902-ses` présent, `app:queue-health` vert au départ.
+  DNS depuis le conteneur : TXT apex = seul code Brevo, **SPF absent**,
+  `_amazonses` TXT absent mais identité domaine **vérifiée côté SES**
+  (cohérent avec le flux DKIM-only, CNAME publiés par le propriétaire dans
+  Cloudflare) → propagation à vérifier dès réception des noms d'hôte CNAME.
+  Test réel autorisé par le propriétaire sur le compte #12
+  `peecota@hotmail.com` : d'abord `Password::sendResetLink` en tinker →
+  **échec attendu** (`Route [password.reset] not defined` — le projet utilise
+  un flow custom, ne pas réutiliser), puis **`POST /api/auth/forgot-password`**
+  (flow réel : `AuthController@forgotPassword` + `ResetPasswordMail` en
+  queue) → API répond OK, worker traite le job, SES rejette
+  **`554 Message rejected: Email address is not verified …
+  peecota@hotmail.com`** → **SES toujours en SANDBOX** (adresse externe non
+  vérifiée refusée) ; job échoué #18 conservé dans `failed_jobs`
+  (`queue:retry 18` après la sortie du sandbox). Reste propriétaire :
+  « Request production access » + 3 noms d'hôte CNAME DKIM + confirmation
+  réception « Test SES LivreZone #2 ».
+- 2026-09-01 : **Z4 ✅ (agent, accès rootless)** — dans le conteneur
   sauvegarde `.env.bak-20260902-ses` ; `config:clear` OK ; smoke test
   `Mail::raw` → `contact@livrezone.com` : **554 Email address is not
   verified** (aucune identité vérifiée en eu-west-3 → le propriétaire lance
