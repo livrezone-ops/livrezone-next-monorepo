@@ -312,6 +312,13 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
   DKIM) ; `app:queue-health` ✅ vert (0/0/0/0). ⚠️ Sécurité : `.aws.txt` à la
   racine du bind mount — vérifié jamais commité ; à supprimer + rotation des
   identifiants SMTP recommandée après validation de l'envoi.
+- 2026-09-02 : **FIN DE SESSION (bascule SES ~90 %)** — serveur configuré et
+  envoi réel accepté par SES ; restent pour demain : confirmation de réception
+  dans la boîte, DKIM/SPF (CNAME pas encore posés), test forgot-password sur
+  un compte réel, sortie du sandbox à confirmer, rotation des identifiants
+  SMTP, surveillance bounces 24-48 h. **Prompt de reprise :
+  `.agents/PROMPT-SESSION-SES.txt`.** Commits du jour : 601e003 (SDK),
+  62b096e (.env.example), cadf6ad + 4d6fc5e (docs).
 - 2026-09-01 : **Z4 ✅ (agent, accès rootless)** — dans le conteneur
   (`php-fpm-8.5`) : pint `--test` → 15 écarts de style (dont les fichiers V2
   NotificationContentService, NotificationPreferenceService, NotificationChannels,

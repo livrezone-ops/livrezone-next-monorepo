@@ -1,0 +1,66 @@
+================================================================================
+LIVREZONE — PROMPT DE REPRISE « BASCULE AMAZON SES » (suite, 03/09/2026)
+Fichier : .agents/PROMPT-SESSION-SES.txt
+Prérequis : lire .agents/ROADMAP-NOTIFICATIONS-V2.md (section « 🎯 PROCHAINES
+ÉTAPES » + journal du 02/09) et .agents/AUDIT-2026-08-31.md (tableau « 🔴
+BASCULE DU MAILING SUR AMAZON SES »).
+================================================================================
+
+CONTEXTE (état au 02/09 soir — commits 601e003, 62b096e, cadf6ad, 4d6fc5e)
+- Notifications V2 livrée, front déployé (`lz`) ; reste Z7 (recette connectée,
+  propriétaire).
+- Bascule mailing → Amazon SES : FAIT côté serveur :
+  · `.env` prod sur le relais SMTP SES `email-smtp.eu-west-3.amazonaws.com:587/TLS`
+    (identifiants SMTP SES, IAM `ses-smtp-user.20260902-004919`) ;
+  · `MAIL_FROM_ADDRESS=no-reply@livrezone.com`, `AWS_DEFAULT_REGION=eu-west-3` ;
+  · `config:clear` fait ; **envoi réel RÉUSSI** (« Test SES LivreZone #2 » →
+    contact@livrezone.com, SES accepte) ; `app:queue-health` ✅ vert (0/0/0) ;
+  · sauvegarde rollback : `.env.bak-20260902-ses` (= ancienne config Brevo) ;
+  · `aws/aws-sdk-php` 3.394 installé ; `.env.example` documenté (bloc SES).
+- ⚠️ Le mailer natif `ses` (SDK) n'est PAS utilisé : les identifiants fournis
+  sont des identifiants SMTP. Bascule possible plus tard (clé IAM brute).
+
+REPRISE POINT PAR POINT — mettre à jour roadmap + audit et PUSHER après
+CHAQUE étape validée :
+
+1. Propriétaire : confirmer la réception de « Test SES LivreZone #2 » dans la
+   boîte contact@livrezone.com (sinon → dossiers spams/promotions).
+2. **DNS DKIM + SPF** (point 3 de la checklist) : les CNAME DKIM ne sont pas
+   encore posés (constat 02/09 : aucun SPF ni DKIM SES sur livrezone.com,
+   seulement un code Brevo). Le propriétaire les relève dans la console SES
+   (identité eu-west-3) et les publie dans la zone DNS ; l'agent vérifie la
+   propagation depuis le conteneur (`dns_get_record`) et re-teste un envoi.
+   Important pour la délivrabilité (sinon risque spams).
+3. **Test forgot-password réel** (point 6) : donner l'email d'un compte
+   existant (aucun compte n'utilise contact@…) → test via POST
+   /api/forgot-password ou `Password::sendResetLink` en tinker (ne JAMAIS
+   envoyer à un utilisateur au hasard), vérifier réception + lien.
+4. **Sandbox SES** (point 4) : confirmer la sortie du sandbox (envoi vers une
+   adresse NON vérifiée pour le prouver) ; sinon demander le quota production.
+5. **Sécurité — rotation des identifiants SMTP SES** : ils sont passés en
+   clair dans la session du 02/09 (fichier `.aws.txt` supprimé, jamais
+   commité — vérifié). Console SES → SMTP credentials → nouveau mot de passe
+   → l'agent met à jour le `.env` + `config:clear`. Option recommandée dans
+   la foulée : générer une clé d'accès IAM (policy SES envoi seul) et basculer
+   sur le mailer natif `ses` (SDK déjà installé).
+6. **Point 7** : surveiller le dashboard SES (bounces/complaints) 24-48 h.
+7. Si tout est vert : cocher la bascule SES comme close dans roadmap + audit
+   (statut « SESSION CLOSE » pour le volet SES).
+
+ENSUITE (si le temps le permet)
+- **Z7** — recette front connectée (propriétaire) : checklist complète dans la
+  roadmap (section « Immédiat — Notifications V2 »).
+- **CMI/Fatourati** contre le simulateur `PAYMENT_SIMULATOR`, sans compte réel
+  (payload initiate, signature HMAC, webhook idempotent ; toggles admin déjà
+  en place) — voir roadmap « Court terme ».
+
+RÈGLES / PIÈGES CONNUS
+- API live en bind mount : `php -l` après chaque edit PHP ; jamais de fichier
+  cassé en fin de session.
+- Quirk conteneur : cwd PHP toujours `/var/www/html` → utiliser
+  `composer --working-dir=/var/www/html/api-next.livrezone.com` et des chemins
+  absolus pour artisan/pint.
+- `.env` prod contient des secrets : ne jamais l'afficher en entier, ne jamais
+  le committer ; grep ciblé uniquement.
+- Git : dépôt racine = monorepo (`origin` https), API = `api-next.livrezone.com`.
+================================================================================
