@@ -45,6 +45,15 @@ class ProfileSearchableObserverTest extends TestCase
             $test->removed[] = $models->pluck('id')->all();
         });
 
+        // Hermetique : forcer le driver meilisearch + sync SANS dependre du
+        // .env local (SCOUT_DRIVER=meilisearch). En CI, sans .env, Scout v11
+        // retombe sur son defaut 'collection' (engine no-op) et le mock
+        // 'meilisearch' n'etait jamais resolu -> 3 faux echecs.
+        config([
+            'scout.driver' => 'meilisearch',
+            'scout.queue' => false,
+        ]);
+
         app(EngineManager::class)->extend('meilisearch', fn () => $engine);
     }
 
