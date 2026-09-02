@@ -133,8 +133,20 @@ laisser un fichier en erreur en fin de session.
       en place ; bascule réelle au moment de l'obtention du compte (config seule).
       → **peut être priorisé dès maintenant** ;
 - [ ] **Optimisation images Next + AbortController systématique** ;
-- [ ] **Form Requests** pour les controllers Profile/Auth/Admin restants +
-      fusion store/update complète ;
+- [x] **Form Requests** pour les controllers Profile/Auth/Admin restants +
+      fusion store/update complète — ✅ **FAIT 02/09** : 22 Form Requests créés
+      dans `app/Http/Requests/Api/` (Auth : Register/Login/ResendVerification/
+      ForgotPassword/ResetPassword/UpdatePassword — Profile : StoreRating/
+      UpdateProfile (slug nickname en `prepareForValidation`, requiredIf
+      confirm)/UpdateNotificationPreferences — Admin : 13 requêtes (index
+      listings/orders/payments, update settings/status/subscription, bulk,
+      hero, promo, codes de réduction) — Listing : `ListingUpsertRequest`
+      partagé) ; fusion du pipeline commun store/update de
+      `ListingManagerController` (`resolveTaxonomy`/`resolveBook`/
+      `resolveCover`, ~90 lignes dupliquées supprimées, comportement préservé
+      au détail près : couverture catalogue, repli book lié, suppression
+      ancien fichier) ; pint PASS 37 fichiers, phpunit OK 84 tests /
+      257 assertions, smoke test live 422 OK (forgot-password, login) ;
 - [ ] **Factories métier + tests Auth/OAuth** ;
 - [ ] **Repasser les 3 règles React Compiler en `error`** (après refactoring des
       monolithes front — fin de la dette lint) ;
@@ -307,6 +319,23 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
   28/08 qui attendait ce déploiement). Restent Z4 (pint/phpunit + test digest)
   et Z7 (recette front connectée, déploiement non requis).
 - 2026-09-01 : **SES point 1 ✅ — SDK AWS installé** — `composer require
+- 2026-09-02 (après-midi) : **Form Requests + fusion store/update ✅** — 22
+  Form Requests créés dans `app/Http/Requests/Api/` (Auth ×6, Profile ×3,
+  Admin ×12, Listing `ListingUpsertRequest` partagé) : toutes les validations
+  inline de `AuthController`, `ProfileController`, `AdminController` et
+  `ListingManagerController` migrées à l'identique (règles, messages par
+  défaut, sémantique `requiredIf`/`sometimes`/`nullable` préservées ; slug du
+  nickname déplacé en `prepareForValidation`). Fusion du pipeline commun
+  store/update de `ListingManagerController` en 3 helpers
+  (`resolveTaxonomy`, `resolveBook`, `resolveCover`) — comportement
+  préservé : priorité upload > couverture catalogue, repli book lié en
+  update, suppression de l'ancien fichier local, statut recalculé seulement
+  si données principales altérées. Validations : `php -l` après chaque edit,
+  pint **PASS 37 fichiers**, phpunit **OK 84 tests / 257 assertions**,
+  smoke test live 422 OK sur `POST /api/auth/forgot-password` et
+  `POST /api/auth/login`. Messages custom type par type (style Chat) non
+  ajoutés volontairement : parité stricte avec les réponses actuelles du front.
+- 2026-09-02 (matin, suite SES) : **test forgot-password réel → preuve sandbox
   aws/aws-sdk-php` exécuté dans le conteneur `php-fpm-8.5` via
   `composer --working-dir=/var/www/html/api-next.livrezone.com` (v3.394.6,
   contrainte `^3.394`) : post-autoload-dump + `package:discover` OK (11

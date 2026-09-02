@@ -3,6 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\AdminBulkListingStatusRequest;
+use App\Http\Requests\Api\AdminListingsIndexRequest;
+use App\Http\Requests\Api\AdminOrdersIndexRequest;
+use App\Http\Requests\Api\AdminPaymentsIndexRequest;
+use App\Http\Requests\Api\AdminStoreDiscountCodeRequest;
+use App\Http\Requests\Api\AdminStoreHeroRequest;
+use App\Http\Requests\Api\AdminTogglePromoRequest;
+use App\Http\Requests\Api\AdminUpdateDiscountCodeRequest;
+use App\Http\Requests\Api\AdminUpdateListingStatusRequest;
+use App\Http\Requests\Api\AdminUpdateOrderStatusRequest;
+use App\Http\Requests\Api\AdminUpdateSettingsRequest;
+use App\Http\Requests\Api\AdminUpdateUserStatusRequest;
+use App\Http\Requests\Api\AdminUpdateUserSubscriptionRequest;
 use App\Jobs\NotifyDemandersOnListingPublished;
 use App\Models\DiscountCode;
 use App\Models\HeroMessage;
@@ -18,7 +31,6 @@ use App\Services\SubscriptionService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
@@ -31,15 +43,13 @@ class AdminController extends Controller
         return response()->json($adminService->getUsersList($request->all()));
     }
 
-    public function updateUserStatus(Request $request, User $user)
+    public function updateUserStatus(AdminUpdateUserStatusRequest $request, User $user)
     {
         if ($user->id === $request->user()->id) {
             return response()->json(['message' => 'Vous ne pouvez pas modifier votre propre statut.'], 422);
         }
 
-        $validated = $request->validate([
-            'is_active' => 'required|boolean',
-        ]);
+        $validated = $request->validated();
 
         $user->update(['is_active' => $validated['is_active']]);
 
@@ -53,15 +63,13 @@ class AdminController extends Controller
      * Changement du profil d'abonnement d'un utilisateur (free / pro / premium).
      * Délègue la logique métier à SubscriptionService.
      */
-    public function updateUserSubscription(Request $request, User $user)
+    public function updateUserSubscription(AdminUpdateUserSubscriptionRequest $request, User $user)
     {
         if ($user->id === $request->user()->id) {
             return response()->json(['message' => 'Vous ne pouvez pas modifier votre propre abonnement.'], 422);
         }
 
-        $validated = $request->validate([
-            'subscription_type' => ['required', Rule::in(SubscriptionService::TYPES)],
-        ]);
+        $validated = $request->validated();
 
         $profile = app(SubscriptionService::class)
             ->changeSubscription($user, $validated['subscription_type']);
@@ -80,26 +88,18 @@ class AdminController extends Controller
         protected ListingQueryService $listingQueryService,
     ) {}
 
-    public function listings(Request $request)
+    public function listings(AdminListingsIndexRequest $request)
     {
-        $validated = $request->validate([
-            'filter' => ['nullable', Rule::in(['all', 'online', 'offline', 'pending', 'archived', 'deleted'])],
-            'search' => 'nullable|string|max:100',
-            'sort_by' => ['nullable', Rule::in(['created_at', 'price', 'title'])],
-            'sort_dir' => ['nullable', Rule::in(['asc', 'desc'])],
-            'limit' => 'nullable|integer|min:1|max:100',
-        ]);
+        $validated = $request->validated();
 
         return response()->json(
             $this->listingQueryService->listForAdmin($validated)
         );
     }
 
-    public function updateListingStatus(Request $request, Listing $listing)
+    public function updateListingStatus(AdminUpdateListingStatusRequest $request, Listing $listing)
     {
-        $validated = $request->validate([
-            'action' => ['required', Rule::in(['activate', 'deactivate', 'delete'])],
-        ]);
+        $validated = $request->validated();
 
         $newStatus = match ($validated['action']) {
             'activate' => 'published',
@@ -115,13 +115,9 @@ class AdminController extends Controller
         ]);
     }
 
-    public function bulkListingStatus(Request $request)
+    public function bulkListingStatus(AdminBulkListingStatusRequest $request)
     {
-        $validated = $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'integer|exists:listings,id',
-            'action' => ['required', Rule::in(ListingQueryService::ADMIN_ACTIONS)],
-        ]);
+        $validated = $request->validated();
 
         $newStatus = match ($validated['action']) {
             'activate' => 'published',
@@ -152,26 +148,18 @@ class AdminController extends Controller
     // Demandes (book requests)
     // ------------------------------------------------------------------
 
-    public function orders(Request $request)
+    public function orders(AdminOrdersIndexRequest $request)
     {
-        $validated = $request->validate([
-            'status' => ['nullable', Rule::in(['all', 'pending_admin', 'published', 'fulfilled', 'cancelled', 'rejected'])],
-            'search' => 'nullable|string|max:100',
-            'sort_by' => ['nullable', Rule::in(['created_at', 'title'])],
-            'sort_dir' => ['nullable', Rule::in(['asc', 'desc'])],
-            'limit' => 'nullable|integer|min:1|max:100',
-        ]);
+        $validated = $request->validated();
 
         return response()->json(
             app(OrderService::class)->listForAdmin($validated)
         );
     }
 
-    public function updateOrderStatus(Request $request, Order $order)
+    public function updateOrderStatus(AdminUpdateOrderStatusRequest $request, Order $order)
     {
-        $validated = $request->validate([
-            'action' => ['required', Rule::in(['publish', 'reject', 'fulfill'])],
-        ]);
+        $validated = $request->validated();
 
         match ($validated['action']) {
             'publish' => $order->update(['status' => 'published', 'published_at' => now()]),
@@ -193,17 +181,9 @@ class AdminController extends Controller
     // Paiements, échéances, promo, codes de réduction
     // ------------------------------------------------------------------
 
-    public function payments(Request $request)
+    public function payments(AdminPaymentsIndexRequest $request)
     {
-        $validated = $request->validate([
-            'status' => ['nullable', Rule::in(['all', 'pending', 'paid', 'failed'])],
-            'type' => ['nullable', Rule::in(['all', 'pro', 'premium'])],
-            'expiring' => 'nullable|boolean',
-            'search' => 'nullable|string|max:100',
-            'sort_by' => ['nullable', Rule::in(['created_at', 'expires_at', 'amount'])],
-            'sort_dir' => ['nullable', Rule::in(['asc', 'desc'])],
-            'limit' => 'nullable|integer|min:1|max:100',
-        ]);
+        $validated = $request->validated();
 
         return response()->json(
             app(AdminPaymentService::class)->list($validated)
@@ -224,24 +204,9 @@ class AdminController extends Controller
         ]);
     }
 
-    public function updateSettings(Request $request, SubscriptionService $subscriptions)
+    public function updateSettings(AdminUpdateSettingsRequest $request, SubscriptionService $subscriptions)
     {
-        $validated = $request->validate([
-            'max_free_listings' => 'nullable|integer|min:0|max:10000',
-            'pro_price' => 'nullable|numeric|min:0|max:100000',
-            'premium_price' => 'nullable|numeric|min:0|max:100000',
-            'notification_delay_hours' => 'nullable|integer|min:0|max:720',
-            'subscription_grace_period_days' => 'nullable|integer|min:0|max:365',
-            'subscriptions_disabled' => 'nullable|boolean',
-            'telegram_pro_enabled' => 'nullable|boolean',
-            'chat_digest_hours' => 'nullable|integer|min:1|max:168',
-            'method_virement' => 'nullable|boolean',
-            'method_especes' => 'nullable|boolean',
-            'method_cheque' => 'nullable|boolean',
-            'method_autre' => 'nullable|boolean',
-            'gateway_cmi' => 'nullable|boolean',
-            'gateway_fatourati' => 'nullable|boolean',
-        ]);
+        $validated = $request->validated();
 
         // Empêche de désactiver TOUS les moyens de paiement d'un coup.
         $methods = ['method_virement', 'method_especes', 'method_cheque', 'method_autre'];
@@ -273,11 +238,9 @@ class AdminController extends Controller
         ]);
     }
 
-    public function togglePromo(Request $request, SubscriptionService $subscriptions)
+    public function togglePromo(AdminTogglePromoRequest $request, SubscriptionService $subscriptions)
     {
-        $validated = $request->validate([
-            'active' => 'required|boolean',
-        ]);
+        $validated = $request->validated();
 
         $subscriptions->setPromoProFree($validated['active']);
 
@@ -296,16 +259,9 @@ class AdminController extends Controller
         ]);
     }
 
-    public function storeDiscountCode(Request $request)
+    public function storeDiscountCode(AdminStoreDiscountCodeRequest $request)
     {
-        $validated = $request->validate([
-            'code' => 'required|string|min:3|max:30|regex:/^[A-Za-z0-9_-]+$/',
-            'type' => ['required', Rule::in(['percent', 'fixed'])],
-            'value' => 'required|numeric|min:0.01',
-            'is_active' => 'nullable|boolean',
-            'expires_at' => 'nullable|date|after:now',
-            'max_uses' => 'nullable|integer|min:1',
-        ]);
+        $validated = $request->validated();
 
         try {
             $code = app(AdminPaymentService::class)->createDiscountCode($validated);
@@ -316,16 +272,9 @@ class AdminController extends Controller
         return response()->json(['message' => "Code {$code->code} créé.", 'code' => $code], 201);
     }
 
-    public function updateDiscountCode(Request $request, DiscountCode $discountCode)
+    public function updateDiscountCode(AdminUpdateDiscountCodeRequest $request, DiscountCode $discountCode)
     {
-        $validated = $request->validate([
-            'code' => 'sometimes|string|min:3|max:30|regex:/^[A-Za-z0-9_-]+$/',
-            'type' => ['sometimes', Rule::in(['percent', 'fixed'])],
-            'value' => 'sometimes|numeric|min:0.01',
-            'is_active' => 'sometimes|boolean',
-            'expires_at' => 'nullable|date',
-            'max_uses' => 'nullable|integer|min:1',
-        ]);
+        $validated = $request->validated();
 
         $code = app(AdminPaymentService::class)->updateDiscountCode($discountCode, $validated);
 
@@ -389,20 +338,9 @@ class AdminController extends Controller
         return response()->json(['messages' => $messages]);
     }
 
-    public function storeHero(Request $request)
+    public function storeHero(AdminStoreHeroRequest $request)
     {
-        $validated = $request->validate([
-            'messages' => 'required|array|min:1',
-            'messages.*.id' => 'nullable|integer',
-            'messages.*.language' => 'required|in:fr,ar',
-            'messages.*.direction' => 'required|in:ltr,rtl',
-            'messages.*.title' => 'required|string|max:255',
-            'messages.*.description' => 'required|string|max:5000',
-            'messages.*.primaryAction.label' => 'required|string|max:100',
-            'messages.*.primaryAction.href' => 'required|string|max:255',
-            'messages.*.secondaryAction.label' => 'nullable|string|max:100',
-            'messages.*.secondaryAction.href' => 'nullable|string|max:255',
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($validated) {
             HeroMessage::query()->delete();

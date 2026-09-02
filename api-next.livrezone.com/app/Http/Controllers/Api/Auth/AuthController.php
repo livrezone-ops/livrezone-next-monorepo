@@ -3,6 +3,12 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\ForgotPasswordRequest;
+use App\Http\Requests\Api\LoginRequest;
+use App\Http\Requests\Api\RegisterRequest;
+use App\Http\Requests\Api\ResendVerificationRequest;
+use App\Http\Requests\Api\ResetPasswordRequest;
+use App\Http\Requests\Api\UpdatePasswordRequest;
 use App\Mail\ResetPasswordMail;
 use App\Mail\VerifyEmailMail;
 use App\Models\User;
@@ -14,7 +20,6 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class AuthController extends Controller
 {
@@ -22,13 +27,9 @@ class AuthController extends Controller
      * Inscription classique (email + mot de passe).
      * Envoie un email de confirmation signé ; pas de connexion auto.
      */
-    public function register(Request $request): JsonResponse
+    public function register(RegisterRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'min:3', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'confirmed', PasswordRule::defaults()],
-        ]);
+        $validated = $request->validated();
 
         $user = User::create([
             'name' => $validated['name'],
@@ -49,12 +50,9 @@ class AuthController extends Controller
     /**
      * Connexion classique (email + mot de passe) via guard session (Sanctum SPA).
      */
-    public function login(Request $request): JsonResponse
+    public function login(LoginRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
+        $validated = $request->validated();
 
         if (! Auth::guard('web')->attempt($validated)) {
             return response()->json([
@@ -94,11 +92,9 @@ class AuthController extends Controller
     /**
      * Renvoi de l'email de confirmation (ne révèle pas si le compte existe).
      */
-    public function resendVerification(Request $request): JsonResponse
+    public function resendVerification(ResendVerificationRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'email' => ['required', 'email'],
-        ]);
+        $validated = $request->validated();
 
         $user = User::where('email', $validated['email'])->first();
 
@@ -139,11 +135,9 @@ class AuthController extends Controller
     /**
      * Mot de passe oublié : génère un token et envoie le lien de reset.
      */
-    public function forgotPassword(Request $request): JsonResponse
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'email' => ['required', 'email'],
-        ]);
+        $validated = $request->validated();
 
         $user = User::where('email', $validated['email'])->first();
 
@@ -164,13 +158,9 @@ class AuthController extends Controller
     /**
      * Réinitialisation effective du mot de passe.
      */
-    public function resetPassword(Request $request): JsonResponse
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'token' => ['required', 'string'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'confirmed', PasswordRule::defaults()],
-        ]);
+        $validated = $request->validated();
 
         $status = Password::broker()->reset(
             [
@@ -200,20 +190,9 @@ class AuthController extends Controller
     /**
      * Mise à jour du mot de passe depuis le profil.
      */
-    public function updatePassword(Request $request): JsonResponse
+    public function updatePassword(UpdatePasswordRequest $request): JsonResponse
     {
-        $rules = [
-            'password' => ['required', 'confirmed', PasswordRule::defaults()],
-        ];
-
-        if ($request->user()->password !== null) {
-            $rules['current_password'] = ['required', 'current_password'];
-        } else {
-            // Pour les utilisateurs Google sans mot de passe, current_password peut être envoyé vide ou ne pas être là
-            $rules['current_password'] = ['nullable'];
-        }
-
-        $validated = $request->validate($rules);
+        $validated = $request->validated();
 
         $request->user()->update([
             'password' => $validated['password'],

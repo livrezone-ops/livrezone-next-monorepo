@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\ListingUpsertRequest;
 use App\Models\Book;
 use App\Models\Category;
 use App\Models\Listing;
@@ -40,7 +41,7 @@ class ListingManagerController extends Controller
         return response()->json(['listing' => $listing]);
     }
 
-    public function store(Request $request)
+    public function store(ListingUpsertRequest $request)
     {
         $user = $request->user();
         $subscriptionService = app(SubscriptionService::class);
@@ -51,52 +52,13 @@ class ListingManagerController extends Controller
             ], 403);
         }
 
-        $validated = $this->validateListing($request);
+        $validated = $request->validated();
 
-        // Résolution des relations catégorie / niveau / matière
-        $category = Category::with(['levels', 'subjects'])->findOrFail($validated['category_id']);
-        $this->listingProcessorService->validateCategoryParent($category, $request->input('parent_category_id'));
-
-        [$levelId, $subjectId] = $this->listingProcessorService->resolveLevelSubject(
-            $category,
-            $validated['level_id'] ?? null,
-            $validated['subject_id'] ?? null
-        );
-
-        // Recherche du livre (par book_id ou ISBN) pour lier et récupérer la couverture catalogue
-        $book = null;
-        $bookId = $validated['book_id'] ?? null;
-        $bookCoverPath = null;
-        $bookCoverSourceUrl = null;
-
-        if ($bookId) {
-            $book = Book::find($bookId);
-            if ($book) {
-                $bookCoverPath = $book->cover_path;
-                $bookCoverSourceUrl = $book->cover_source_url;
-            }
-        } elseif (! empty($validated['isbn_13'])) {
-            $book = $this->bookDataFetcherService->findBookByIsbn($validated['isbn_13']);
-            if ($book) {
-                $bookId = $book->id;
-                $bookCoverPath = $book->cover_path;
-                $bookCoverSourceUrl = $book->cover_source_url;
-            }
-        }
-
+        // Pipeline commun : relations, livre lié, couverture, auteur/éditeur
+        [$category, $levelId, $subjectId] = $this->resolveTaxonomy($request, $validated);
+        [$book, $bookId] = $this->resolveBook($validated, null);
         [$author, $publisher] = $this->listingProcessorService->resolveAuthorPublisher($book, $validated);
-
-        // Gestion de la couverture : priorité à l'upload utilisateur > couverture du book catalogue
-        $coverPath = null;
-        $coverSourceUrl = null;
-
-        if ($request->hasFile('cover_image')) {
-            $coverPath = $this->imageUploadService->storeCover($request->file('cover_image'));
-        } elseif ($bookCoverPath) {
-            // Utiliser la couverture du livre catalogue (chemin relatif)
-            $coverPath = $bookCoverPath;
-            $coverSourceUrl = $bookCoverSourceUrl;
-        }
+        [$coverPath, $coverSourceUrl] = $this->resolveCover($request, $book, null);
 
         $status = $this->validationService->determineStatus(
             $validated,
@@ -145,59 +107,19 @@ class ListingManagerController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, Listing $listing)
+    public function update(ListingUpsertRequest $request, Listing $listing)
     {
         if (! $request->user()->can('update', $listing)) {
             abort(403, 'Non autorisé');
         }
 
-        $validated = $this->validateListing($request);
+        $validated = $request->validated();
 
-        // Résolution des relations catégorie / niveau / matière
-        $category = Category::with(['levels', 'subjects'])->findOrFail($validated['category_id']);
-        $this->listingProcessorService->validateCategoryParent($category, $request->input('parent_category_id'));
-
-        [$levelId, $subjectId] = $this->listingProcessorService->resolveLevelSubject(
-            $category,
-            $validated['level_id'] ?? null,
-            $validated['subject_id'] ?? null
-        );
-
-        // Recherche du livre par book_id ou ISBN pour mettre à jour le lien book_id
-        $bookId = $validated['book_id'] ?? $listing->book_id;
-        $coverPath = $listing->cover_path;
-        $coverSourceUrl = $listing->cover_source_url;
-        $book = null;
-
-        if (! empty($validated['book_id'])) {
-            $book = Book::find($validated['book_id']);
-        } elseif (! empty($validated['isbn_13'])) {
-            $book = $this->bookDataFetcherService->findBookByIsbn($validated['isbn_13']);
-        }
-
-        if ($book) {
-            $bookId = $book->id;
-            // Si le listing n'a pas encore de couverture, utiliser celle du book catalogue
-            if (! $coverPath && ! $request->hasFile('cover_image')) {
-                $coverPath = $book->cover_path;
-                $coverSourceUrl = $book->cover_source_url;
-            }
-        }
-
-        // Repli sur le livre déjà lié si aucun nouveau n'a été trouvé par ISBN
-        if ($book === null && $listing->book_id) {
-            $book = $listing->book;
-        }
-
+        // Pipeline commun : relations, livre lié, couverture, auteur/éditeur
+        [$category, $levelId, $subjectId] = $this->resolveTaxonomy($request, $validated);
+        [$book, $bookId] = $this->resolveBook($validated, $listing);
         [$author, $publisher] = $this->listingProcessorService->resolveAuthorPublisher($book, $validated);
-
-        // Upload d'une nouvelle couverture utilisateur (prioritaire)
-        if ($request->hasFile('cover_image')) {
-            if ($coverPath && ! str_starts_with($coverPath, 'http')) {
-                Storage::disk('public')->delete($coverPath);
-            }
-            $coverPath = $this->imageUploadService->storeCover($request->file('cover_image'));
-        }
+        [$coverPath, $coverSourceUrl] = $this->resolveCover($request, $book, $listing);
 
         // Déterminer si les données principales ont été altérées
         $mainDataChanged = false;
@@ -270,26 +192,99 @@ class ListingManagerController extends Controller
         ]);
     }
 
-    private function validateListing(Request $request)
+    /**
+     * Résolution partagée des relations catégorie / niveau / matière
+     * (store et update).
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array{0: Category, 1: int|null, 2: int|null}
+     */
+    private function resolveTaxonomy(ListingUpsertRequest $request, array $validated): array
     {
-        return $request->validate([
-            'book_id' => 'nullable|integer|exists:books,id',
-            'title' => 'required|string|max:255',
-            'author' => 'nullable|string|max:255',
-            'publisher' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'book_condition' => 'required|in:neuf,occas',
-            'price' => 'required|numeric|min:0',
-            'discount_price' => 'nullable|numeric|min:0|lt:price',
-            'quantity' => 'nullable|integer|min:1',
-            'category_id' => 'required|exists:categories,id',
-            'parent_category_id' => 'nullable|integer|exists:categories,id',
-            'level_id' => 'nullable|integer',
-            'subject_id' => 'nullable|integer',
-            'language_id' => 'nullable|exists:languages,id',
-            'isbn_13' => 'nullable|string|max:20',
-            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:4096',
-            'cover_source_url' => 'nullable|url',
-        ]);
+        $category = Category::with(['levels', 'subjects'])->findOrFail($validated['category_id']);
+        $this->listingProcessorService->validateCategoryParent($category, $request->input('parent_category_id'));
+
+        [$levelId, $subjectId] = $this->listingProcessorService->resolveLevelSubject(
+            $category,
+            $validated['level_id'] ?? null,
+            $validated['subject_id'] ?? null
+        );
+
+        return [$category, $levelId, $subjectId];
+    }
+
+    /**
+     * Recherche du livre lié : priorité book_id, sinon ISBN.
+     * En update, repli sur le livre déjà lié si aucun nouveau n'a été trouvé.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array{0: Book|null, 1: int|null}
+     */
+    private function resolveBook(array $validated, ?Listing $existing): array
+    {
+        if ($existing !== null) {
+            $bookId = $validated['book_id'] ?? $existing->book_id;
+            $book = null;
+
+            if (! empty($validated['book_id'])) {
+                $book = Book::find($validated['book_id']);
+            } elseif (! empty($validated['isbn_13'])) {
+                $book = $this->bookDataFetcherService->findBookByIsbn($validated['isbn_13']);
+            }
+
+            if ($book) {
+                $bookId = $book->id;
+            }
+
+            // Repli sur le livre déjà lié si aucun nouveau n'a été trouvé par ISBN
+            if ($book === null && $existing->book_id) {
+                $book = $existing->book;
+            }
+
+            return [$book, $bookId];
+        }
+
+        $bookId = $validated['book_id'] ?? null;
+        $book = null;
+
+        if ($bookId) {
+            $book = Book::find($bookId);
+        } elseif (! empty($validated['isbn_13'])) {
+            $book = $this->bookDataFetcherService->findBookByIsbn($validated['isbn_13']);
+            if ($book) {
+                $bookId = $book->id;
+            }
+        }
+
+        return [$book, $bookId];
+    }
+
+    /**
+     * Gestion de la couverture : priorité à l'upload utilisateur,
+     * sinon couverture du livre catalogue (en création, ou en update
+     * uniquement si le listing n'a pas encore de couverture).
+     *
+     * @return array{0: string|null, 1: string|null}
+     */
+    private function resolveCover(ListingUpsertRequest $request, ?Book $book, ?Listing $existing): array
+    {
+        $coverPath = $existing?->cover_path;
+        $coverSourceUrl = $existing?->cover_source_url;
+
+        if ($book && ! $request->hasFile('cover_image') && (! $existing || ! $coverPath)) {
+            $coverPath = $book->cover_path;
+            $coverSourceUrl = $book->cover_source_url;
+        }
+
+        if ($request->hasFile('cover_image')) {
+            // En update : suppression de l'ancienne couverture locale
+            if ($existing && $coverPath && ! str_starts_with($coverPath, 'http')) {
+                Storage::disk('public')->delete($coverPath);
+            }
+
+            $coverPath = $this->imageUploadService->storeCover($request->file('cover_image'));
+        }
+
+        return [$coverPath, $coverSourceUrl];
     }
 }

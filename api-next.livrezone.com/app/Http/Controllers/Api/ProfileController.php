@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\StoreRatingRequest;
+use App\Http\Requests\Api\UpdateNotificationPreferencesRequest;
+use App\Http\Requests\Api\UpdateProfileRequest;
 use App\Models\City;
 use App\Models\Profile;
 use App\Models\Rating;
@@ -16,7 +19,6 @@ use App\Support\NotificationChannels;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
@@ -88,7 +90,7 @@ class ProfileController extends Controller
     /**
      * Enregistre ou met à jour l'avis d'un acheteur sur un vendeur.
      */
-    public function storeRating(Request $request, string $nickname, RatingService $ratingService): JsonResponse
+    public function storeRating(StoreRatingRequest $request, string $nickname, RatingService $ratingService): JsonResponse
     {
         $profile = Profile::query()
             ->where('nickname', $nickname)
@@ -98,10 +100,7 @@ class ProfileController extends Controller
             return response()->json(['message' => 'Profil introuvable.'], 404);
         }
 
-        $validated = $request->validate([
-            'score' => 'required|integer|min:1|max:5',
-            'comment' => 'nullable|string|max:1000',
-        ]);
+        $validated = $request->validated();
 
         $rating = $ratingService->storeRating(
             $request->user(),
@@ -129,63 +128,11 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function update(Request $request, ImageUploadService $imageUploadService): JsonResponse
+    public function update(UpdateProfileRequest $request, ImageUploadService $imageUploadService): JsonResponse
     {
-        if ($request->filled('nickname')) {
-            $request->merge([
-                'nickname' => Str::slug($request->string('nickname')->toString()),
-            ]);
-        }
-
         $profile = $request->user()->profile;
 
-        // "later" garde les valeurs par défaut : on n'exige les champs
-        // qu'à la confirmation définitive ("confirm").
-        $isConfirm = $request->input('action') === 'confirm';
-
-        $validated = $request->validate([
-            'phone' => ['nullable', 'regex:/^[0-9]{10}$/'],
-            'has_whatsapp' => ['nullable', 'boolean'],
-            'city_id' => [
-                Rule::requiredIf($isConfirm),
-                'nullable',
-                'integer',
-                'exists:cities,id',
-            ],
-            'profile_type' => [
-                Rule::requiredIf($isConfirm),
-                'nullable',
-                Rule::in(['étudiant(e)', 'passionné(e)', 'librairie']),
-            ],
-
-            'profile_book_conditions' => [
-                'required',
-                Rule::in(['neuf', 'occas']),
-            ],
-
-            'delivery_option' => [
-                Rule::requiredIf($isConfirm),
-                'nullable',
-                Rule::in(['oui', 'non', 'selon destination']),
-            ],
-            'nickname' => [
-                Rule::requiredIf($isConfirm),
-                'nullable',
-                'string',
-                'max:255',
-                Rule::unique('profiles', 'nickname')->ignore($profile?->id),
-                Rule::notIn(Profile::RESERVED_NICKNAMES),
-            ],
-            'adresse' => ['nullable', 'string', 'max:500'],
-            'avatar_mode' => ['nullable', Rule::in(['google', 'initials', 'custom'])],
-            'logo' => [
-                'nullable',
-                'image',
-                'mimes:png,jpg,jpeg,gif,webp',
-                'max:2048',
-            ],
-            'action' => ['required', Rule::in(['confirm', 'later'])],
-        ]);
+        $validated = $request->validated();
 
         $avatarMode = $validated['avatar_mode'] ?? null;
         $logoPath = $profile?->logo;
@@ -333,18 +280,9 @@ class ProfileController extends Controller
      * - les canaux internes (in_app) ne sont jamais écrits : les
      *   notifications internes sont toujours actives.
      */
-    public function updateNotificationPreferences(Request $request): JsonResponse
+    public function updateNotificationPreferences(UpdateNotificationPreferencesRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'channels' => 'required|array',
-            'channels.email' => 'required|boolean',
-            'channels.telegram' => 'required|boolean',
-            'channels.whatsapp' => 'required|boolean',
-            'types' => 'required|array',
-            'types.*' => 'required|boolean',
-            'categories' => 'present|array',
-            'categories.*' => 'integer|exists:categories,id',
-        ]);
+        $validated = $request->validated();
 
         $typeKeys = NotificationTypeService::keys();
         $unknownTypes = array_diff(array_keys($validated['types']), $typeKeys);
