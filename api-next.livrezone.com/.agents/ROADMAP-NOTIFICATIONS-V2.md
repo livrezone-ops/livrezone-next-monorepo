@@ -96,12 +96,13 @@ laisser un fichier en erreur en fin de session.
    - [x] Vider le cache de config : `artisan config:clear` (API live en bind mount) — ✅ FAIT 02/09 ;
    - [ ] Test d'envoi réel (forgot-password) + vérifier les files (`queue:monitor`)
      et `app:queue-health` vert ; cocher au passage le « test e-mail réel » ouvert
-     depuis le 26/08 — ⛔ **BLOQUÉ 02/09** : SES renvoie `554 Email address is
-      not verified` en `eu-west-3` (identité non vérifiée) ; smoke test
-      `Mail::raw` → `contact@livrezone.com` en échec attendu ; `config:clear`
-      OK, le transport SES est bien chargé ; **`app:queue-health` ✅ vert**
-      (0 en attente / 0 bloqué / 0 échoué / job le plus ancien 0 min) ;
-      re-tester dès la vérification du domaine ;
+     depuis le 26/08 — ⏳ **EN COURS 02/09** : `554` initial (identité non
+      vérifiée) puis **envoi réel SES RÉUSSI** (`Mail::raw` « Test SES LivreZone
+      #2 » → `contact@livrezone.com`, `ENVOI-OK`) — l'identité d'expédition est
+      vérifiée ; reste : confirmation de réception dans la boîte + test
+      forgot-password sur un compte réel (aucun compte avec l'email `contact@…`
+      en base) ; **`app:queue-health` ✅ vert** (0 en attente / 0 bloqué /
+      0 échoué) ;
    - [ ] Surveiller le dashboard SES (bounces/complaints) pendant 24-48 h.
 
 3. **Clôture de la session** *(agent, après recette)*
