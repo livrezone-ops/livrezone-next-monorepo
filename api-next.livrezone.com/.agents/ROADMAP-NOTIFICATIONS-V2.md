@@ -73,19 +73,35 @@ laisser un fichier en erreur en fin de session.
      mailer SES natif) → ✅ **FAIT 01/09** : `composer require aws/aws-sdk-php` dans le conteneur
       (v3.394.6, `^3.394`) — `package:discover` OK, artisan boote (Laravel
       13.24.0), `vendor/aws/` présent ; composer.json + composer.lock commités ;
-   - [ ] Variables `.env` prod : `MAIL_MAILER=ses`, `AWS_ACCESS_KEY_ID` /
+   - [x] Variables `.env` prod : `MAIL_MAILER=ses`, `AWS_ACCESS_KEY_ID` /
      `AWS_SECRET_ACCESS_KEY` (utilisateur IAM dédié avec policy SES restreinte
      à l'envoi), `AWS_DEFAULT_REGION` (région de l'identité SES validée),
      `MAIL_FROM_ADDRESS` (identité vérifiée SES) — le `.env.example` actuel
      (vérifié 01/09) est encore en `MAIL_MAILER=log` sans bloc `AWS_*` →
      le mettre à jour également ;
+      ✅ **FAIT 02/09 (variante SMTP SES)** : les identifiants fournis par le
+      propriétaire sont des **identifiants SMTP SES** (incompatibles avec le
+      mailer SDK `ses`, qui exige une clé d'accès IAM brute) → prod basculée
+      sur le **relais SMTP SES** `email-smtp.eu-west-3.amazonaws.com:587/TLS`
+      (IAM `ses-smtp-user.20260902-004919`), `MAIL_FROM_ADDRESS=no-reply@livrezone.com`,
+      région corrigée `us-east-1` → `eu-west-3`, sauvegarde `.env.bak-20260902-ses` ;
+      `.env.example` à jour (commit 62b096e) ; le mailer SDK `ses` reste
+      activable plus tard (SDK installé, point 1) si clé IAM générée ;
    - [ ] DNS du domaine : enregistrements **SPF + DKIM** (CNAME fournis par SES)
-     pour l'authentification — indispensable pour la délivrabilité ;
+     pour l'authentification — ⏳ **EN COURS 02/09** : le propriétaire vérifie le
+      **domaine `livrezone.com` en `eu-west-3`** dans la console SES (couvre
+      toutes les adresses + fournit les CNAME DKIM) ; constat 02/09 : aucun SPF
+      ni DKIM SES posés sur le domaine (seulement un code Brevo) ;
    - [ ] Sortir du sandbox SES si nécessaire (demande de quota de production) ;
-   - [ ] Vider le cache de config : `artisan config:clear` (API live en bind mount) ;
+   - [x] Vider le cache de config : `artisan config:clear` (API live en bind mount) — ✅ FAIT 02/09 ;
    - [ ] Test d'envoi réel (forgot-password) + vérifier les files (`queue:monitor`)
      et `app:queue-health` vert ; cocher au passage le « test e-mail réel » ouvert
-     depuis le 26/08 ;
+     depuis le 26/08 — ⛔ **BLOQUÉ 02/09** : SES renvoie `554 Email address is
+      not verified` en `eu-west-3` (identité non vérifiée) ; smoke test
+      `Mail::raw` → `contact@livrezone.com` en échec attendu ; `config:clear`
+      OK, le transport SES est bien chargé ; **`app:queue-health` ✅ vert**
+      (0 en attente / 0 bloqué / 0 échoué / job le plus ancien 0 min) ;
+      re-tester dès la vérification du domaine ;
    - [ ] Surveiller le dashboard SES (bounces/complaints) pendant 24-48 h.
 
 3. **Clôture de la session** *(agent, après recette)*
@@ -283,6 +299,18 @@ Tout était en place avant cette feuille de route, vérifié fichier par fichier
   (aws-sdk-php + aws-crt-php). composer.json + composer.lock modifiés puis
   commités. Constat au passage : le `.env` prod est en `MAIL_MAILER=smtp`
   avec `AWS_ACCESS_KEY_ID` vide (région `us-east-1`) → étape 2 (variables).
+- 2026-09-02 : **SES points 2+5 ✅ / 3+6 ⏳** — `.env` prod basculé sur le
+  relais SMTP SES `email-smtp.eu-west-3.amazonaws.com:587/TLS` (identifiants
+  SMTP SES du propriétaire, IAM `ses-smtp-user.20260902-004919` ; le mailer
+  SDK `ses` exigerait une clé IAM brute — variante documentée en roadmap),
+  `MAIL_FROM_ADDRESS=no-reply@livrezone.com`, région corrigée en `eu-west-3`,
+  sauvegarde `.env.bak-20260902-ses` ; `config:clear` OK ; smoke test
+  `Mail::raw` → `contact@livrezone.com` : **554 Email address is not
+  verified** (aucune identité vérifiée en eu-west-3 → le propriétaire lance
+  la vérification du domaine `livrezone.com`, qui fournira aussi les CNAME
+  DKIM) ; `app:queue-health` ✅ vert (0/0/0/0). ⚠️ Sécurité : `.aws.txt` à la
+  racine du bind mount — vérifié jamais commité ; à supprimer + rotation des
+  identifiants SMTP recommandée après validation de l'envoi.
 - 2026-09-01 : **Z4 ✅ (agent, accès rootless)** — dans le conteneur
   (`php-fpm-8.5`) : pint `--test` → 15 écarts de style (dont les fichiers V2
   NotificationContentService, NotificationPreferenceService, NotificationChannels,
