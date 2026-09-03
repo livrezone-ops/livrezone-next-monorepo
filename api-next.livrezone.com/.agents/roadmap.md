@@ -36,18 +36,18 @@
 
 Décisions du jour :
 - **Base books : FINALISÉE** (Étape 2 close, retirée du backlog).
+- **Backup quotidien Google Drive : ✅ FAIT ET FONCTIONNEL** (décision propriétaire 03/09 — Étape 0-bis close, la migration a son filet).
 - **SES déplacé APRÈS la migration** : la demande de production access SES exige d'indiquer le site à Amazon → il faut que `livrezone.com` soit en production (DKIM CNAME Cloudflare rattachés au domaine final).
-- **La migration du site vers `livrezone.com` (SSD dédié) redevient un chantier prioritaire**, avec le backup Google Drive en prérequis.
+- **La migration du site vers `livrezone.com` (SSD dédié) redevient un chantier prioritaire**.
 
 | Ordre | Chantier | Détails |
 |---|---|---|
 | 1 | **Finir le site** (Étape 1) | Parcours publics restants + manques produit (revue 29/08) |
 | 2 | **Z7 — recette front notifications V2** | Tests manuels connectés (suite de la session 09-09) |
 | 3 | **Tier code** (~1-2 h) | Form Requests `OrderController` (l.63, 95) + `DashboardController` (l.25, 47, 65, 152) ; extraire `ensureProfileExists` ; middleware `EnsureActive` (tokens Sanctum invalidés après désactivation) ; centraliser map `Category::pluck` dans `ReferenceFilterService` ; neutraliser `dropIfExists` de `rebuild_orders_table` ; `trustProxies` dans `bootstrap/app.php` |
-| 4 | **Étape 0-bis — Backup quotidien Google Drive** (~1 h) | ⚠️ Prérequis de la migration. `rclone` + cron : dump MariaDB gzippé (priorité vitale), code + `.env`, `storage/` (couvertures), snapshot Meilisearch (654 k docs), one-shot `/home/ouahib/lz-backups/`. Script `lz-backup-daily.sh`, rétention Drive 30 j, alerte Telegram en cas d'échec, test de restauration mensuel |
-| 5 | **Migration livrezone.com / SSD dédié** (point 6) | État des lieux SSD (taille, FS, montage) → périmètre (code, conteneurs rootless, volumes, dumps MariaDB, Meilisearch, sauvegardes) → **fenêtre de coupure + plan de rollback écrits AVANT exécution** (leçon incident Apache 28/08) → DNS Cloudflare. Rappel : config non cachée + bind mount, le code suit le dépôt git ; à traiter explicitement : `.env` (creds SMTP SES, `FRONTEND_URL`), données non versionnées |
-| 6 | **SES — production access + DKIM** (après migration) | Propriétaire : demande production access avec site `livrezone.com` + 3 CNAME DKIM Cloudflare. Agent ensuite : `queue:retry 18`, test réel forgot-password, rotation creds SMTP, suppression `.aws.txt` (exposé à la racine du bind mount). Reprise : `.agents/PROMPT-SESSION-SES.txt` |
-| 7 | **Après bascule** | Stack marketing sur le nouveau stockage (n8n + Postiz + worker Python/IA) puis long terme (Étape 5) : API `/v1`, découpage monolithes front, monitoring/alerting, centralisation URLs (P5), CMI/Fatourati (dès credentials) |
+| 4 | **Migration livrezone.com / SSD dédié** (point 6) | État des lieux SSD (taille, FS, montage) → périmètre (code, conteneurs rootless, volumes, dumps MariaDB, Meilisearch, sauvegardes) → **fenêtre de coupure + plan de rollback écrits AVANT exécution** (leçon incident Apache 28/08) → DNS Cloudflare. Rappel : config non cachée + bind mount, le code suit le dépôt git ; à traiter explicitement : `.env` (creds SMTP SES, `FRONTEND_URL`), données non versionnées. Backup Drive fonctionnel = prérequis couvert |
+| 5 | **SES — production access + DKIM** (après migration) | Propriétaire : demande production access avec site `livrezone.com` + 3 CNAME DKIM Cloudflare. Agent ensuite : `queue:retry 18`, test réel forgot-password, rotation creds SMTP, suppression `.aws.txt` (exposé à la racine du bind mount). Reprise : `.agents/PROMPT-SESSION-SES.txt` |
+| 6 | **Après bascule** | Stack marketing sur le nouveau stockage (n8n + Postiz + worker Python/IA) puis long terme (Étape 5) : API `/v1`, découpage monolithes front, monitoring/alerting, centralisation URLs (P5), CMI/Fatourati (dès credentials) |
 
 ## Prochaines sessions (historique 14/08 — périmètre largement traité depuis)
 
