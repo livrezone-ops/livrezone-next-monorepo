@@ -23,6 +23,13 @@ Route::get('/book-cover-proxy/{path}', function (string $path) {
     }
 
     $publicRoot = config('filesystems.disks.book_covers_public.root');
+
+    // Config absente/invalide : refuser plutôt que construire un chemin avec une
+    // racine vide (aucun fichier ne serait servi de toute façon).
+    if (! is_string($publicRoot) || $publicRoot === '') {
+        abort(404);
+    }
+
     $baseRoot = basename($publicRoot) === 'originals' ? dirname($publicRoot) : $publicRoot;
 
     if (basename($publicRoot) === 'originals' && ! str_starts_with($cleanPath, 'originals/') && ! str_starts_with($cleanPath, 'thumbnails/')) {
@@ -72,6 +79,15 @@ Route::get('/book-cover-proxy/{path}', function (string $path) {
     }
 
     if (! file_exists($fullPath)) {
+        abort(404);
+    }
+
+    // Anti-LFI (défense en profondeur) : le chemin résolu doit rester strictement à
+    // l'intérieur du dossier racine des couvertures — bloque tout symlink sortant
+    // de l'arborescence, quel que soit le branchage de fallback utilisé ci-dessus.
+    $realBase = realpath($baseRoot);
+    $realFull = realpath($fullPath);
+    if ($realBase === false || $realFull === false || ! str_starts_with($realFull, $realBase.DIRECTORY_SEPARATOR)) {
         abort(404);
     }
 

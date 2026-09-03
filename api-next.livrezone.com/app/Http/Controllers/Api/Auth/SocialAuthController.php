@@ -34,7 +34,7 @@ class SocialAuthController extends Controller
         try {
             $socialUser = Socialite::driver($provider)->stateless()->user();
         } catch (Throwable $e) {
-            return redirect(env('FRONTEND_URL', 'http://localhost:3000').'/login?error=auth_failed');
+            return redirect(config('app.frontend_url').'/login?error=auth_failed');
         }
 
         $user = User::where('provider', $provider)
@@ -43,20 +43,20 @@ class SocialAuthController extends Controller
 
         if ($user) {
             if (! $user->is_active) {
-                return redirect(env('FRONTEND_URL', 'http://localhost:3000').'/login?error=account_disabled');
+                return redirect(config('app.frontend_url').'/login?error=account_disabled');
             }
 
             $this->ensureProfileExists($user, $socialUser);
             $user->update(['last_login_at' => now()]);
             Auth::login($user);
 
-            return redirect()->intended(env('FRONTEND_URL', 'http://localhost:3000').($user->profile_completed ? '/dashboard' : '/profile/complete'));
+            return redirect()->intended(config('app.frontend_url').($user->profile_completed ? '/dashboard' : '/profile/complete'));
         }
 
         // Vérification email existant (même logique que l'ancien projet)
         $email = $socialUser->getEmail();
         if ($email && User::where('email', $email)->exists()) {
-            return redirect(env('FRONTEND_URL', 'http://localhost:3000').'/login?error=email_exists');
+            return redirect(config('app.frontend_url').'/login?error=email_exists');
         }
 
         $user = User::create([
@@ -74,7 +74,7 @@ class SocialAuthController extends Controller
 
         Auth::login($user);
 
-        return redirect()->intended(env('FRONTEND_URL', 'http://localhost:3000').($user->profile_completed ? '/dashboard' : '/profile/complete'));
+        return redirect()->intended(config('app.frontend_url').($user->profile_completed ? '/dashboard' : '/profile/complete'));
     }
 
     public function logout()

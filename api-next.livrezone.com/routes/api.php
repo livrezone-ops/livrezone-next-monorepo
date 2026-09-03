@@ -39,10 +39,12 @@ Route::prefix('auth')->group(function () {
 
     // Auth classique (email + mot de passe)
     Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
+    // Throttle « auth » (cf. AppServiceProvider) : anti brute-force sur login,
+    // anti énumération / bombing e-mail sur forgot-password.
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
     Route::post('/email/verification-notification', [AuthController::class, 'resendVerification']);
-    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth');
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 });
 

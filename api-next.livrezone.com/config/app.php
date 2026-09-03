@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend URL
+    |--------------------------------------------------------------------------
+    |
+    | URL du frontend Next.js : redirections post-login et Socialite, liens de
+    | reset et de vérification d'e-mail. Exposée ici en configuration (jamais
+    | lue via env() en runtime) pour rester fiable après `config:cache`.
+    |
+    */
+
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

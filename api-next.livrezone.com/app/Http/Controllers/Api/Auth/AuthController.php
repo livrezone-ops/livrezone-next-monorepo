@@ -127,7 +127,7 @@ class AuthController extends Controller
         }
 
         return redirect()->away(
-            rtrim(env('FRONTEND_URL', 'http://localhost:3000'), '/')
+            rtrim(config('app.frontend_url'), '/')
                 .'/login?next=/profile/complete&verified=1'
         );
     }
@@ -143,7 +143,7 @@ class AuthController extends Controller
 
         if ($user) {
             $token = Password::getRepository()->create($user);
-            $url = rtrim(env('FRONTEND_URL', 'http://localhost:3000'), '/')
+            $url = rtrim(config('app.frontend_url'), '/')
                 .'/reset-password?token='.$token
                 .'&email='.urlencode($user->email);
 

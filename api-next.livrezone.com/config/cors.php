@@ -1,5 +1,11 @@
 <?php
 
+// Durcissement CORS : FRONTEND_URL n'est admise comme origine autorisée que si
+// c'est une URL valide — rejette '*', une chaîne vide ou toute valeur parasite
+// qui, combinée à supports_credentials = true, ouvrirait l'API à toutes les
+// origines. (Les autres valeurs restent des origines explicites fixes.)
+$frontendOrigin = filter_var(env('FRONTEND_URL'), FILTER_VALIDATE_URL) ?: null;
+
 return [
 
     /*
@@ -19,7 +25,11 @@ return [
 
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
-    'allowed_origins' => ['http://localhost:3000', 'https://next.livrezone.com', env('FRONTEND_URL', 'http://localhost:3000')],
+    'allowed_origins' => array_values(array_unique(array_filter([
+        'http://localhost:3000',
+        'https://next.livrezone.com',
+        $frontendOrigin,
+    ]))),
 
     'allowed_origins_patterns' => [],
 
