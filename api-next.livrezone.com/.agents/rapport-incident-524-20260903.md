@@ -141,3 +141,33 @@ basic_auth attendu).
 surveillance Telegram veille) + synchro du userpackage OpenPanel (RAM 6 Go)
 pour pérenniser le `set-property`. Suivis optionnels : MEILI_MAX_MEMORY (env)
 et NODE_OPTIONS à la prochaine recréation des conteneurs concernés.
+
+## 8. Suivi 03/09 ~19:20 — rebond IDE isolé (prod intacte), plafond IDE 2,5G→4G
+
+**Symptôme (~18:45-19:15)** : vscode.livrezone.com inutilisable — terminaux
+gelés (« No ptyHost heartbeat » en boucle depuis 18:06, 2 kills OOM **internes
+au scope conteneur**) — pendant que **la prod restait UP** : api-next/next 200,
+zéro FAIL watchdog, zéro OOM slice, slice à 50%. Cause : contexte Cline
+croissant → node du VS Code server collé au plafond de 2,5G posé en correctif
+(memory.events max ≈ 1M dans le scope conteneur) → thrashing isolé dans le
+conteneur. **L'isolation a fonctionné comme conçu : l'IDE a encaissé à la
+place du site** — mais le load (13) et le PSI mémoire global (34%) montaient.
+
+**Fix (~19:20)** via la porte d'administration documentée (docker exec +
+socket rootless monté en `/dockersock/docker.sock`, CLI `/usr/local/bin/docker`
+dans le conteneur) :
+`docker update --memory 4096m --memory-swap 4096m openvscode-server` (live,
+sans interruption) puis `docker restart openvscode-server` (état mort évacué).
+Résultat immédiat : conteneur 42 Mo (baseline), slice 753 Mo/6G (12%),
+PSI mem avg10 0,2%, vscode 401 + api-next 200, load en chute.
+
+**Leçons** :
+- 2,5G était trop juste pour l'usage réel (Cline + extensions + monorepo) ;
+  **4G retenus** (pire cas slice ≈ 5,3G/6G ; l'alerte Telegram slice-watch
+  se déclenche à 85% = 5,1G) ;
+- un contexte Cline qui croît = mémoire node qui croît → lancer régulièrement
+  une nouvelle tâche / compacter le contexte, fermer les onglets inutiles ;
+- `NODE_OPTIONS=--max-old-space-size=3072` à la prochaine recréation du
+  conteneur IDE pour que node GC avant le mur (suivi déjà listé §5) ;
+- méthode admin rootless sans mot de passe : `docker exec openvscode-server
+  sh -c 'DOCKER_HOST=unix:///dockersock/docker.sock docker …'`.
