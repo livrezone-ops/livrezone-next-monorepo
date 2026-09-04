@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookOpen, ChevronLeft, ChevronRight, Tag } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Tag, X } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import BookCatalogCard from "@/components/BookCatalogCard";
+import BookThemeSearch from "@/components/BookThemeSearch";
 import { getBooks } from "@/lib/books-api";
 import { CATEGORIES } from "@/lib/reference-data";
 import { toJsonLd } from "@/lib/safe-json-ld";
@@ -56,19 +57,25 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   const { code } = await params;
   const sp = await searchParams;
   const page = parseInt(firstParam(sp.page) || "1", 10) || 1;
+  const search = firstParam(sp.search).trim();
   const theme = resolveTheme(code.toUpperCase());
 
   if (!theme) return { title: "Rayon introuvable" };
 
-  const title = `Livres ${theme.name} — Catalogue & Référentiel`;
-  const description = `Parcourez les livres ${theme.name} du référentiel LivreZone : titres, auteurs et annonces disponibles à la vente.`;
+  const title = search
+    ? `Livres « ${search} » — ${theme.name} | Catalogue LivreZone`
+    : `Livres ${theme.name} — Catalogue & Référentiel`;
+  const description = search
+    ? `Résultats de recherche « ${search} » dans le rayon ${theme.name} du catalogue LivreZone.`
+    : `Parcourez les livres ${theme.name} du référentiel LivreZone : titres, auteurs et annonces disponibles à la vente.`;
 
   return {
     title,
     description,
     alternates: { canonical: `${SITE_URL}/books/themes/${code.toUpperCase()}` },
     openGraph: { title, description, type: "website", locale: "fr_MA", siteName: "LivreZone" },
-    robots: page > 1 ? { index: false, follow: true } : { index: true, follow: true },
+    // Les vues de recherche restent explorables mais ne sont pas indexées.
+    robots: page > 1 || search ? { index: false, follow: true } : { index: true, follow: true },
   };
 }
 
@@ -80,10 +87,17 @@ export default async function ThemePage({ params, searchParams }: PageProps) {
   if (!theme) notFound();
 
   const page = parseInt(firstParam(sp.page) || "1", 10) || 1;
+  const search = firstParam(sp.search).trim();
 
   // 12 livres max par page (règle architecture 03/09 : pagination 12 par 12,
-  // exclusivement Meilisearch côté API).
-  const result = await getBooks({ categories: code, page, limit: 12 });
+  // exclusivement Meilisearch côté API). La recherche est RESTREINTE au rayon :
+  // categories=code + search combinés dans la même requête Meilisearch.
+  const result = await getBooks({
+    categories: code,
+    search: search || undefined,
+    page,
+    limit: 12,
+  });
 
   // Comptes par sous-thème depuis les facettes (codes directs des livres).
   const childCounts = theme.children
@@ -139,18 +153,24 @@ export default async function ThemePage({ params, searchParams }: PageProps) {
             Livres {theme.name}
           </h1>
           <p className="text-sm text-violet-100/90 font-normal">
-            {result.total > 0
-              ? `${result.total.toLocaleString("fr-FR")} titre${result.total > 1 ? "s" : ""} référencé${result.total > 1 ? "s" : ""} dans ce rayon`
-              : "Ce rayon s'enrichira au fur et à mesure de l'indexation du catalogue."}
+            {search
+              ? `Résultats pour « ${search} » : ${result.total.toLocaleString("fr-FR")} titre${result.total > 1 ? "s" : ""} trouvé${result.total > 1 ? "s" : ""} dans ce rayon`
+              : result.total > 0
+                ? `${result.total.toLocaleString("fr-FR")} titre${result.total > 1 ? "s" : ""} référencé${result.total > 1 ? "s" : ""} dans ce rayon`
+                : "Ce rayon s'enrichira au fur et à mesure de l'indexation du catalogue."}
           </p>
+
+          {/* Recherche restreinte au rayon (autocomplétion filtrée côté API) */}
+          <BookThemeSearch themeCode={code} />
         </div>
         <div className="absolute right-[-20px] bottom-[-30px] opacity-10 pointer-events-none hidden md:block">
           <BookOpen className="w-56 h-56 text-white" />
         </div>
       </div>
 
-      {/* Sous-thèmes du rayon */}
-      {childCounts.length > 0 && (
+      {/* Sous-thèmes du rayon (masqués pendant une recherche : les comptes
+          refléteraient les résultats filtrés, ce qui prêterait à confusion) */}
+      {!search && childCounts.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-8">
           {childCounts.map((child) => (
             <Link
@@ -165,6 +185,24 @@ export default async function ThemePage({ params, searchParams }: PageProps) {
         </div>
       )}
 
+      {/* Recherche active : chip de rappel + effacement */}
+      {search && (
+        <div className="flex flex-wrap items-center gap-2 mb-8">
+          <span className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-violet-50 border border-violet-200 text-xs font-bold text-[#6D28D9]">
+            <Tag className="w-3.5 h-3.5" />
+            Recherche : «&nbsp;{search}&nbsp;»
+            <Link
+              href={`/books/themes/${code}`}
+              className="inline-flex items-center gap-1 text-violet-400 hover:text-[#1a0a40] transition-colors cursor-pointer"
+              title="Effacer la recherche"
+            >
+              <X className="w-3.5 h-3.5" />
+              Effacer
+            </Link>
+          </span>
+        </div>
+      )}
+
       {/* Grille des livres du rayon */}
       {result.ok && result.data.length > 0 ? (
         <>
@@ -174,12 +212,12 @@ export default async function ThemePage({ params, searchParams }: PageProps) {
             ))}
           </div>
 
-          {/* Pagination */}
+          {/* Pagination (préserve la recherche active) */}
           {result.lastPage > 1 && (
             <div className="flex items-center justify-center gap-3 mt-10">
               {page > 1 ? (
                 <Link
-                  href={`/books/themes/${code}?page=${page - 1}`}
+                  href={`/books/themes/${code}?${search ? `search=${encodeURIComponent(search)}&` : ""}page=${page - 1}`}
                   className="p-2.5 border border-gray-200 bg-white rounded-xl hover:bg-gray-50 transition-colors"
                   title="Page précédente"
                 >
@@ -195,7 +233,7 @@ export default async function ThemePage({ params, searchParams }: PageProps) {
               </span>
               {page < result.lastPage ? (
                 <Link
-                  href={`/books/themes/${code}?page=${page + 1}`}
+                  href={`/books/themes/${code}?${search ? `search=${encodeURIComponent(search)}&` : ""}page=${page + 1}`}
                   className="p-2.5 border border-gray-200 bg-white rounded-xl hover:bg-gray-50 transition-colors"
                   title="Page suivante"
                 >
@@ -214,16 +252,35 @@ export default async function ThemePage({ params, searchParams }: PageProps) {
           <div className="w-16 h-16 bg-violet-50 text-[#6D28D9] rounded-2xl flex items-center justify-center mx-auto mb-4">
             <BookOpen className="w-8 h-8" />
           </div>
-          <h2 className="text-lg font-black text-gray-900 mb-2">Aucun livre dans ce rayon</h2>
-          <p className="text-xs sm:text-sm text-gray-500 mb-6">
-            Ce rayon sera alimenté au fur et à mesure de l&apos;enrichissement du catalogue.
-          </p>
-          <Link
-            href="/books"
-            className="px-5 py-2.5 bg-[#6D28D9] text-white rounded-xl font-bold text-xs hover:bg-violet-800 transition-all shadow-xs inline-flex items-center gap-1.5"
-          >
-            Retour au catalogue
-          </Link>
+          {search ? (
+            <>
+              <h2 className="text-lg font-black text-gray-900 mb-2">
+                Aucun livre ne correspond à «&nbsp;{search}&nbsp;» dans ce rayon
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 mb-6">
+                Essayez avec d&apos;autres mots-clés, ou parcourez l&apos;ensemble du rayon.
+              </p>
+              <Link
+                href={`/books/themes/${code}`}
+                className="px-5 py-2.5 bg-[#6D28D9] text-white rounded-xl font-bold text-xs hover:bg-violet-800 transition-all shadow-xs inline-flex items-center gap-1.5"
+              >
+                Voir tout le rayon
+              </Link>
+            </>
+          ) : (
+            <>
+              <h2 className="text-lg font-black text-gray-900 mb-2">Aucun livre dans ce rayon</h2>
+              <p className="text-xs sm:text-sm text-gray-500 mb-6">
+                Ce rayon sera alimenté au fur et à mesure de l&apos;enrichissement du catalogue.
+              </p>
+              <Link
+                href="/books"
+                className="px-5 py-2.5 bg-[#6D28D9] text-white rounded-xl font-bold text-xs hover:bg-violet-800 transition-all shadow-xs inline-flex items-center gap-1.5"
+              >
+                Retour au catalogue
+              </Link>
+            </>
+          )}
         </div>
       )}
     </div>

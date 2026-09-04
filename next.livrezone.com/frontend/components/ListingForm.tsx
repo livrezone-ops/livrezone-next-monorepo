@@ -104,6 +104,13 @@ export interface ListingFormProps {
    * la route admin étant déclarée en POST (contrainte WAF).
    */
   updateEndpoint?: string;
+  /**
+   * Identifiant (ou ISBN) d'un livre à pré-remplir au montage — création
+   * uniquement. Utilisé par le bouton « Je veux vendre ce livre » de la
+   * fiche livre (/annonces/create?book={id}) : charge /books/{id} et
+   * renseigne titre, ISBN, auteur, éditeur, catégorie, prix indicatif…
+   */
+  prefillBookIdentifier?: string | number;
 }
 
 // Construit les valeurs initiales du formulaire depuis initialData (fonction pure).
@@ -171,7 +178,7 @@ const getCategoryRules = (cats: CategoryNode[] | undefined, categoryId: number |
   return { category, levels, subjects, naLevel, naSubject, levelApplicable, subjectApplicable };
 };
 
-export default function ListingForm({ initialData, onSubmitSuccess, isEditMode = false, onError, updateEndpoint }: ListingFormProps) {
+export default function ListingForm({ initialData, onSubmitSuccess, isEditMode = false, onError, updateEndpoint, prefillBookIdentifier }: ListingFormProps) {
   const { user } = useAuth();
 
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -188,6 +195,9 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearchingBooks, setIsSearchingBooks] = useState(false);
   const [bookSearchError, setBookSearchError] = useState<string | null>(null);
+  // Titre du livre sélectionné (autocomplétion ou pré-remplissage) : évite de
+  // relancer la recherche de suggestions quand le champ affiche ce titre.
+  const [selectedBookTitle, setSelectedBookTitle] = useState<string | null>(null);
 
   // Pourcentage de réduction
   const [discountPercent, setDiscountPercent] = useState<string>(() => {
@@ -345,7 +355,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
     const term = bookSearchQuery.trim();
     const delay = setTimeout(async () => {
       // Réinitialisation dans le timer : évite un setState synchrone dans l'effet.
-      if (term.length < 2) {
+      if (term.length < 2 || (selectedBookTitle !== null && term === selectedBookTitle.trim())) {
         setBookSuggestions([]);
         setShowSuggestions(false);
         return;
@@ -359,7 +369,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
       }
     }, 300);
     return () => clearTimeout(delay);
-  }, [bookSearchQuery]);
+  }, [bookSearchQuery, selectedBookTitle]);
 
   // Récupérer les détails d'un livre (sélection depuis l'autocomplétion ou recherche forcée)
   const fetchBookDetails = async (identifier: string | number) => {
@@ -371,6 +381,10 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
       const res = await api.get(`/books/${encodeURIComponent(identifier)}`);
       const book = res.data.book;
       if (book) {
+        // Affiche le titre du livre retenu dans le champ de recherche et
+        // neutralise l'autocomplétion sur ce terme (voir selectedBookTitle).
+        setSelectedBookTitle(book.title);
+        setBookSearchQuery(book.title);
         form.setValue("book_id", book.id);
         form.setValue("title", book.title);
         const foundIsbn = book.isbn_13 || book.isbn_10 || "";
@@ -425,6 +439,18 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
       fetchBookDetails(bookSearchQuery.trim());
     }
   };
+
+  // Pré-remplissage depuis la fiche livre (?book={id}, bouton « Je veux vendre
+  // ce livre ») : attend le référentiel (catégories) pour résoudre les règles
+  // niveau/matière, puis charge les infos du livre. L'appel est différé d'un
+  // tick : fetchBookDetails met à jour l'état (loader) et la règle
+  // react-hooks/set-state-in-effect interdit un setState synchrone dans un effet.
+  useEffect(() => {
+    if (!prefillBookIdentifier || isEditMode || isLoadingRef || !refData) return;
+    const t = setTimeout(() => fetchBookDetails(prefillBookIdentifier), 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillBookIdentifier, isEditMode, isLoadingRef, refData]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

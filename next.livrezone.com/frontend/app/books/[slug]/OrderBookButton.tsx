@@ -53,7 +53,7 @@ export default function OrderBookButton({ bookId }: { bookId: number }) {
       className="px-4 py-2.5 bg-white border border-[#6D28D9] text-[#6D28D9] hover:bg-violet-50 text-xs sm:text-sm font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
     >
       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4 text-[#6D28D9]" />}
-      Commander ce livre (Alerter les vendeurs)
+      Créer une demande de ce livre
     </button>
   );
 }

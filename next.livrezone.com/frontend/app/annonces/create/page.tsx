@@ -1,7 +1,8 @@
 "use client";
 
-import React, { Component, ErrorInfo, ReactNode, useEffect } from "react";
+import React, { Component, ErrorInfo, ReactNode, Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import ListingForm from "@/components/ListingForm";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, AlertTriangle } from "lucide-react";
@@ -47,9 +48,29 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, {hasError: boolean, er
 }
 
 export default function CreateListingPage() {
+  // useSearchParams requiert une frontière Suspense pour le pré-rendu statique.
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-[#6D28D9]" />
+        </div>
+      }
+    >
+      <CreateListingInner />
+    </Suspense>
+  );
+}
+
+function CreateListingInner() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const { toasts, pushToast, dismissToast } = useToasts();
+  const searchParams = useSearchParams();
+
+  // Pré-remplissage depuis la fiche livre ("Je veux vendre ce livre") :
+  // ?book={id} → le formulaire charge /books/{id} et renseigne tous les champs.
+  const prefillBookIdentifier = searchParams.get("book") || undefined;
 
   // Rediriger vers la connexion si non authentifié (side-effect dans un effet, jamais au render)
   useEffect(() => {
@@ -80,11 +101,12 @@ export default function CreateListingPage() {
         </div>
 
         <ErrorBoundary>
-          <ListingForm 
+          <ListingForm
+            prefillBookIdentifier={prefillBookIdentifier}
             onSubmitSuccess={() => {
               pushToast("Votre annonce a été publiée avec succès");
               setTimeout(() => router.push("/dashboard"), 1200);
-            }} 
+            }}
             onError={(message) => pushToast(message, "warning")}
           />
         </ErrorBoundary>

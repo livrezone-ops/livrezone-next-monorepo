@@ -7,6 +7,10 @@ use Illuminate\Http\Request;
 
 class BookAutocompleteService
 {
+    public function __construct(
+        protected ReferenceFilterService $filterService
+    ) {}
+
     /**
      * Recherche instantanée (typeahead) de livres via Meilisearch avec vignettes.
      *
@@ -14,6 +18,10 @@ class BookAutocompleteService
      * — un `LIKE '%…%'` sur 700k lignes est un scan complet de la table et
      * peut saturer MariaDB (leçon incident). Si Meilisearch est indisponible,
      * on renvoie simplement une liste vide.
+     *
+     * Paramètre optionnel `categories` (codes de familles/sous-catégories ou
+     * IDs, CSV) : restreint les suggestions à un rayon — utilisé par la box de
+     * recherche des pages /books/themes/{code}. Même résolution que GET /api/books.
      */
     public function suggest(Request $request): array
     {
@@ -25,7 +33,14 @@ class BookAutocompleteService
         }
 
         try {
-            $books = Book::search($query)->take($limit)->get();
+            $builder = Book::search($query);
+
+            $categoryIds = $this->filterService->resolveCategoryIds($request, ['categories', 'category', 'category_id', 'c']);
+            if (! empty($categoryIds)) {
+                $builder->whereIn('default_category_id', $categoryIds);
+            }
+
+            $books = $builder->take($limit)->get();
             $books->load(['defaultCategory.parent']);
 
             return $books->map(fn (Book $book) => $this->formatBook($book))->all();

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { BookOpen, ArrowLeft, Layers } from "lucide-react";
+import { BookOpen, ArrowLeft, Layers, ChevronRight, Tag } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import OrderBookButton from "./OrderBookButton";
 import { slugifyAuthor } from "@/lib/author-slug";
@@ -103,19 +103,6 @@ export default async function BookDetailsPage({ params }: PageProps) {
 
         {/* Colonne Détails */}
         <div className="flex-1 min-w-0 flex flex-col">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            {listingsCount > 0 ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-full">
-                <Layers className="w-3.5 h-3.5" />
-                {listingsCount} {listingsCount > 1 ? "annonces disponibles" : "annonce disponible"}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold rounded-full">
-                0 annonce en vente actuellement
-              </span>
-            )}
-          </div>
-
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900 mb-2 leading-tight">
             {book.title}
           </h1>
@@ -174,17 +161,39 @@ export default async function BookDetailsPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* Boutons d'action standards */}
-          <div className="mt-auto pt-6 border-t border-gray-100 flex flex-wrap items-center gap-3">
-            <Link
-              href={`/annonces?search=${encodeURIComponent(book.isbn_13 || book.title)}`}
-              className="px-4 py-2.5 bg-[#1a0a40] hover:bg-[#6D28D9] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5"
-            >
-              <Layers className="w-4 h-4" />
-              Voir les annonces ({listingsCount})
-            </Link>
+          {/* Nombre d'annonces — sous le résumé ; cliquable vers la liste des
+              annonces filtrée sur ce livre (ISBN si dispo, sinon titre) dès
+              qu'il y a au moins une annonce */}
+          <div className="mb-6">
+            {listingsCount > 0 ? (
+              <Link
+                href={`/annonces?search=${encodeURIComponent(book.isbn_13 || book.title)}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-full hover:bg-emerald-100 hover:border-emerald-300 transition-colors"
+                title="Voir toutes les annonces de ce livre"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                {listingsCount} {listingsCount > 1 ? "annonces disponibles" : "annonce disponible"}
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold rounded-full">
+                0 annonce en vente actuellement
+              </span>
+            )}
+          </div>
 
+          {/* Boutons d'action : demande d'approvisionnement + mise en vente */}
+          <div className="mt-auto pt-6 border-t border-gray-100 flex flex-wrap items-center gap-3">
             <OrderBookButton bookId={book.id} />
+
+            <Link
+              href={`/annonces/create?book=${book.id}`}
+              className="px-4 py-2.5 bg-[#6D28D9] hover:bg-violet-800 text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5"
+              title="Publier une annonce de vente pour ce livre (formulaire pré-rempli)"
+            >
+              <Tag className="w-4 h-4" />
+              Je veux vendre ce livre
+            </Link>
           </div>
         </div>
       </div>
