@@ -98,6 +98,12 @@ export interface ListingFormProps {
   onSubmitSuccess: () => void;
   isEditMode?: boolean;
   onError?: (message: string) => void;
+  /**
+   * Endpoint de mise à jour personnalisé (ex. modération admin :
+   * /admin/listings/{id}). Soumis en POST direct (pas de fake PUT),
+   * la route admin étant déclarée en POST (contrainte WAF).
+   */
+  updateEndpoint?: string;
 }
 
 // Construit les valeurs initiales du formulaire depuis initialData (fonction pure).
@@ -165,7 +171,7 @@ const getCategoryRules = (cats: CategoryNode[] | undefined, categoryId: number |
   return { category, levels, subjects, naLevel, naSubject, levelApplicable, subjectApplicable };
 };
 
-export default function ListingForm({ initialData, onSubmitSuccess, isEditMode = false, onError }: ListingFormProps) {
+export default function ListingForm({ initialData, onSubmitSuccess, isEditMode = false, onError, updateEndpoint }: ListingFormProps) {
   const { user } = useAuth();
 
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -496,7 +502,13 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
         formData.append("cover_source_url", coverSourceUrl);
       }
       
-      if (isEditMode && initialData?.id) {
+      if (updateEndpoint) {
+        // Soumission sur un endpoint dédié (ex. /admin/listings/{id}) : la
+        // route est déclarée en POST, pas de surcharge de méthode nécessaire.
+        await api.post(updateEndpoint, formData, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+      } else if (isEditMode && initialData?.id) {
         formData.append("_method", "PUT"); // Fake PUT for file upload
         await api.post(`/dashboard/listings/${initialData.id}`, formData, {
           headers: { "Content-Type": "multipart/form-data" }

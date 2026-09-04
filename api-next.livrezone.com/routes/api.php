@@ -148,6 +148,8 @@ Route::get('/hero-messages', [HeroController::class, 'index']);
 // Admin - Users & Listings management
 Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
     Route::get('/users', [AdminController::class, 'users']);
+    // Fiche détaillée d'un utilisateur (déclarée avant les routes /users/{user}/...).
+    Route::get('/users/{user}', [AdminController::class, 'showUser']);
     Route::post('/users/{user}/status', [AdminController::class, 'updateUserStatus']);
     Route::post('/users/{user}/subscription', [AdminController::class, 'updateUserSubscription']);
     Route::post('/users/{user}/subscription/pause', [AdminController::class, 'pauseSubscription']);
@@ -155,6 +157,12 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
     Route::get('/listings', [AdminController::class, 'listings']);
     Route::post('/listings/bulk-status', [AdminController::class, 'bulkListingStatus']);
+    // Édition admin d'une annonce : GET pour le formulaire, POST pour la
+    // soumission (POST plutôt que PUT : le WAF OpenPanel bloque les méthodes
+    // non standard). Déclarées après bulk-status pour que le segment statique
+    // gagne sur le {listing} du même nombre de segments.
+    Route::get('/listings/{listing}', [AdminController::class, 'showListing']);
+    Route::post('/listings/{listing}', [AdminController::class, 'updateListing']);
     Route::post('/listings/{listing}/status', [AdminController::class, 'updateListingStatus']);
 
     Route::get('/orders', [AdminController::class, 'orders']);

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Listing;
+use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
@@ -136,6 +137,58 @@ class AdminDashboardService
                 'inactive_count' => $counts['inactive'],
                 'online_count' => $counts['online'],
             ],
+        ];
+    }
+
+    /**
+     * Fiche détaillée d'un utilisateur : mêmes champs que la liste plus les
+     * informations de contact du profil (avatar, téléphone, WhatsApp) et
+     * l'historique de ses paiements.
+     */
+    public function getUserDetail(User $user): array
+    {
+        $user->load(['profile.city']);
+
+        $listingsCount = Listing::where('user_id', $user->id)->count();
+
+        $payments = Payment::query()
+            ->where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get()
+            ->map(fn (Payment $payment) => [
+                'id' => $payment->id,
+                'amount' => $payment->amount,
+                'payment_method' => $payment->payment_method,
+                'transaction_id' => $payment->transaction_id,
+                'subscription_type' => $payment->subscription_type,
+                'period' => $payment->period,
+                'discount_code' => $payment->discount_code,
+                'status' => $payment->status,
+                'paid_at' => $payment->paid_at,
+                'expires_at' => $payment->expires_at,
+                'created_at' => $payment->created_at,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'is_admin' => $user->is_admin,
+            'is_active' => $user->is_active,
+            'profile' => $user->profile,
+            'listings_count' => (int) $listingsCount,
+            'last_login_at' => $user->last_login_at,
+            'connection' => [
+                'online' => $user->isOnline(),
+                'last_activity' => ($user->last_activity_at ?? $user->last_login_at)?->timestamp,
+                'last_ip' => null,
+                'active_sessions' => 0,
+            ],
+            'created_at' => $user->created_at,
+            'payments' => $payments,
         ];
     }
 }

@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import SmartCoverImage from "@/components/SmartCoverImage";
+import { slugify } from "@/lib/listings-api";
 import {
   Users,
   BookOpen,
@@ -18,6 +20,7 @@ import {
   Lock,
   Pause,
   Plus,
+  Pencil,
   Loader2,
 } from "lucide-react";
 import api from "@/lib/axios";
@@ -110,6 +113,14 @@ function getAvatarUrl(p?: AdminUser["profile"]): string | null {
   if (!p?.logo) return null;
   if (p.logo.startsWith("http")) return p.logo;
   return `https://api-next.livrezone.com${p.logo}`;
+}
+
+// Chemin de la page listing-details publique d'une annonce — même convention
+// d'URL que le reste du site (/{nickname}/{id}-{isbn}-{titre-slugifié}).
+function listingDetailPath(l: AdminListing): string {
+  const nickname = l.user?.profile?.nickname || `utilisateur-${l.user_id ?? "?"}`;
+  const isbn = l.isbn_13 || "livre";
+  return `/${nickname}/${l.id}-${isbn}-${slugify(l.title)}`;
 }
 
 export default function AdminClient({
@@ -339,7 +350,7 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
         title="Désactiver cet utilisateur ?"
         message={
           confirmDeactivate
-            ? `${confirmDeactivate.name} ne pourra plus se connecter ni publier. Ses annonces existantes resteront en ligne.`
+            ? `${confirmDeactivate.name} ne pourra plus se connecter ni publier. Toutes ses annonces en ligne seront masquées ; sa réactivation les remettra automatiquement en ligne.`
             : ""
         }
         confirmLabel="Désactiver"
@@ -461,7 +472,13 @@ function UsersTab({ pushToast, currentUserId }: { pushToast: (m: string, t?: Toa
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 font-bold text-gray-950 truncate">
-                            {u.name}
+                            <Link
+                              href={`/admin/utilisateurs/${u.id}`}
+                              className="hover:text-[#6D28D9] transition-colors"
+                              title="Voir la fiche de l'utilisateur"
+                            >
+                              {u.name}
+                            </Link>
                             {u.is_admin && (
                               <span className="text-[8px] bg-violet-600 text-white font-bold px-1.5 py-0.5 rounded-sm uppercase">Admin</span>
                             )}
@@ -841,15 +858,25 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-11 flex-shrink-0 bg-gray-50 rounded border border-gray-150 overflow-hidden flex items-center justify-center relative">
+                        <Link
+                          href={listingDetailPath(l)}
+                          title="Voir la fiche de l'annonce"
+                          className="w-8 h-11 flex-shrink-0 bg-gray-50 rounded border border-gray-150 overflow-hidden flex items-center justify-center relative hover:border-[#6D28D9]/40 transition-colors cursor-pointer"
+                        >
                           {cover ? (
                             <SmartCoverImage src={cover} alt={l.title} className="object-contain" sizes="32px" />
                           ) : (
                             <BookOpen className="w-4 h-4 text-gray-300" />
                           )}
-                        </div>
+                        </Link>
                         <div className="min-w-0">
-                          <div className="font-bold text-gray-950 text-xs truncate">{l.title}</div>
+                          <Link
+                            href={listingDetailPath(l)}
+                            title="Voir la fiche de l'annonce"
+                            className="font-bold text-gray-950 text-xs truncate hover:text-[#6D28D9] hover:underline block cursor-pointer"
+                          >
+                            {l.title}
+                          </Link>
                           <span className="text-[10px] text-gray-400 block truncate">ISBN : {l.isbn_13 || "N/A"}</span>
                           {l.category && (
                             <span className="text-[10px] text-violet-500 font-bold block">{l.category.name_fr}</span>
@@ -874,6 +901,13 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
                     <td className="px-4 py-3 text-gray-400">{formatDate(l.created_at)}</td>
                     <td className="px-4 py-3 text-right pr-4">
                       <div className="flex gap-1.5 justify-end items-center">
+                        <Link
+                          href={`/admin/annonces/${l.id}/edit`}
+                          className="p-1.5 text-[#6D28D9] hover:bg-violet-50 hover:text-violet-800 transition-colors"
+                          title="Modifier l'annonce"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Link>
                         <button onClick={() => handleSingle(l.id, "activate")} disabled={busy} className="p-1.5 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer" title="Activer">
                           <Play className="w-3.5 h-3.5" />
                         </button>

@@ -16,6 +16,7 @@ use App\Http\Requests\Api\AdminUpdateOrderStatusRequest;
 use App\Http\Requests\Api\AdminUpdateSettingsRequest;
 use App\Http\Requests\Api\AdminUpdateUserStatusRequest;
 use App\Http\Requests\Api\AdminUpdateUserSubscriptionRequest;
+use App\Http\Requests\Api\ListingUpsertRequest;
 use App\Jobs\NotifyDemandersOnListingPublished;
 use App\Models\DiscountCode;
 use App\Models\HeroMessage;
@@ -43,6 +44,15 @@ class AdminController extends Controller
         return response()->json($adminService->getUsersList($request->all()));
     }
 
+    /**
+     * Fiche détaillée d'un utilisateur (admin) : informations du compte,
+     * profil (avatar, téléphone), connexion, abonnement et paiements.
+     */
+    public function showUser(Request $request, User $user, AdminDashboardService $adminService)
+    {
+        return response()->json($adminService->getUserDetail($user));
+    }
+
     public function updateUserStatus(AdminUpdateUserStatusRequest $request, User $user)
     {
         if ($user->id === $request->user()->id) {
@@ -53,8 +63,28 @@ class AdminController extends Controller
 
         $user->update(['is_active' => $validated['is_active']]);
 
+        // Cohérence annonces <-> compte : un utilisateur désactivé voit toutes
+        // ses annonces visibles masquées ; sa réactivation les remet en ligne.
+        if ($validated['is_active']) {
+            $restored = Listing::where('user_id', $user->id)
+                ->where('status', 'hidden')
+                ->update(['status' => 'published']);
+
+            $message = $restored > 0
+                ? "Utilisateur activé. {$restored} annonce(s) remise(s) en ligne."
+                : 'Utilisateur activé.';
+        } else {
+            $hidden = Listing::where('user_id', $user->id)
+                ->whereIn('status', ['published', 'active', 'pending_admin'])
+                ->update(['status' => 'hidden']);
+
+            $message = $hidden > 0
+                ? "Utilisateur désactivé. {$hidden} annonce(s) masquée(s)."
+                : 'Utilisateur désactivé.';
+        }
+
         return response()->json([
-            'message' => $validated['is_active'] ? 'Utilisateur activé.' : 'Utilisateur désactivé.',
+            'message' => $message,
             'user' => ['id' => $user->id, 'is_active' => $user->is_active],
         ]);
     }
@@ -113,6 +143,24 @@ class AdminController extends Controller
             'message' => $this->listingActionMessage($validated['action']),
             'listing' => ['id' => $listing->id, 'status' => $listing->status],
         ]);
+    }
+
+    public function showListing(Request $request, Listing $listing)
+    {
+        $listing->load(['book', 'category', 'level', 'subject', 'language']);
+        if ($listing->book) {
+            $listing->book->setAppends(['cover_url']);
+        }
+
+        return response()->json(['listing' => $listing]);
+    }
+
+    public function updateListing(ListingUpsertRequest $request, Listing $listing)
+    {
+        // Modération admin : l'autorisation est garantie par le middleware
+        // 'admin' de la route (ListingPolicy@update reste réservée au
+        // propriétaire) ; on réutilise le pipeline de mise à jour vendeur.
+        return app(ListingManagerController::class)->performUpdate($request, $listing);
     }
 
     public function bulkListingStatus(AdminBulkListingStatusRequest $request)

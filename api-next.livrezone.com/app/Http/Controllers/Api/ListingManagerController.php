@@ -113,6 +113,17 @@ class ListingManagerController extends Controller
             abort(403, 'Non autorisé');
         }
 
+        return $this->performUpdate($request, $listing);
+    }
+
+    /**
+     * Pipeline de mise à jour partagé : vendeur (update, protégé par
+     * ListingPolicy@update — propriétaire seul) et modération admin
+     * (AdminController::updateListing — autorisation garantie par le
+     * middleware 'admin' de la route, sans check propriétaire ici).
+     */
+    public function performUpdate(ListingUpsertRequest $request, Listing $listing)
+    {
         $validated = $request->validated();
 
         // Pipeline commun : relations, livre lié, couverture, auteur/éditeur
