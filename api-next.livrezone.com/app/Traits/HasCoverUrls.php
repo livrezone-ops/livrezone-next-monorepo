@@ -19,21 +19,40 @@ use Illuminate\Support\Str;
  */
 trait HasCoverUrls
 {
-    /** Préfixe de dossier pour les couvertures uploadées par les utilisateurs */
+    /** Préfixes de dossier pour les couvertures uploadées par les utilisateurs.
+     *  'book-covers/user-uploads/' : ancien flux ; 'covers/users/' : flux actuel
+     *  (ImageUploadService::storeImage). Les deux sont servis via /storage. */
+    public const USER_COVER_DIRS = ['book-covers/user-uploads', 'covers/users'];
+
+    /** Préfixe historique (compat : tests et ListingValidationService) */
     public const USER_COVER_DIR = 'book-covers/user-uploads';
 
     /**
      * Retourne true uniquement si le chemin appartient aux uploads utilisateurs.
-     * Les couvertures catalogue (books) ne contiennent jamais de '/' dans leur nom.
+     * Les couvertures catalogue (books) ne contiennent jamais de '/' dans leur nom
+     * (hormis le préfixe 'originals/', traité par catalogCoverFilename()).
      */
     public static function isUserUploadedCover(?string $coverPath): bool
     {
-        return $coverPath !== null
-            && str_starts_with($coverPath, self::USER_COVER_DIR.'/');
+        if ($coverPath === null) {
+            return false;
+        }
+
+        foreach (self::USER_COVER_DIRS as $dir) {
+            if (str_starts_with($coverPath, $dir.'/')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function getCoverUrlAttribute(): ?string
     {
+        if ($this->coverModerationBlocked()) {
+            return $this->coverPlaceholderUrl();
+        }
+
         $path = trim((string) ($this->cover_path ?? ''));
 
         if ($path === '') {
@@ -59,6 +78,10 @@ trait HasCoverUrls
 
     public function getCoverThumbnailUrl(int $size = 160): ?string
     {
+        if ($this->coverModerationBlocked()) {
+            return $this->coverPlaceholderUrl();
+        }
+
         $path = trim((string) ($this->cover_path ?? ''));
 
         if ($path === '') {
@@ -111,6 +134,16 @@ trait HasCoverUrls
         $external = trim((string) ($this->cover_source_url ?? ''));
 
         return $external !== '' ? $external : null;
+    }
+
+    /**
+     * Modération : true si la couverture ne doit pas être affichée
+     * (contenu inadapté…) → le placeholder est renvoyé à la place.
+     * Surchargé par Book (liste d'ISBN config('livrezone.blocked_cover_isbns')).
+     */
+    protected function coverModerationBlocked(): bool
+    {
+        return false;
     }
 
     protected function coverPlaceholderUrl(): string

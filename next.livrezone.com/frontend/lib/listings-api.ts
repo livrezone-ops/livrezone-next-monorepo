@@ -10,6 +10,7 @@ export interface ListingSummary {
   book_condition: string;
   isbn_13?: string | null;
   cover_path?: string | null;
+  cover_url?: string | null;
   cover_source_url?: string | null;
   cover_thumbnail_url?: string | null;
   book?: {
@@ -100,6 +101,25 @@ export function buildListingPath(listing: ListingSummary): string {
   return `/${nickname}/${listing.id}-${isbn}-${titleSlug}`;
 }
 
+/**
+ * Chaîne unique de résolution de couverture pour toutes les cartes d'annonces :
+ * 1. Couverture du livre catalogue (proxy ISBN, via book.cover_url)
+ * 2. Couverture uploadée par l'utilisateur — URL prête à l'emploi (cover_url)
+ * 3. Couverture uploadée via chemin relatif (cover_path → /storage/…)
+ * 4. URL source externe (imports) — sinon null (placeholder côté carte)
+ */
+export function resolveListingCover(
+  listing: Pick<
+    ListingSummary,
+    "cover_url" | "cover_path" | "cover_source_url" | "book"
+  >,
+): string | null {
+  if (listing.book?.cover_url) return listing.book.cover_url;
+  if (listing.cover_url) return listing.cover_url;
+  if (listing.cover_path) return `${API_BASE}/storage/${listing.cover_path}`;
+  return listing.cover_source_url || null;
+}
+
 const API_BASE = (process.env.INTERNAL_API_URL
   || process.env.NEXT_PUBLIC_API_URL
   || "https://api-next.livrezone.com").replace(/\/api\/?$/, "");
@@ -163,6 +183,7 @@ export interface ListingDetail {
   price: number;
   discount_price?: number | null;
   cover_path?: string | null;
+  cover_url?: string | null;
   cover_source_url?: string | null;
   cover_thumbnail_url?: string | null;
   isbn_13?: string | null;

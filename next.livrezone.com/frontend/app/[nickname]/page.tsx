@@ -165,7 +165,6 @@ export default async function LibraryProfilePage({ params, searchParams }: PageP
                 alt={`Logo ${profile.nickname} - Librairie LivreZone Maroc`}
                 fill
                 className="object-cover"
-                unoptimized
               />
             </div>
           ) : (

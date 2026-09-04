@@ -9,6 +9,7 @@ import {
   Grid, List, Plus, Trash2, Edit, MessageSquare, Sparkles 
 } from "lucide-react";
 import Link from "next/link";
+import SmartCoverImage from "@/components/SmartCoverImage";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
 
@@ -112,15 +113,6 @@ export default function DemandesPage() {
 
   const getCover = (order: Order) => 
     order.cover_thumbnail_url || order.cover_url || order.book?.cover_thumbnail_url || order.book?.cover_url || null;
-
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, order: Order) => {
-    const fallback = order.cover_url || order.book?.cover_url;
-    if (fallback && e.currentTarget.src !== fallback) {
-      e.currentTarget.src = fallback;
-    } else {
-      e.currentTarget.style.display = "none";
-    }
-  };
 
   return (
     <div className="py-4 lg:py-2">
@@ -258,11 +250,12 @@ export default function DemandesPage() {
                   <div className="flex gap-3.5 mb-3">
                     <div className="w-16 h-20 bg-gray-50 rounded-xl shrink-0 border border-gray-100 overflow-hidden relative flex items-center justify-center">
                       {cover ? (
-                        <img 
-                          src={cover} 
-                          className="w-full h-full object-cover" 
-                          alt="" 
-                          onError={(e) => handleImageError(e, order)}
+                        <SmartCoverImage
+                          src={cover}
+                          className="object-cover"
+                          alt=""
+                          sizes="64px"
+                          fallbackSrc={order.cover_url || order.book?.cover_url || null}
                         />
                       ) : (
                         <BookOpen className="w-6 h-6 text-gray-300" />
@@ -393,11 +386,12 @@ export default function DemandesPage() {
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-12 bg-gray-50 rounded-md shrink-0 border border-gray-100 overflow-hidden relative flex items-center justify-center">
                             {cover ? (
-                              <img 
-                                src={cover} 
-                                className="w-full h-full object-cover" 
-                                alt="" 
-                                onError={(e) => handleImageError(e, order)}
+                              <SmartCoverImage
+                                src={cover}
+                                className="object-cover"
+                                alt=""
+                                sizes="40px"
+                                fallbackSrc={order.cover_url || order.book?.cover_url || null}
                               />
                             ) : (
                               <BookOpen className="w-4 h-4 text-gray-300" />

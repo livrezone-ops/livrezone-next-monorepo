@@ -95,7 +95,6 @@ export default function BookCard({
               fill
               sizes="(max-width: 640px) 140px, (max-width: 1024px) 200px, 300px"
               className="object-contain p-3 scale-95 transition-transform duration-500 ease-out group-hover:scale-100"
-              unoptimized
             />
           ) : (
             <div className="absolute left-0 top-0 flex h-full w-full items-center justify-center bg-slate-100 text-slate-400 scale-95 transition-transform duration-500 ease-out group-hover:scale-100">

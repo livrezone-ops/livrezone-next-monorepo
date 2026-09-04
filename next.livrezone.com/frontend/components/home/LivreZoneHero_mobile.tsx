@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import Link from "next/link";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import type { HeroMessage } from "./types";
+import SmartCoverImage from "@/components/SmartCoverImage";
 import type { HeroListing } from "./LivreZoneHero";
 
 export type LivreZoneHeroMobileProps = {
@@ -108,7 +109,7 @@ export default function LivreZoneHeroMobile({
         {/* Livre 1 (en haut à droite, incliné à 16deg) */}
         <div className="absolute -top-3 right-3 w-32 sm:w-40 h-44 sm:h-54 rounded-xl shadow-2xl rotate-[16deg] overflow-hidden border-2 border-white/20 bg-gradient-to-br from-violet-950 to-indigo-950 transition-all duration-700 ease-out">
           {book1Cover ? (
-            <img src={book1Cover} alt="Couverture de livre d'occasion - LivreZone Maroc" className="w-full h-full object-cover" />
+            <SmartCoverImage src={book1Cover} alt="Couverture de livre d'occasion - LivreZone Maroc" className="object-cover" sizes="160px" />
           ) : (
             <div className="w-full h-full flex flex-col justify-between p-3 bg-gradient-to-tr from-violet-950 via-violet-800 to-indigo-900">
               <div className="w-2.5 h-full bg-white/20 absolute left-0 top-0" />
@@ -119,7 +120,7 @@ export default function LivreZoneHeroMobile({
         {/* Livre 2 (en bas à droite, incliné à -6deg) */}
         <div className="absolute -bottom-6 right-1 w-32 sm:w-40 h-44 sm:h-54 rounded-xl shadow-2xl -rotate-[6deg] overflow-hidden border-2 border-white/30 bg-gradient-to-br from-orange-900 to-amber-700 transition-all duration-700 ease-out">
           {book2Cover ? (
-            <img src={book2Cover} alt="Couverture de livre neuf - LivreZone Maroc" className="w-full h-full object-cover" />
+            <SmartCoverImage src={book2Cover} alt="Couverture de livre neuf - LivreZone Maroc" className="object-cover" sizes="160px" />
           ) : (
             <div className="w-full h-full flex flex-col justify-between p-3 bg-gradient-to-tr from-amber-700 via-orange-600 to-amber-500">
               <div className="w-2.5 h-full bg-white/25 absolute left-0 top-0" />

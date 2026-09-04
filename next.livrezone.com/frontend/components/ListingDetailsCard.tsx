@@ -20,6 +20,7 @@ interface Listing {
   discount_price?: number | null;
   published_ago?: string | null;
   cover_path?: string | null;
+  cover_url?: string | null;
   cover_source_url?: string | null;
   user: {
     id: number;
@@ -130,8 +131,14 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
   };
 
   const authors = listing.book?.authors ? listing.book.authors.join(", ") : null;
-  // Priorité : cover_url du proxy Laravel > cover_source_url > null
+  // Priorité : couverture du livre catalogue (proxy) > couverture uploadée par
+  // l'utilisateur (listings sans book — API cover_url ou cover_path → /storage)
+  // > URL source externe > null
   const coverUrl = listing.book?.cover_url
+    || listing.cover_url
+    || (listing.cover_path
+      ? `https://api-next.livrezone.com/storage/${listing.cover_path}`
+      : null)
     || listing.cover_source_url
     || null;
 
@@ -193,7 +200,6 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
                 alt={`Couverture du livre ${listing.title} - LivreZone Maroc`} 
                 fill
                 className="object-contain p-6 sm:p-8 transition-transform duration-500 ease-out group-hover:scale-105"
-                unoptimized
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 text-slate-400">

@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { BookOpen, Edit } from "lucide-react";
+import SmartCoverImage from "@/components/SmartCoverImage";
 
 export interface DashboardListing {
   id: number;
@@ -39,7 +40,9 @@ interface DashboardListingCardProps {
   statusBadge: (listing: DashboardListing) => { label: string; className: string };
   buildListingUrl: (listing: DashboardListing) => string;
   primaryCoverUrl: (listing: DashboardListing) => string | null;
-  onCoverError: (e: React.SyntheticEvent<HTMLImageElement>, listing: DashboardListing) => void;
+  /** URL de secours (couverture originale) si la miniature échoue —
+   *  retry géré nativement par SmartCoverImage */
+  fallbackCoverUrl: (listing: DashboardListing) => string | null;
 }
 
 export default function DashboardListingCard({
@@ -51,7 +54,7 @@ export default function DashboardListingCard({
   statusBadge,
   buildListingUrl,
   primaryCoverUrl,
-  onCoverError,
+  fallbackCoverUrl,
 }: DashboardListingCardProps) {
   const coverUrl = primaryCoverUrl(listing);
   const badge = statusBadge(listing);
@@ -92,14 +95,15 @@ export default function DashboardListingCard({
       <div className="flex gap-3 pt-6 border-b border-gray-100 pb-3">
         <Link
           href={buildListingUrl(listing)}
-          className="w-12 h-16 flex-shrink-0 bg-gray-50 flex items-center justify-center rounded border border-gray-150 text-gray-300 cursor-pointer hover:border-[#6D28D9] transition-colors"
+          className="relative w-12 h-16 flex-shrink-0 bg-gray-50 flex items-center justify-center rounded border border-gray-150 text-gray-300 cursor-pointer hover:border-[#6D28D9] transition-colors"
         >
           {coverUrl ? (
-            <img
+            <SmartCoverImage
               src={coverUrl}
               alt={listing.title}
-              onError={(e) => onCoverError(e, listing)}
-              className="w-full h-full object-contain"
+              className="object-contain"
+              sizes="48px"
+              fallbackSrc={fallbackCoverUrl(listing)}
             />
           ) : (
             <BookOpen className="w-5 h-5 stroke-1" />

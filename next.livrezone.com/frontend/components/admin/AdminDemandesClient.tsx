@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import SmartCoverImage from "@/components/SmartCoverImage";
 import {
   CheckCircle2,
   Loader2,
@@ -219,11 +220,14 @@ export default function AdminDemandesClient() {
               className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col lg:flex-row lg:items-center gap-4"
             >
               {order.cover_url ? (
-                <img
-                  src={order.cover_url}
-                  alt={`Couverture : ${order.title}`}
-                  className="w-12 h-16 object-cover rounded-lg shrink-0"
-                />
+                <span className="relative w-12 h-16 rounded-lg shrink-0 overflow-hidden">
+                  <SmartCoverImage
+                    src={order.cover_url}
+                    alt={`Couverture : ${order.title}`}
+                    className="object-cover"
+                    sizes="48px"
+                  />
+                </span>
               ) : (
                 <div className="w-12 h-16 rounded-lg bg-gray-100 shrink-0 flex items-center justify-center">
                   <Search className="h-5 w-5 text-gray-300" />

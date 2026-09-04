@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import SmartCoverImage from "@/components/SmartCoverImage";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
 import { Loader2, Search, Plus, Minus, ShieldAlert } from "lucide-react";
@@ -602,7 +603,7 @@ export default function ListingForm({ initialData, onSubmitSuccess, isEditMode =
                   >
                     <div className="w-12 h-16 bg-slate-100 rounded flex items-center justify-center shrink-0 overflow-hidden relative border border-slate-200/60 shadow-sm">
                       {book.cover_url ? (
-                        <img src={book.cover_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                        <SmartCoverImage src={book.cover_url} alt="" className="object-cover" sizes="48px" />
                       ) : (
                         <span className="text-[9px] text-slate-400 text-center leading-tight">Sans couv.</span>
                       )}

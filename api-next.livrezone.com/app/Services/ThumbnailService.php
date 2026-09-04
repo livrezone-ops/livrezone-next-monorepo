@@ -85,7 +85,7 @@ class ThumbnailService
 
         if ($path === ''
             || preg_match('#^https?://#i', $path)
-            || str_starts_with($path, 'book-covers/user-uploads/')
+            || \App\Traits\HasCoverUrls::isUserUploadedCover($path)
         ) {
             return null;
         }

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Store, MapPin, Star, ArrowRight } from "lucide-react";
+import SmartCoverImage from "@/components/SmartCoverImage";
 import type { LibraryItem } from "@/lib/libraries-api";
 
 function resolveLogo(logo?: string | null): string | null {
@@ -67,11 +68,12 @@ export default function LibraryCard({ library }: LibraryCardProps) {
           title={library.name}
         >
           {logo && !imgError ? (
-            <img
+            <SmartCoverImage
               src={logo}
               alt={library.name}
+              sizes="80px"
+              className="object-cover"
               onError={() => setImgError(true)}
-              className="w-full h-full object-cover"
             />
           ) : (
             <div className="flex flex-col items-center justify-center text-gray-300 gap-1">

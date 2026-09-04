@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import fs from "fs";
 import path from "path";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import { toJsonLd } from "@/lib/safe-json-ld";
 import {
   BookOpen,
@@ -15,7 +15,7 @@ import {
 import LivreZoneHero, { type HeroListing } from "@/components/home/LivreZoneHero";
 import LivreZoneHeroMobile from "@/components/home/LivreZoneHero_mobile";
 
-const HorizontalGrid = dynamic(() => import("@/components/HorizontalGrid"));
+const HorizontalGrid = nextDynamic(() => import("@/components/HorizontalGrid"));
 import type { HeroMessage } from "@/components/home/types";
 import { isValidMessage, validateHref } from "@/components/home/types";
 
@@ -176,6 +176,12 @@ function loadHeroMessagesFromFile(): HeroMessage[] {
     return [fallback];
   }
 }
+
+// Rendu à la requête — jamais de génération au build : les appels API de cette
+// page ne doivent pas pouvoir bloquer `next build` (leçon sitemap + home,
+// 03/09 : timeout 60 s ×3 si l'API est lente). Les fetchs restent cachés 60 s
+// via `next: { revalidate }`, donc le coût par requête reste faible.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "LivreZone | Livres neufs et d'occasion au Maroc",

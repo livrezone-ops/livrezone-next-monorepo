@@ -63,4 +63,18 @@ return [
         'cmi' => env('CMI_WEBHOOK_SECRET'),
         'fatourati' => env('FATOURATI_WEBHOOK_SECRET'),
     ],
+
+    /*
+    |----------------------------------------------------------------------
+    | Couvertures de livres modérées (masquées)
+    |----------------------------------------------------------------------
+    |
+    | ISBN-13 dont la couverture ne doit PAS être affichée (contenu inadapté,
+    | image erronée…). Le trait HasCoverUrls renvoie alors le placeholder
+    | « pas de couverture » à la place, partout (catalogue, fiche, panier…).
+    | Compléter cette liste via la variable BLOCKED_COVER_ISBNS du .env
+    | (ISBN séparés par des virgules) — effet immédiat, sans réindexation.
+    |
+    */
+    'blocked_cover_isbns' => array_values(array_filter(array_map('trim', explode(',', (string) env('BLOCKED_COVER_ISBNS', '9782382760888'))))),
 ];

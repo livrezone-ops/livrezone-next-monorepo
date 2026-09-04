@@ -6,18 +6,57 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Search, BookOpen, ChevronLeft, ChevronRight, 
   Sparkles, X, LayoutGrid, List as ListIcon, 
-  Loader2, Plus, ArrowRight
+  Loader2, Plus, ArrowRight, Clock, Users, GraduationCap, Baby, LibraryBig, MoonStar, Home
 } from "lucide-react";
 import api from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/api-error";
+import SmartCoverImage from "@/components/SmartCoverImage";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import FilterSidebar from "@/components/FilterSidebar";
 import BookCatalogCard from "@/components/BookCatalogCard";
-import type { BookSearchItem } from "@/lib/books-api";
+import type { BookSearchItem, AuthorSummary } from "@/lib/books-api";
 import type { CityRef } from "@/lib/listings-api";
 import { parseFilters, buildFilterQuery } from "@/lib/listings-filters";
 import { useToast } from "@/components/Toast";
+import { CATEGORIES } from "@/lib/reference-data";
 import type { BookSection } from "./page";
+
+// Tuiles « rayons » de la vitrine : icône + dégradé par famille de catégorie.
+const CATEGORY_TILES: { code: string; icon: React.ElementType; gradient: string }[] = [
+  { code: "LITTERATURE", icon: BookOpen, gradient: "from-violet-500 to-purple-700" },
+  { code: "JEUNESSE", icon: Baby, gradient: "from-sky-400 to-blue-600" },
+  { code: "SCOLAIRE", icon: GraduationCap, gradient: "from-orange-400 to-amber-600" },
+  { code: "UNIVERSITAIRE", icon: LibraryBig, gradient: "from-emerald-400 to-teal-600" },
+  { code: "RELIGION", icon: MoonStar, gradient: "from-cyan-500 to-teal-700" },
+  { code: "VIE_PRATIQUE", icon: Home, gradient: "from-rose-400 to-pink-600" },
+];
+
+// Nombre de titres d'une famille : facettes = codes directs des livres
+// (sous-catégories) → on somme la famille + ses enfants.
+function familyBookCount(facets: Record<string, number> | undefined, familyCode: string): number {
+  if (!facets) return 0;
+  const family = CATEGORIES.find((c) => c.code === familyCode);
+  if (!family) return 0;
+  const codes = [family.code, ...(family.children?.map((c) => c.code) || [])];
+  return codes.reduce((sum, code) => sum + (facets[code] || 0), 0);
+}
+
+// Pagination fenêtrée : 1 … autour de la page courante … dernière.
+function getPageWindow(current: number, last: number): (number | "ellipsis")[] {
+  if (last <= 7) {
+    return Array.from({ length: last }, (_, i) => i + 1);
+  }
+  const pages = new Set<number>([1, last, current - 1, current, current + 1]);
+  const sorted = [...pages].filter((p) => p >= 1 && p <= last).sort((a, b) => a - b);
+  const out: (number | "ellipsis")[] = [];
+  let prev = 0;
+  for (const p of sorted) {
+    if (p - prev > 1) out.push("ellipsis");
+    out.push(p);
+    prev = p;
+  }
+  return out;
+}
 
 interface BookSuggestion {
   id?: number;
@@ -42,6 +81,10 @@ interface BooksClientProps {
     languages?: Record<string, number>;
     levels?: Record<string, number>;
   };
+  recentBooks?: BookSearchItem[];
+  topAuthors?: AuthorSummary[];
+  catalogTotal?: number;
+  authorsTotal?: number;
 }
 
 export default function BooksClient({
@@ -54,6 +97,10 @@ export default function BooksClient({
   sections = [],
   isDefaultView = false,
   initialFacets,
+  recentBooks = [],
+  topAuthors = [],
+  catalogTotal = 0,
+  authorsTotal = 0,
 }: BooksClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -132,6 +179,7 @@ export default function BooksClient({
       languages: filters.languages,
       levels: filters.levels,
       search: searchTerm.trim() || undefined,
+      sort: filters.sort === "recent" ? "recent" : undefined,
       page: 1,
     });
     const qs = params.toString();
@@ -145,6 +193,7 @@ export default function BooksClient({
       categories: filters.categories,
       languages: filters.languages,
       levels: filters.levels,
+      sort: filters.sort === "recent" ? "recent" : undefined,
       page: 1,
     });
     const qs = params.toString();
@@ -176,11 +225,25 @@ export default function BooksClient({
       languages: filters.languages,
       levels: filters.levels,
       search: filters.search,
+      sort: filters.sort === "recent" ? "recent" : undefined,
       page: newPage,
     });
     const qs = params.toString();
     router.push(qs ? `/books?${qs}` : "/books");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleSortChange = (sort: string) => {
+    const params = buildFilterQuery({
+      categories: filters.categories,
+      languages: filters.languages,
+      levels: filters.levels,
+      search: filters.search,
+      sort: sort === "recent" ? "recent" : undefined,
+      page: 1,
+    });
+    const qs = params.toString();
+    router.push(qs ? `/books?${qs}` : "/books");
   };
 
   const handleRequestBook = async (book?: BookSearchItem) => {
@@ -224,6 +287,27 @@ export default function BooksClient({
           <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-2.5">
             Catalogue des livres
           </h1>
+
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-bold text-violet-100 backdrop-blur-xs">
+              <BookOpen className="w-3.5 h-3.5 text-violet-300" />
+              {catalogTotal > 0
+                ? `${catalogTotal.toLocaleString("fr-FR")} titre${catalogTotal > 1 ? "s" : ""} référencé${catalogTotal > 1 ? "s" : ""}`
+                : "Catalogue en construction"}
+            </span>
+            {authorsTotal > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-bold text-violet-100 backdrop-blur-xs">
+                <Users className="w-3.5 h-3.5 text-violet-300" />
+                {authorsTotal.toLocaleString("fr-FR")} auteur{authorsTotal > 1 ? "s" : ""}
+              </span>
+            )}
+            {sections.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-bold text-violet-100 backdrop-blur-xs">
+                <LibraryBig className="w-3.5 h-3.5 text-violet-300" />
+                {sections.length} rayons
+              </span>
+            )}
+          </div>
 
           <p className="text-sm sm:text-base text-violet-100/90 leading-relaxed mb-6 font-normal">
             Explorez le catalogue par titre ou par auteur et déposez une demande pour les livres que vous cherchez. 
@@ -319,11 +403,7 @@ export default function BooksClient({
                   >
                     <div className="w-10 h-13 bg-gray-100 rounded-md shrink-0 overflow-hidden relative border border-gray-200/80 flex items-center justify-center">
                       {cover ? (
-                        <img
-                          src={cover}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
+                        <SmartCoverImage src={cover} alt="" className="object-cover" sizes="40px" />
                       ) : (
                         <BookOpen className="w-4 h-4 text-gray-400" />
                       )}
@@ -365,8 +445,58 @@ export default function BooksClient({
         <main className="flex-1 min-w-0 w-full">
           
           {isDefaultView ? (
-            /* VUE PAR DÉFAUT : GRILLES HORIZONTALES PAR CATÉGORIE */
-            <div className="space-y-10">
+            /* VUE PAR DÉFAUT : VITRINE (RAYONS + NOUVEAUTÉS + SECTIONS + AUTEURS) */
+            <div className="space-y-12">
+              {/* Tuiles « rayons » : navigation par thème */}
+              <section>
+                <h2 className="text-lg font-black text-[#1a0a40] flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
+                  <div className="w-1.5 h-5 bg-[#F97316] rounded-full"></div>
+                  Explorer par rayon
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {CATEGORY_TILES.map(({ code, icon: Icon, gradient }) => {
+                    const family = CATEGORIES.find((c) => c.code === code);
+                    if (!family) return null;
+                    const count = familyBookCount(initialFacets?.categories, code);
+                    return (
+                      <Link
+                        key={code}
+                        href={`/books/themes/${code}`}
+                        className="group bg-white rounded-xl border border-gray-200/90 p-4 shadow-xs hover:shadow-md hover:border-[#6D28D9]/40 transition-all"
+                      >
+                        <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${gradient} text-white flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <p className="text-sm font-black text-gray-900 leading-tight mb-0.5">{family.name}</p>
+                        <p className="text-[11px] font-bold text-gray-400">
+                          {count > 0 ? `${count} titre${count > 1 ? "s" : ""}` : "Découvrir"}
+                        </p>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Derniers ajouts au catalogue */}
+              {recentBooks.length > 0 && (
+                <section>
+                  <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
+                    <h2 className="text-lg font-black text-[#1a0a40] flex items-center gap-2">
+                      <div className="w-1.5 h-5 bg-[#6D28D9] rounded-full"></div>
+                      Derniers ajouts au catalogue
+                    </h2>
+                    <Clock className="w-4 h-4 text-gray-300 shrink-0" />
+                  </div>
+                  <div className="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory scroll-smooth hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+                    {recentBooks.map((book) => (
+                      <div key={`recent-${book.id}`} className="w-[230px] shrink-0 snap-start">
+                        <BookCatalogCard book={book} view="grid" onRequestBook={handleRequestBook} />
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {sections.map((section) => (
                 <section key={section.code} className="relative">
                   <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
@@ -375,7 +505,7 @@ export default function BooksClient({
                       {section.name}
                     </h2>
                     <Link
-                      href={`/books?categories=${section.code}`}
+                      href={`/books/themes/${section.code}`}
                       className="text-xs font-bold text-[#6D28D9] hover:text-[#4c1d95] flex items-center gap-1 transition-colors"
                     >
                       Voir plus <ArrowRight className="w-3.5 h-3.5" />
@@ -396,6 +526,46 @@ export default function BooksClient({
                   </div>
                 </section>
               ))}
+
+              {/* Auteurs à la une */}
+              {topAuthors.length > 0 && (
+                <section>
+                  <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
+                    <h2 className="text-lg font-black text-[#1a0a40] flex items-center gap-2">
+                      <div className="w-1.5 h-5 bg-[#F97316] rounded-full"></div>
+                      Auteurs à la une
+                    </h2>
+                    <Link
+                      href="/books/auteurs"
+                      className="text-xs font-bold text-[#6D28D9] hover:text-[#4c1d95] flex items-center gap-1 transition-colors"
+                    >
+                      Tous les auteurs <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {topAuthors.map((author) => (
+                      <Link
+                        key={author.slug}
+                        href={`/books/auteurs/${author.slug}`}
+                        className="group flex items-center gap-3 bg-white rounded-xl border border-gray-200/90 p-3 shadow-xs hover:border-[#6D28D9]/40 hover:shadow-md transition-all"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-700 text-white flex items-center justify-center text-sm font-black shrink-0">
+                          {author.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-gray-900 truncate group-hover:text-[#6D28D9] transition-colors">
+                            {author.name}
+                          </p>
+                          <p className="text-[11px] text-gray-400 font-bold">
+                            {author.books_count} titre{author.books_count > 1 ? "s" : ""}
+                          </p>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#6D28D9] transition-colors shrink-0" />
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           ) : (
             /* VUE RECHERCHE / FILTRES : PAGINATION CLASSIQUE */
@@ -412,8 +582,22 @@ export default function BooksClient({
                   )}
                 </div>
 
-                {/* Boutons Vue Grille / Vue Ligne */}
-                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200">
+                {/* Tri + Bascule Vue Grille / Vue Ligne */}
+                <div className="flex items-center gap-2.5">
+                  <label htmlFor="books-sort" className="text-xs font-bold text-gray-500 hidden sm:inline">
+                    Trier :
+                  </label>
+                  <select
+                    id="books-sort"
+                    value={filters.sort === "recent" ? "recent" : "relevance"}
+                    onChange={(e) => handleSortChange(e.target.value)}
+                    className="h-9 rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-bold text-gray-700 focus:outline-none focus:border-[#6D28D9] cursor-pointer"
+                  >
+                    <option value="relevance">Pertinence</option>
+                    <option value="recent">Plus récents</option>
+                  </select>
+
+                  <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200">
                   <button
                     type="button"
                     onClick={() => setView("list")}
@@ -441,6 +625,7 @@ export default function BooksClient({
                     <LayoutGrid className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Grille</span>
                   </button>
+                  </div>
                 </div>
               </div>
 
@@ -459,7 +644,7 @@ export default function BooksClient({
                       ))}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {books.map((book) => (
                         <BookCatalogCard
                           key={book.id}
@@ -471,28 +656,50 @@ export default function BooksClient({
                     </div>
                   )}
 
-                  {/* Pagination */}
+                  {/* Pagination fenêtrée */}
                   {lastPage > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-12">
+                    <div className="flex items-center justify-center gap-1.5 mt-12 flex-wrap">
                       <button
                         onClick={() => handlePageChange(page - 1)}
                         disabled={page <= 1}
                         className="p-2.5 border border-gray-250 bg-white rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        title="Page précédente"
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </button>
 
-                      <span className="px-4 py-2.5 bg-[#1a0a40] text-white text-xs font-bold rounded-xl shadow-xs">
-                        Page {page} sur {lastPage}
-                      </span>
+                      {getPageWindow(page, lastPage).map((item, idx) =>
+                        item === "ellipsis" ? (
+                          <span key={`ellipsis-${idx}`} className="px-1.5 text-gray-400 text-xs font-bold select-none">
+                            …
+                          </span>
+                        ) : (
+                          <button
+                            key={`page-${item}`}
+                            onClick={() => handlePageChange(item)}
+                            className={`min-w-[38px] h-[38px] px-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                              item === page
+                                ? "bg-[#1a0a40] text-white shadow-xs"
+                                : "border border-gray-250 bg-white text-gray-600 hover:bg-gray-50 hover:text-[#6D28D9]"
+                            }`}
+                          >
+                            {item}
+                          </button>
+                        )
+                      )}
 
                       <button
                         onClick={() => handlePageChange(page + 1)}
                         disabled={page >= lastPage}
                         className="p-2.5 border border-gray-250 bg-white rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        title="Page suivante"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </button>
+
+                      <span className="w-full text-center text-[11px] text-gray-400 font-bold mt-1">
+                        Page {page} sur {lastPage}
+                      </span>
                     </div>
                   )}
                 </>

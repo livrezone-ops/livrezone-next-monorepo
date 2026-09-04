@@ -41,7 +41,6 @@ export default function SaveCartModal() {
                   fill
                   sizes="64px"
                   className="object-contain"
-                  unoptimized
                 />
               </div>
             ) : (

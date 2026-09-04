@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Book;
+use App\Services\AuthorCatalogueService;
 use App\Services\BookAutocompleteService;
 use App\Services\BookCatalogueService;
 use App\Services\BookDetailService;
@@ -43,6 +44,31 @@ class BookController extends Controller
         return response()->json(
             app(BookCatalogueService::class)->search($request)
         );
+    }
+
+    /**
+     * Index des auteurs du catalogue (agrégat du champ JSON authors).
+     * Paramètres : ?letter=A..Z|all, ?sort=top|alpha, ?page, ?limit (max 48).
+     */
+    public function authors(Request $request)
+    {
+        return response()->json(
+            app(AuthorCatalogueService::class)->index($request)
+        );
+    }
+
+    /**
+     * Fiche auteur par slug + ses titres du catalogue.
+     */
+    public function authorShow(string $slug, Request $request)
+    {
+        $result = app(AuthorCatalogueService::class)->show($slug, $request);
+
+        if ($result === null) {
+            return response()->json(['message' => 'Auteur introuvable'], 404);
+        }
+
+        return response()->json($result);
     }
 
     /**

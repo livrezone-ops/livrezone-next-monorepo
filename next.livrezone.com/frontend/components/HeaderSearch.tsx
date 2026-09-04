@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
 import { buildListingPath, type ListingSummary } from "@/lib/listings-api";
+import SmartCoverImage from "@/components/SmartCoverImage";
 
 interface HeaderSearchProps {
   onCloseMobile?: () => void;
@@ -121,6 +122,7 @@ export default function HeaderSearch({ onCloseMobile, isMobile = false }: Header
                   listing.cover_thumbnail_url ||
                   listing.book?.cover_thumbnail_url ||
                   listing.book?.cover_url ||
+                  listing.cover_url ||
                   listing.cover_source_url ||
                   null;
                 const author = listing.book?.authors
@@ -141,11 +143,7 @@ export default function HeaderSearch({ onCloseMobile, isMobile = false }: Header
                   >
                     <div className="w-10 h-14 bg-slate-100 rounded flex items-center justify-center shrink-0 overflow-hidden relative shadow-sm border border-slate-200/60">
                       {cover ? (
-                        <img
-                          src={cover}
-                          alt=""
-                          className="absolute inset-0 w-full h-full object-cover"
-                        />
+                        <SmartCoverImage src={cover} alt="" className="object-cover" sizes="40px" />
                       ) : (
                         <span className="text-[8px] text-slate-400 text-center leading-tight">
                           Sans couv.

@@ -1,33 +1,17 @@
 import type { MetadataRoute } from "next";
-import api from "@/lib/axios";
+import { CATEGORIES } from "@/lib/reference-data";
 
 const SITE_URL = "https://next.livrezone.com";
 
-const slugify = (text: string) => {
-  if (!text) return "";
-  return text
-    .toString()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/[^\w\-]+/g, "")
-    .replace(/\-\-+/g, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "");
-};
+// Sitemap volontairement allégé (décision propriétaire 03/09) : aucun appel
+// API. L'ancienne version embarquait toutes les annonces publiées (~700k
+// URLs) — trop lourd à générer (page lente/timeout) et au-delà de la limite
+// Google de 50 000 URLs par fichier. Les fiches annonces sont découvertes par
+// exploration des liens depuis /annonces, /books et les pages rayons.
+// Si besoin plus tard : sitemap index + chunks paginés (session dédiée).
+export const dynamic = "force-dynamic";
 
-interface SitemapListing {
-  id: number;
-  title: string;
-  updated_at: string;
-  nickname: string;
-  isbn: string;
-}
-
-export const revalidate = 3600;
-
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export default function sitemap(): MetadataRoute.Sitemap {
   const routes: MetadataRoute.Sitemap = [
     {
       url: SITE_URL,
@@ -47,22 +31,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.6,
     },
+    {
+      url: `${SITE_URL}/books/auteurs`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.5,
+    },
   ];
 
-  try {
-    const { data } = await api.get("/sitemap/listings");
-    const listings: SitemapListing[] = data.data || [];
+  // Pages rayons (familles + sous-catégories) du catalogue livres.
+  const themeRoutes: MetadataRoute.Sitemap = CATEGORIES.flatMap((family) => [
+    { code: family.code },
+    ...(family.children || []).map((child) => ({ code: child.code })),
+  ]).map(({ code }) => ({
+    url: `${SITE_URL}/books/themes/${code}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly",
+    priority: 0.5,
+  }));
 
-    const dynamicRoutes: MetadataRoute.Sitemap = listings.map((listing) => ({
-      url: `${SITE_URL}/${listing.nickname}/${listing.id}-${listing.isbn}-${slugify(listing.title)}`,
-      lastModified: new Date(listing.updated_at),
-      changeFrequency: "daily",
-      priority: 0.7,
-    }));
-
-    return [...routes, ...dynamicRoutes];
-  } catch (error) {
-    console.error("Failed to fetch dynamic sitemap listings:", error);
-    return routes;
-  }
+  return [...routes, ...themeRoutes];
 }

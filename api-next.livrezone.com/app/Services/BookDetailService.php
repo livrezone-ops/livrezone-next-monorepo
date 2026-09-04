@@ -28,9 +28,12 @@ class BookDetailService
             $leading = (int) explode('-', $identifier)[0];
             $book = $leading > 0 ? Book::find($leading) : null;
 
-            if (! $book) {
-                $book = Book::where('isbn_13', $identifier)->first()
-                    ?? Book::where('title', $identifier)->first();
+            // Pas de fallback par titre : `where('title', …)` n'est pas indexé
+            // → scan complet des ~700k livres (règle architecture 03/09).
+            // Les URLs front sont toujours "id-isbn-titre" (id en tête) ou un
+            // ISBN ; un slug sans id résolvable est un 404.
+            if (! $book && strlen($identifier) >= 10 && is_numeric(str_replace('-', '', $identifier))) {
+                $book = Book::where('isbn_13', str_replace('-', '', $identifier))->first();
             }
         }
 

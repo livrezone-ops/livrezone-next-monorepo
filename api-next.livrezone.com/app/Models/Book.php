@@ -93,4 +93,16 @@ class Book extends Model
     {
         return $this->hasMany(Listing::class);
     }
+
+    /**
+     * Modération des couvertures : masque les ISBN de la liste
+     * config('livrezone.blocked_cover_isbns') (cf. HasCoverUrls).
+     */
+    protected function coverModerationBlocked(): bool
+    {
+        $isbn = (string) $this->isbn_13;
+
+        return $isbn !== ''
+            && in_array($isbn, (array) config('livrezone.blocked_cover_isbns', []), true);
+    }
 }

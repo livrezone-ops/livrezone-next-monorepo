@@ -26,6 +26,7 @@ interface Listing {
   price: number;
   discount_price?: number | null;
   cover_path?: string | null;
+  cover_url?: string | null;
   cover_source_url?: string | null;
   isbn_13?: string | null;
   user: {
@@ -57,7 +58,14 @@ interface Listing {
 }
 
 function resolveCoverUrl(listing: Listing): string | null {
-  return listing.book?.cover_url || listing.cover_source_url || null;
+  // Même chaîne que ListingDetailsCard : catalogue > upload user (URL ou
+  // cover_path → /storage) > source externe. Utilisée pour l'image OpenGraph.
+  if (listing.book?.cover_url) return listing.book.cover_url;
+  if (listing.cover_url) return listing.cover_url;
+  if (listing.cover_path) {
+    return `https://api-next.livrezone.com/storage/${listing.cover_path}`;
+  }
+  return listing.cover_source_url || null;
 }
 
 function buildTitle(listing: Listing): string {

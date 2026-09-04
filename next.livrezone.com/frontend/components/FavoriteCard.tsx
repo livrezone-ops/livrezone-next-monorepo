@@ -32,7 +32,6 @@ export default function FavoriteCard({ listing }: { listing: StoreListing }) {
             fill
             sizes="56px"
             className="object-contain p-1"
-            unoptimized
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-gray-300">

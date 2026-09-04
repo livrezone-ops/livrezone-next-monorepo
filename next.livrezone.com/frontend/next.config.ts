@@ -62,7 +62,17 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
-    unoptimized: true,
+    // 03/09/2026 : optimiseur Next réactivé (décision propriétaire) — le WAF
+    // Caddy/Coraza autorise désormais /_next/image (règle id 100900 dans
+    // next.livrezone.com.conf). minimumCacheTTL 30 j pour éviter que
+    // l'optimiseur ne re-traite les mêmes couvertures.
+    unoptimized: false,
+    formats: ["image/webp"],
+    minimumCacheTTL: 2592000,
+    // api-next.livrezone.com résout vers 192.168.1.202 (LAN) : la protection
+    // anti-SSRF de Next 16 refuse ce fetch sans ce flag. C'est notre propre
+    // API → autorisé explicitement (fetch direct LAN, sans passer par Cloudflare).
+    dangerouslyAllowLocalIP: true,
     remotePatterns: [
       {
         protocol: "https",

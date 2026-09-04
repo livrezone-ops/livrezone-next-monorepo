@@ -6,6 +6,7 @@ import {
   BookOpen, MapPin, Clock, MessageSquare, 
   Phone, MessageCircle, X, Tag 
 } from "lucide-react";
+import SmartCoverImage from "@/components/SmartCoverImage";
 
 export interface DemandItem {
   id: number;
@@ -47,12 +48,10 @@ interface DemandCardProps {
 }
 
 export default function DemandCard({ demand, view = "grid" }: DemandCardProps) {
-  const [imgError, setImgError] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
 
-  const cover = !imgError 
-    ? (demand.cover_thumbnail_url_320 || demand.cover_thumbnail_url || demand.cover_url || null)
-    : (demand.cover_url || null);
+  const cover =
+    demand.cover_thumbnail_url_320 || demand.cover_thumbnail_url || demand.cover_url || null;
 
   const rawPhone = demand.user?.phone || "";
   let cleanPhone = rawPhone.replace(/[^0-9]/g, "");
@@ -72,11 +71,12 @@ export default function DemandCard({ demand, view = "grid" }: DemandCardProps) {
   const bookHref = demand.book_id ? `/books/${demand.book_id}` : null;
 
   const coverContent = cover ? (
-    <img
+    <SmartCoverImage
       src={cover}
       alt={demand.title}
-      onError={() => setImgError(true)}
-      className="w-full h-full object-cover"
+      className="object-cover"
+      sizes="(max-width: 640px) 80px, 96px"
+      fallbackSrc={demand.cover_url}
     />
   ) : (
     <div className="flex flex-col items-center justify-center text-gray-300 gap-1.5 p-3 text-center h-full">
@@ -99,12 +99,7 @@ export default function DemandCard({ demand, view = "grid" }: DemandCardProps) {
                 title="Consulter la fiche livre dans le catalogue"
               >
                 {cover ? (
-                  <img
-                    src={cover}
-                    alt={demand.title}
-                    onError={() => setImgError(true)}
-                    className="w-full h-full object-cover"
-                  />
+                  <SmartCoverImage src={cover} alt={demand.title} className="object-cover" sizes="64px" />
                 ) : (
                   <div className="flex flex-col items-center justify-center text-gray-300 text-[9px] font-bold">
                     <BookOpen className="w-5 h-5 stroke-1 mb-0.5" />
@@ -115,12 +110,7 @@ export default function DemandCard({ demand, view = "grid" }: DemandCardProps) {
             ) : (
               <div className="w-16 h-20 bg-gray-50 rounded-lg shrink-0 border border-gray-150 overflow-hidden relative flex items-center justify-center">
                 {cover ? (
-                  <img
-                    src={cover}
-                    alt={demand.title}
-                    onError={() => setImgError(true)}
-                    className="w-full h-full object-cover"
-                  />
+                  <SmartCoverImage src={cover} alt={demand.title} className="object-cover" sizes="64px" />
                 ) : (
                   <div className="flex flex-col items-center justify-center text-gray-300 text-[9px] font-bold">
                     <BookOpen className="w-5 h-5 stroke-1 mb-0.5" />

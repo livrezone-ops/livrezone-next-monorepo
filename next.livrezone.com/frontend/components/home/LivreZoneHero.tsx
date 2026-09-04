@@ -222,7 +222,6 @@ export default function LivreZoneHero({
                               height={450}
                               sizes="(max-width: 640px) 140px, (max-width: 1024px) 200px, 300px"
                               priority={isActive && slideIndex === 0 && bookIndex < 2}
-                              unoptimized
                             />
                           ) : (
                             <span

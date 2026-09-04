@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, X, CheckCircle2, Search, BookOpen, Library } from "lucide-react";
 import api from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/api-error";
+import SmartCoverImage from "@/components/SmartCoverImage";
 import { useToast } from "@/components/Toast";
 import { useQuery } from "@tanstack/react-query";
 
@@ -386,11 +387,15 @@ export default function OrderForm({ initialData, isEditing = false }: OrderFormP
                         className="w-full text-left px-4 py-2.5 hover:bg-violet-50 transition-colors flex items-center gap-3 cursor-pointer"
                       >
                         {b.cover_thumbnail_url || b.cover_url ? (
-                          <img
-                            src={b.cover_thumbnail_url || b.cover_url || ""}
-                            alt=""
-                            className="w-8 h-11 object-cover rounded-md border border-gray-100 shrink-0"
-                          />
+                          <span className="relative w-8 h-11 rounded-md border border-gray-100 shrink-0 overflow-hidden">
+                            <SmartCoverImage
+                              src={b.cover_thumbnail_url || b.cover_url}
+                              alt=""
+                              className="object-cover"
+                              sizes="32px"
+                              fallbackSrc={b.cover_url}
+                            />
+                          </span>
                         ) : (
                           <span className="w-8 h-11 rounded-md bg-gray-100 flex items-center justify-center shrink-0">
                             <BookOpen className="w-4 h-4 text-gray-400" />
@@ -469,10 +474,11 @@ export default function OrderForm({ initialData, isEditing = false }: OrderFormP
               {/* Aperçu : photo importée > couverture du catalogue > placeholder */}
               <div className="relative w-28 h-36 sm:w-36 sm:h-48 lg:w-full lg:h-auto lg:pb-[135%] rounded-lg overflow-hidden bg-gray-50 border border-gray-200 shrink-0">
                 {coverShown ? (
-                  <img
+                  <SmartCoverImage
                     src={coverShown}
                     alt="Aperçu de la couverture"
-                    className="absolute inset-0 h-full w-full object-contain p-2 lg:p-4"
+                    className="object-contain p-2 lg:p-4"
+                    sizes="(max-width: 640px) 112px, 144px"
                   />
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 p-2 text-center">

@@ -5,6 +5,13 @@ import { notFound } from "next/navigation";
 import { BookOpen, ArrowLeft, Layers } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import OrderBookButton from "./OrderBookButton";
+import { slugifyAuthor } from "@/lib/author-slug";
+
+function normalizeAuthors(authors: string[] | string | null | undefined): string[] {
+  if (!authors) return [];
+  const list = Array.isArray(authors) ? authors : String(authors).split(",");
+  return list.map((a) => a.trim()).filter(Boolean);
+}
 
 export const revalidate = 60;
 
@@ -85,7 +92,6 @@ export default async function BookDetailsPage({ params }: PageProps) {
                 alt={book.title || ""}
                 fill
                 className="object-contain p-4"
-                unoptimized
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-gray-300">
@@ -114,9 +120,21 @@ export default async function BookDetailsPage({ params }: PageProps) {
             {book.title}
           </h1>
 
-          {book.authors && (
+          {book.authors && normalizeAuthors(book.authors).length > 0 && (
             <p className="text-sm sm:text-base text-gray-600 mb-6">
-              De <span className="font-bold text-gray-800">{Array.isArray(book.authors) ? book.authors.join(", ") : book.authors}</span>
+              De{" "}
+              {normalizeAuthors(book.authors).map((name, i) => (
+                <span key={name}>
+                  {i > 0 && ", "}
+                  <Link
+                    href={`/books/auteurs/${slugifyAuthor(name)}`}
+                    className="font-bold text-gray-800 hover:text-[#6D28D9] transition-colors"
+                    title={`Voir les livres de ${name}`}
+                  >
+                    {name}
+                  </Link>
+                </span>
+              ))}
             </p>
           )}
 

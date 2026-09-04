@@ -12,6 +12,7 @@ import api from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/api-error";
 import ToastContainer, { ToastData, ToastType } from "@/components/Toast";
 import DashboardListingCard from "@/components/DashboardListingCard";
+import SmartCoverImage from "@/components/SmartCoverImage";
 
 const PAGE_SIZE = 12;
 
@@ -48,8 +49,8 @@ interface DashboardClientProps {
 export default function DashboardClient({ initialListings }: DashboardClientProps) {
   const { user, logout } = useAuth();
 
-  // Miniature en priorité (chargement léger, comme l'ancien projet), avec fallback
-  // sur la couverture originale via onError si la miniature n'existe pas.
+  // Miniature en priorité (chargement léger, comme l'ancien projet) ; le retry
+  // sur la couverture originale est géré nativement par SmartCoverImage.
   const primaryCoverUrl = (l: Listing): string | null =>
     l.cover_thumbnail_url
     || l.cover_url
@@ -62,15 +63,6 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
     || l.book?.cover_url
     || l.cover_source_url
     || null;
-
-  const handleCoverError = (e: React.SyntheticEvent<HTMLImageElement>, l: Listing) => {
-    const fallback = fallbackCoverUrl(l);
-    if (fallback && e.currentTarget.src !== fallback) {
-      e.currentTarget.src = fallback;
-    } else {
-      e.currentTarget.style.display = "none";
-    }
-  };
 
   const statusBadge = (l: Listing): { label: string; className: string } => {
     switch (l.status) {
@@ -708,12 +700,13 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                             <div className="flex items-start gap-3">
                               <div className="w-10 flex-shrink-0 flex flex-col items-center gap-1">
                                 {coverUrl ? (
-                                  <Link href={buildListingUrl(l)}>
-                                    <img 
-                                      src={coverUrl} 
-                                      alt={l.title} 
-                                      onError={(e) => handleCoverError(e, l)}
-                                      className="w-10 h-14 object-contain rounded border border-gray-150 cursor-pointer"
+                                  <Link href={buildListingUrl(l)} className="relative w-10 h-14 flex-shrink-0 flex flex-col items-center gap-1">
+                                    <SmartCoverImage
+                                      src={coverUrl}
+                                      alt={l.title}
+                                      className="object-contain rounded border border-gray-150 cursor-pointer"
+                                      sizes="40px"
+                                      fallbackSrc={fallbackCoverUrl(l)}
                                     />
                                   </Link>
                                 ) : (
@@ -831,7 +824,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                   statusBadge={statusBadge}
                   buildListingUrl={buildListingUrl}
                   primaryCoverUrl={primaryCoverUrl}
-                  onCoverError={handleCoverError}
+                  fallbackCoverUrl={fallbackCoverUrl}
                 />
               ))}
             </div>

@@ -1,9 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import api from "@/lib/axios";
+import { resolveListingCover } from "@/lib/listings-api";
 import ListingDetailsCard from "@/components/ListingDetailsCard";
 import HorizontalGrid from "@/components/HorizontalGrid";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -19,6 +18,7 @@ interface Listing {
   price: number;
   discount_price?: number | null;
   cover_path?: string | null;
+  cover_url?: string | null;
   cover_source_url?: string | null;
   isbn_13?: string | null;
   user: {
@@ -83,13 +83,8 @@ function toSlimListing(listing: Listing): SlimListing {
       : listing.book.authors
     : null;
 
-  let coverUrl =
-    listing.book?.cover_url ||
-    (listing.cover_path
-      ? `https://api-next.livrezone.com/storage/${listing.cover_path}`
-      : null) ||
-    listing.cover_source_url ||
-    null;
+  // Chaîne partagée avec /annonces et la fiche détail (lib/listings-api)
+  let coverUrl = resolveListingCover(listing);
 
   if (
     coverUrl &&
@@ -165,10 +160,6 @@ function ListingDetailContent({ listing }: { listing: Listing }) {
 
   const parentCategory = listing.category?.parent?.name_fr;
   const categoryName = listing.category?.name_fr;
-  const breadcrumbCategory =
-    parentCategory && categoryName
-      ? `${parentCategory} › ${categoryName}`
-      : categoryName || "Livres";
 
   const nickname =
     listing.user.profile?.nickname || `utilisateur-${listing.user.id}`;

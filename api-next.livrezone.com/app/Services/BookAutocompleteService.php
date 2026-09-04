@@ -9,11 +9,16 @@ class BookAutocompleteService
 {
     /**
      * Recherche instantanée (typeahead) de livres via Meilisearch avec vignettes.
+     *
+     * Exclusivement Meilisearch (règle architecture 03/09) : AUCUN fallback SQL
+     * — un `LIKE '%…%'` sur 700k lignes est un scan complet de la table et
+     * peut saturer MariaDB (leçon incident). Si Meilisearch est indisponible,
+     * on renvoie simplement une liste vide.
      */
     public function suggest(Request $request): array
     {
         $query = trim((string) $request->get('q', ''));
-        $limit = $request->integer('limit', 6);
+        $limit = min(max(1, $request->integer('limit', 6)), 8);
 
         if (empty($query)) {
             return [];
@@ -24,21 +29,9 @@ class BookAutocompleteService
             $books->load(['defaultCategory.parent']);
 
             return $books->map(fn (Book $book) => $this->formatBook($book))->all();
-        } catch (\Throwable $e) {
-            // Fallback SQL si Meilisearch est momentanément indisponible
-            $cleanIsbn = str_replace(['-', ' '], '', $query);
-            $books = Book::query()
-                ->where(function ($q) use ($query, $cleanIsbn) {
-                    $q->where('title', 'like', "%{$query}%")
-                        ->orWhere('authors', 'like', "%{$query}%")
-                        ->orWhere('isbn_13', 'like', "%{$cleanIsbn}%");
-                })
-                ->take($limit)
-                ->get();
-
-            $books->load(['defaultCategory.parent']);
-
-            return $books->map(fn (Book $book) => $this->formatBook($book))->all();
+        } catch (\Throwable) {
+            // Meilisearch indisponible → aucune suggestion (pas de fallback SQL).
+            return [];
         }
     }
 

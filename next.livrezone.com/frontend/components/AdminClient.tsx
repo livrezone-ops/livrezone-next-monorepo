@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import SmartCoverImage from "@/components/SmartCoverImage";
 import {
   Users,
   BookOpen,
@@ -840,9 +841,9 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-11 flex-shrink-0 bg-gray-50 rounded border border-gray-150 overflow-hidden flex items-center justify-center">
+                        <div className="w-8 h-11 flex-shrink-0 bg-gray-50 rounded border border-gray-150 overflow-hidden flex items-center justify-center relative">
                           {cover ? (
-                            <img src={cover} alt={l.title} className="w-full h-full object-contain" />
+                            <SmartCoverImage src={cover} alt={l.title} className="object-contain" sizes="32px" />
                           ) : (
                             <BookOpen className="w-4 h-4 text-gray-300" />
                           )}

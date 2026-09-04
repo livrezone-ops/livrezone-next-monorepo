@@ -22,10 +22,11 @@ class BookCatalogueService
      */
     public function search(Request $request)
     {
-        $limit = $request->integer('limit', 12);
-        if ($limit > 48) {
-            $limit = 48;
-        }
+        // Règle architecture 03/09 (post-incident) : les pages du catalogue
+        // chargent AU PLUS 12 livres, exclusivement via Meilisearch (recherche,
+        // filtres, facettes, tri, total). MySQL n'est touché que pour hydrater
+        // les ≤12 livres de la page par leur clé primaire.
+        $limit = min(max(1, $request->integer('limit', 12)), 12);
         $page = max(1, $request->integer('page', 1));
 
         $search = trim($request->get('search', ''));
@@ -60,6 +61,7 @@ class BookCatalogueService
         // --- 2. Requête principale (avec tous les filtres) ---
         $builder = Book::search($search);
         $this->applyCrossFilters($builder, $request);
+        $this->applySort($builder, $request);
 
         // Pagination via Meilisearch (total = estimatedTotalHits, aucun COUNT MySQL).
         $paginated = $builder->paginate($limit, 'page', $page);
@@ -67,37 +69,13 @@ class BookCatalogueService
         // Les ~12 livres sont hydratés par Scout depuis MySQL : on charge les
         // relations et le comptage d'annonces (ordre Meilisearch préservé).
         $paginated->getCollection()
-            ->load(['language', 'defaultCategory', 'defaultLevel']);
+            ->load(['language', 'defaultCategory', 'defaultLevel'])
+            ->loadCount(['listings as active_listings_count' => function ($q) {
+                $q->where('status', 'published');
+            }]);
 
         // Transformation en payload ultra-léger.
-        $paginated->getCollection()->transform(function ($book) {
-            $category = $book->defaultCategory;
-            $language = $book->language;
-            $level = $book->defaultLevel;
-
-            return [
-                'id' => $book->id,
-                'isbn_13' => $book->isbn_13,
-                'title' => $book->title,
-                'authors' => $book->authors,
-                'publisher' => $book->publisher,
-                'cover_url' => $book->cover_url,
-                'cover_thumbnail_url' => $book->getCoverThumbnailUrl(160),
-                'cover_thumbnail_url_320' => $book->getCoverThumbnailUrl(320),
-                'category' => $category ? [
-                    'id' => $category->id,
-                    'name_fr' => $category->name_fr ?? $category->name,
-                ] : null,
-                'language' => $language ? [
-                    'id' => $language->id,
-                    'name_fr' => $language->name_fr ?? $language->name,
-                ] : null,
-                'level' => $level ? [
-                    'id' => $level->id,
-                    'name_fr' => $level->name_fr ?? $level->name,
-                ] : null,
-            ];
-        });
+        $paginated->getCollection()->transform(fn (Book $book) => $this->formatBook($book));
 
         $response = $paginated->toArray();
 
@@ -129,6 +107,57 @@ class BookCatalogueService
         ];
 
         return $response;
+    }
+
+    /**
+     * Applique le tri demandé à un builder Meilisearch.
+     *
+     * `recent` → created_at:desc (attribut sortable, cf. books:configure-search).
+     * Toute autre valeur (ou absence) conserve l'ordre de pertinence Meilisearch.
+     */
+    private function applySort($builder, Request $request): void
+    {
+        if ($request->get('sort') === 'recent') {
+            $builder->orderBy('created_at', 'desc');
+        }
+    }
+
+    /**
+     * Payload public normalisé d'un livre (catalogue, auteur, thème).
+     * Le livre doit être chargé avec language/defaultCategory/defaultLevel
+     * et le loadCount `active_listings_count`.
+     */
+    public function formatBook(Book $book): array
+    {
+        $category = $book->defaultCategory;
+        $language = $book->language;
+        $level = $book->defaultLevel;
+
+        return [
+            'id' => $book->id,
+            'isbn_13' => $book->isbn_13,
+            'title' => $book->title,
+            'authors' => $book->authors,
+            'publisher' => $book->publisher,
+            'cover_url' => $book->cover_url,
+            'cover_thumbnail_url' => $book->getCoverThumbnailUrl(160),
+            'cover_thumbnail_url_320' => $book->getCoverThumbnailUrl(320),
+            'category' => $category ? [
+                'id' => $category->id,
+                'name_fr' => $category->name_fr ?? $category->name,
+            ] : null,
+            'language' => $language ? [
+                'id' => $language->id,
+                'name_fr' => $language->name_fr ?? $language->name,
+            ] : null,
+            'level' => $level ? [
+                'id' => $level->id,
+                'name_fr' => $level->name_fr ?? $level->name,
+            ] : null,
+            'active_listings_count' => (int) ($book->active_listings_count ?? 0),
+            'indicative_price' => $book->indicative_price !== null ? (float) $book->indicative_price : null,
+            'indicative_price_currency' => $book->indicative_price_currency,
+        ];
     }
 
     /**

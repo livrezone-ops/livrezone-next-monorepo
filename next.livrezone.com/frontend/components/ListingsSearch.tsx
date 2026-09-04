@@ -12,7 +12,11 @@ import {
   List as ListIcon,
 } from "lucide-react";
 import BookCard from "./BookCard";
-import { buildListingPath, type ListingSummary } from "@/lib/listings-api";
+import {
+  buildListingPath,
+  resolveListingCover,
+  type ListingSummary,
+} from "@/lib/listings-api";
 
 interface ListingsSearchProps {
   initialListings?: ListingSummary[];
@@ -241,7 +245,7 @@ export default function ListingsSearch({
                   }
                   price={Number(l.price)}
                   discountPrice={l.discount_price != null ? Number(l.discount_price) : null}
-                  cover={l.book?.cover_url || l.cover_source_url || null}
+                  cover={resolveListingCover(l)}
                   condition={l.book_condition}
                   url={buildListingPath(l)}
                   city={l.user?.profile?.city?.name || null}
@@ -292,7 +296,7 @@ export default function ListingsSearch({
 }
 
 function ArticleListRow({ listing }: { listing: ListingSummary }) {
-  const cover = listing.book?.cover_url || listing.cover_source_url || null;
+  const cover = resolveListingCover(listing);
   const author = listing.book?.authors
     ? Array.isArray(listing.book.authors)
       ? listing.book.authors.join(", ")
@@ -317,7 +321,6 @@ function ArticleListRow({ listing }: { listing: ListingSummary }) {
               alt={listing.title}
               fill
               className="object-contain p-1"
-              unoptimized
             />
           </div>
         ) : (

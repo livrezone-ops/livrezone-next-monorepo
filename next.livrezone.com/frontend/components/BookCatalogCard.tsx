@@ -2,8 +2,24 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { BookOpen, Tag, Bell, ArrowRight, ExternalLink } from "lucide-react";
+import Image from "next/image";
+import { BookOpen, Tag, Bell, ArrowRight, Layers } from "lucide-react";
 import type { BookSearchItem } from "@/lib/books-api";
+import { slugifyAuthor } from "@/lib/author-slug";
+
+/** Libellés de référence à ne jamais afficher en tag (ex. niveau id 18). */
+const NOT_APPLICABLE_RE = /^(n\/?a|non applicable)$/i;
+function displayableTag(value?: string | null): string | null {
+  const v = value?.trim();
+  return v && !NOT_APPLICABLE_RE.test(v) ? v : null;
+}
+
+/** L'optimiseur next/image ne sait servir que les hôtes de remotePatterns. */
+function isOptimizableCover(url: string): boolean {
+  return url.startsWith("/")
+    || url.startsWith("https://api-next.livrezone.com")
+    || url.startsWith("http://localhost");
+}
 
 function buildBookHref(book: BookSearchItem): string {
   const slug = (book.title || "")
@@ -40,18 +56,44 @@ export default function BookCatalogCard({
       : book.authors
     : null;
 
-  const categoryName = book.category?.name_fr;
-  const langName = book.language?.name_fr;
-  const levelName = book.level?.name_fr;
+  // Liste d'auteurs normalisée (chaque nom devient un lien vers sa page auteur).
+  const authorsList: string[] = book.authors
+    ? Array.isArray(book.authors)
+      ? book.authors.map((a) => String(a).trim()).filter(Boolean)
+      : String(book.authors)
+          .split(",")
+          .map((a) => a.trim())
+          .filter(Boolean)
+    : [];
+
+  const listingsCount = book.active_listings_count ?? 0;
+
+  const categoryName = displayableTag(book.category?.name_fr);
+  const langName = displayableTag(book.language?.name_fr);
+  const levelName = displayableTag(book.level?.name_fr);
   const bookHref = buildBookHref(book);
 
   const coverContent = cover ? (
-    <img
-      src={cover}
-      alt={book.title || "Livre"}
-      onError={() => setImgError(true)}
-      className="w-full h-full object-cover"
-    />
+    isOptimizableCover(cover) ? (
+      <Image
+        src={cover}
+        alt={book.title || "Livre"}
+        fill
+        sizes="(max-width: 640px) 40vw, (max-width: 1024px) 30vw, 300px"
+        onError={() => setImgError(true)}
+        className="w-full h-full object-cover"
+      />
+    ) : (
+      /* URL externe (hors remotePatterns) : <img> natif, chargement différé. */
+      <img
+        src={cover}
+        alt={book.title || "Livre"}
+        loading="lazy"
+        decoding="async"
+        onError={() => setImgError(true)}
+        className="w-full h-full object-cover"
+      />
+    )
   ) : (
     <div className="flex flex-col items-center justify-center text-gray-300 gap-1 p-2 text-center h-full">
       <BookOpen className="w-6 h-6 stroke-1" />
@@ -155,98 +197,92 @@ export default function BookCatalogCard({
     );
   }
 
-  /* VUE EN GRILLE (3 COLONNES) */
+  /* VUE EN GRILLE (carte verticale type librairie en ligne) */
   return (
-    <article className="group bg-white rounded-xl border border-gray-200/90 hover:border-[#6D28D9]/40 p-3.5 sm:p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between h-full">
-      <div>
-        {/* Top: Couverture + Infos */}
-        <div className="flex gap-3 mb-3">
-          {/* Couverture compacte */}
-          <Link
-            href={bookHref}
-            className="w-20 sm:w-24 h-28 sm:h-34 bg-gray-50 rounded-lg shrink-0 border border-gray-150 overflow-hidden relative flex items-center justify-center group-hover:scale-[1.02] transition-transform cursor-pointer shadow-2xs"
-            title="Consulter la fiche livre"
-          >
-            {coverContent}
-          </Link>
-
-          {/* Détails */}
-          <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-            <div>
-              {/* Titre */}
-              <Link
-                href={bookHref}
-                className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 hover:text-[#6D28D9] transition-colors block cursor-pointer mb-1"
-                title="Consulter la fiche livre"
-              >
-                {book.title || "Titre non renseigné"}
-              </Link>
-
-              {/* Auteur */}
-              {author && (
-                <p className="text-xs text-gray-600 mb-1 line-clamp-1">
-                  De : <span className="font-semibold text-gray-800">{author}</span>
-                </p>
-              )}
-
-              {/* ISBN & Langue */}
-              {(book.isbn_13 || langName) && (
-                <div className="flex flex-wrap items-center gap-1 text-[11px] text-gray-500 mb-1">
-                  {book.isbn_13 && (
-                    <span className="font-mono text-gray-600 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200 text-[10px]">
-                      ISBN: {book.isbn_13}
-                    </span>
-                  )}
-                  {book.isbn_13 && langName && <span className="text-gray-300">·</span>}
-                  {langName && (
-                    <span className="text-gray-600 font-medium">
-                      {langName}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Badges Catégorie & Niveau : Alignés tout en bas au niveau du bas de la photo */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              {categoryName && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#6D28D9] bg-violet-50 border border-violet-200/80 px-2 py-0.5 rounded-md">
-                  <Tag className="w-3 h-3 text-[#6D28D9] shrink-0" />
-                  <span className="truncate max-w-[110px]">{categoryName}</span>
-                </span>
-              )}
-              {levelName && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">
-                  <span>{levelName}</span>
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom: Bouton d'action principal */}
-      <div className="mt-1 pt-2.5 border-t border-gray-100 flex items-center justify-end gap-2">
-        {onRequestBook ? (
-          <button
-            type="button"
-            onClick={() => onRequestBook(book)}
-            className="h-8 px-3 rounded-lg bg-violet-50 text-[#6D28D9] hover:bg-[#6D28D9] hover:text-white transition-all text-xs font-bold flex items-center gap-1.5 border border-violet-200 shadow-2xs cursor-pointer"
-            title="Déposer une demande pour ce livre"
-          >
-            <Bell className="w-3.5 h-3.5" />
-            <span>Demander ce livre</span>
-          </button>
-        ) : (
-          <Link
-            href={`/demandes?search=${encodeURIComponent(book.title || "")}`}
-            className="h-8 px-3 rounded-lg bg-violet-50 text-[#6D28D9] hover:bg-[#6D28D9] hover:text-white transition-all text-xs font-bold flex items-center gap-1.5 border border-violet-200 shadow-2xs cursor-pointer"
-            title="Demander ce livre"
-          >
-            <Bell className="w-3.5 h-3.5" />
-            <span>Demander</span>
-          </Link>
+    <article className="group bg-white rounded-xl border border-gray-200/90 hover:border-[#6D28D9]/40 shadow-xs hover:shadow-md transition-all flex flex-col h-full overflow-hidden">
+      {/* Couverture pleine largeur (ratio 2:3) */}
+      <Link
+        href={bookHref}
+        className="relative block w-full aspect-[2/3] bg-gray-50 overflow-hidden group-hover:opacity-95 transition-opacity"
+        title="Consulter la fiche livre"
+      >
+        {coverContent}
+        {listingsCount > 0 && (
+          <span className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/95 text-white text-[10px] font-bold shadow-sm">
+            <Layers className="w-3 h-3" />
+            {listingsCount} en vente
+          </span>
         )}
+      </Link>
+
+      {/* Infos */}
+      <div className="flex flex-col flex-1 p-3 pt-2.5">
+        {/* Titre */}
+        <Link
+          href={bookHref}
+          className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 hover:text-[#6D28D9] transition-colors mb-1"
+          title="Consulter la fiche livre"
+        >
+          {book.title || "Titre non renseigné"}
+        </Link>
+
+        {/* Auteurs (liens vers les pages auteurs) */}
+        {authorsList.length > 0 && (
+          <p className="text-xs text-gray-500 line-clamp-1 mb-2">
+            <span className="text-gray-400">De : </span>
+            {authorsList.slice(0, 2).map((name, i) => (
+              <React.Fragment key={`${name}-${i}`}>
+                {i > 0 && ", "}
+                <Link
+                  href={`/books/auteurs/${slugifyAuthor(name)}`}
+                  className="font-semibold text-gray-700 hover:text-[#6D28D9] transition-colors"
+                >
+                  {name}
+                </Link>
+              </React.Fragment>
+            ))}
+            {authorsList.length > 2 && ` +${authorsList.length - 2}`}
+          </p>
+        )}
+
+        {/* Badges Catégorie & Niveau */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+          {categoryName && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#6D28D9] bg-violet-50 border border-violet-200/80 px-2 py-0.5 rounded-md">
+              <Tag className="w-3 h-3 text-[#6D28D9] shrink-0" />
+              <span className="truncate max-w-[110px]">{categoryName}</span>
+            </span>
+          )}
+          {levelName && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">
+              <span>{levelName}</span>
+            </span>
+          )}
+        </div>
+
+        {/* Bottom: Bouton d'action principal */}
+        <div className="mt-auto pt-2.5 border-t border-gray-100">
+          {onRequestBook ? (
+            <button
+              type="button"
+              onClick={() => onRequestBook(book)}
+              className="w-full h-8 px-3 rounded-lg bg-violet-50 text-[#6D28D9] hover:bg-[#6D28D9] hover:text-white transition-all text-xs font-bold flex items-center justify-center gap-1.5 border border-violet-200 shadow-2xs cursor-pointer"
+              title="Déposer une demande pour ce livre"
+            >
+              <Bell className="w-3.5 h-3.5" />
+              <span>Demander ce livre</span>
+            </button>
+          ) : (
+            <Link
+              href={`/demandes?search=${encodeURIComponent(book.title || "")}`}
+              className="w-full h-8 px-3 rounded-lg bg-violet-50 text-[#6D28D9] hover:bg-[#6D28D9] hover:text-white transition-all text-xs font-bold flex items-center justify-center gap-1.5 border border-violet-200 shadow-2xs cursor-pointer"
+              title="Demander ce livre"
+            >
+              <Bell className="w-3.5 h-3.5" />
+              <span>Demander</span>
+            </Link>
+          )}
+        </div>
       </div>
     </article>
   );
