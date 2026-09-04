@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { BookOpen, ArrowLeft, Layers, ChevronRight, Tag } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import OrderBookButton from "./OrderBookButton";
-import { slugifyAuthor } from "@/lib/author-slug";
 
 function normalizeAuthors(authors: string[] | string | null | undefined): string[] {
   if (!authors) return [];
@@ -114,9 +113,9 @@ export default async function BookDetailsPage({ params }: PageProps) {
                 <span key={name}>
                   {i > 0 && ", "}
                   <Link
-                    href={`/books/auteurs/${slugifyAuthor(name)}`}
+                    href={`/books?author=${encodeURIComponent(name)}`}
                     className="font-bold text-gray-800 hover:text-[#6D28D9] transition-colors"
-                    title={`Voir les livres de ${name}`}
+                    title={`Rechercher les livres de ${name}`}
                   >
                     {name}
                   </Link>

@@ -119,8 +119,7 @@ Route::get('/reference-data', [ReferenceDataController::class, 'index']);
 Route::middleware('throttle:catalogue')->group(function () {
     Route::get('/books', [BookController::class, 'publicSearch']);
     Route::get('/books/autocomplete', [BookController::class, 'autocomplete']);
-    Route::get('/books/authors', [BookController::class, 'authors']);
-    Route::get('/books/authors/{slug}', [BookController::class, 'authorShow']);
+    Route::get('/books/{idOrIsbn}', [BookController::class, 'show']);
     Route::get('/books/search', [BookController::class, 'searchByIsbn']);
     Route::get('/books/{identifier}', [BookController::class, 'show']);
 });

@@ -59,6 +59,22 @@ const nextConfig: NextConfig = {
         destination: "/dashboard/demandes/create",
         permanent: false,
       },
+      // 04/09/2026 : pages auteurs supprimées (index auteurs jamais reconstruit
+      // depuis l'incident MariaDB du 03/09, décision propriétaire = se contenter
+      // de la recherche auteur via Meilisearch — le champ `authors` est searchable).
+      // Redirections permanentes : les fiches étaient indexées/crawlées par Google
+      // (404 en boucle pendant l'incident). Le slug sert de requête de recherche
+      // (Meilisearch tokenise le tiret, "marie-reppelin" matche "Marie Reppelin").
+      {
+        source: "/books/auteurs",
+        destination: "/books",
+        permanent: true,
+      },
+      {
+        source: "/books/auteurs/:slug",
+        destination: "/books?author=:slug",
+        permanent: true,
+      },
     ];
   },
   images: {

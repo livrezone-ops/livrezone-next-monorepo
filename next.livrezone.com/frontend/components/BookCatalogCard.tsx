@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { BookOpen, Tag, Bell, ArrowRight, Layers } from "lucide-react";
 import type { BookSearchItem } from "@/lib/books-api";
-import { slugifyAuthor } from "@/lib/author-slug";
 
 /** Libellés de référence à ne jamais afficher en tag (ex. niveau id 18). */
 const NOT_APPLICABLE_RE = /^(n\/?a|non applicable)$/i;
@@ -56,7 +55,8 @@ export default function BookCatalogCard({
       : book.authors
     : null;
 
-  // Liste d'auteurs normalisée (chaque nom devient un lien vers sa page auteur).
+  // Liste d'auteurs normalisée (chaque nom devient un lien vers une recherche
+// filtrée /books?search={nom} — pas de page auteur : Meilisearch matche `authors`).
   const authorsList: string[] = book.authors
     ? Array.isArray(book.authors)
       ? book.authors.map((a) => String(a).trim()).filter(Boolean)
@@ -226,7 +226,9 @@ export default function BookCatalogCard({
           {book.title || "Titre non renseigné"}
         </Link>
 
-        {/* Auteurs (liens vers les pages auteurs) */}
+        {/* Auteurs (liens vers une recherche filtrée par auteur — pas de page
+            auteur : /books?search={nom} passe par Meilisearch, champ `authors`
+            searchable). Anciennes /books/auteurs/{slug} → 301 vers /books. */}
         {authorsList.length > 0 && (
           <p className="text-xs text-gray-500 line-clamp-1 mb-2">
             <span className="text-gray-400">De : </span>
@@ -234,8 +236,9 @@ export default function BookCatalogCard({
               <React.Fragment key={`${name}-${i}`}>
                 {i > 0 && ", "}
                 <Link
-                  href={`/books/auteurs/${slugifyAuthor(name)}`}
+                  href={`/books?author=${encodeURIComponent(name)}`}
                   className="font-semibold text-gray-700 hover:text-[#6D28D9] transition-colors"
+                  title={`Rechercher les livres de ${name}`}
                 >
                   {name}
                 </Link>

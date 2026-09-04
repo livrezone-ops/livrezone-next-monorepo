@@ -28,9 +28,10 @@ function firstParam(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] || "" : value || "";
 }
 
-function canonicalHref(search: string, page: number, categories: string[] = []): string {
+function canonicalHref(search: string, page: number, categories: string[] = [], author = ""): string {
   const pairs: string[] = [];
   if (search) pairs.push(`search=${encodeURIComponent(search)}`);
+  if (author) pairs.push(`author=${encodeURIComponent(author)}`);
   if (categories.length > 0) pairs.push(`categories=${encodeURIComponent(categories.join(","))}`);
   if (page > 1) pairs.push(`page=${page}`);
   return pairs.length > 0 ? `${SITE_URL}${PATH}?${pairs.join("&")}` : `${SITE_URL}${PATH}`;
@@ -49,6 +50,9 @@ function resolveCategoryLabel(code: string): string | null {
 export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
   const sp = await searchParams;
   const search = firstParam(sp.search);
+  // Filtre auteur (04/09/2026) : /books?author={nom} — chip côté front, box
+  // de recherche vide. noindex : vue filtre non canonique (pas de page auteur).
+  const author = firstParam(sp.author);
   const page = parseInt(firstParam(sp.page) || "1", 10) || 1;
   const categoryFilter = firstParam(sp.categories);
   const categoryCodes = categoryFilter ? categoryFilter.split(",").filter(Boolean) : [];
@@ -57,7 +61,10 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   let title: string;
   let description: string;
 
-  if (search) {
+  if (author) {
+    title = `Livres de ${author} — Catalogue LivreZone`;
+    description = `Livres écrits par ${author} dans le catalogue LivreZone : titres, ISBN et annonces disponibles à la vente.`;
+  } else if (search) {
     title = `Livres « ${search} » au Maroc`;
     description = `Recherchez « ${search} » dans le catalogue de livres de LivreZone : ISBN, titre, auteur.`;
   } else if (categoryLabel) {
@@ -71,10 +78,12 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   return {
     title,
     description,
-    alternates: { canonical: canonicalHref(search, page, categoryCodes) },
+    alternates: { canonical: canonicalHref(search, page, categoryCodes, author) },
     openGraph: { title, description, type: "website", locale: "fr_MA", siteName: "LivreZone" },
     robots:
-      page > 1 ? { index: false, follow: true } : { index: true, follow: true },
+      author || page > 1
+        ? { index: false, follow: true }
+        : { index: true, follow: true },
   };
 }
 
@@ -87,6 +96,7 @@ export default async function LivresPage({ searchParams }: PageProps) {
 
   const isDefaultView =
     !f.search &&
+    !(f.author || "") &&
     f.categories.length === 0 &&
     f.languages.length === 0 &&
     f.levels.length === 0 &&
@@ -106,6 +116,7 @@ export default async function LivresPage({ searchParams }: PageProps) {
 
   const result = await getBooks({
     search: f.search || undefined,
+    author: f.author || undefined,
     categories: f.categories.length ? f.categories : undefined,
     languages: f.languages.length ? f.languages : undefined,
     levels: f.levels.length ? f.levels : undefined,
@@ -140,9 +151,7 @@ export default async function LivresPage({ searchParams }: PageProps) {
         isDefaultView={false}
         initialFacets={facets}
         recentBooks={[]}
-        topAuthors={[]}
         catalogTotal={result.total}
-        authorsTotal={0}
       />
 
       {jsonLdItemList && (

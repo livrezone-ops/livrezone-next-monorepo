@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Search, BookOpen, ChevronLeft, ChevronRight, 
   Sparkles, X, LayoutGrid, List as ListIcon, 
-  Loader2, Plus, ArrowRight, Clock, Users, GraduationCap, Baby, LibraryBig, MoonStar, Home
+  Loader2, Plus, ArrowRight, Clock, GraduationCap, Baby, LibraryBig, MoonStar, Home
 } from "lucide-react";
 import api from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/api-error";
@@ -14,7 +14,7 @@ import SmartCoverImage from "@/components/SmartCoverImage";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import FilterSidebar from "@/components/FilterSidebar";
 import BookCatalogCard from "@/components/BookCatalogCard";
-import type { BookSearchItem, AuthorSummary } from "@/lib/books-api";
+import type { BookSearchItem } from "@/lib/books-api";
 import type { CityRef } from "@/lib/listings-api";
 import { parseFilters, buildFilterQuery } from "@/lib/listings-filters";
 import { useToast } from "@/components/Toast";
@@ -82,9 +82,7 @@ interface BooksClientProps {
     levels?: Record<string, number>;
   };
   recentBooks?: BookSearchItem[];
-  topAuthors?: AuthorSummary[];
   catalogTotal?: number;
-  authorsTotal?: number;
 }
 
 export default function BooksClient({
@@ -98,9 +96,7 @@ export default function BooksClient({
   isDefaultView = false,
   initialFacets,
   recentBooks = [],
-  topAuthors = [],
   catalogTotal = 0,
-  authorsTotal = 0,
 }: BooksClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -193,6 +189,7 @@ export default function BooksClient({
       categories: filters.categories,
       languages: filters.languages,
       levels: filters.levels,
+      author: filters.author || undefined,
       sort: filters.sort === "recent" ? "recent" : undefined,
       page: 1,
     });
@@ -225,6 +222,7 @@ export default function BooksClient({
       languages: filters.languages,
       levels: filters.levels,
       search: filters.search,
+      author: filters.author || undefined,
       sort: filters.sort === "recent" ? "recent" : undefined,
       page: newPage,
     });
@@ -239,6 +237,7 @@ export default function BooksClient({
       languages: filters.languages,
       levels: filters.levels,
       search: filters.search,
+      author: filters.author || undefined,
       sort: sort === "recent" ? "recent" : undefined,
       page: 1,
     });
@@ -262,6 +261,7 @@ export default function BooksClient({
 
   const hasActiveFilters = Boolean(
     filters.search ||
+    filters.author ||
     filters.categories.length > 0 ||
     filters.languages.length > 0 ||
     filters.levels.length > 0
@@ -295,12 +295,6 @@ export default function BooksClient({
                 ? `${catalogTotal.toLocaleString("fr-FR")} titre${catalogTotal > 1 ? "s" : ""} référencé${catalogTotal > 1 ? "s" : ""}`
                 : "Catalogue en construction"}
             </span>
-            {authorsTotal > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-bold text-violet-100 backdrop-blur-xs">
-                <Users className="w-3.5 h-3.5 text-violet-300" />
-                {authorsTotal.toLocaleString("fr-FR")} auteur{authorsTotal > 1 ? "s" : ""}
-              </span>
-            )}
             {sections.length > 0 && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-xs font-bold text-violet-100 backdrop-blur-xs">
                 <LibraryBig className="w-3.5 h-3.5 text-violet-300" />
@@ -445,7 +439,7 @@ export default function BooksClient({
         <main className="flex-1 min-w-0 w-full">
           
           {isDefaultView ? (
-            /* VUE PAR DÉFAUT : VITRINE (RAYONS + NOUVEAUTÉS + SECTIONS + AUTEURS) */
+            /* VUE PAR DÉFAUT : VITRINE (RAYONS + NOUVEAUTÉS + SECTIONS) */
             <div className="space-y-12">
               {/* Tuiles « rayons » : navigation par thème */}
               <section>
@@ -527,58 +521,41 @@ export default function BooksClient({
                 </section>
               ))}
 
-              {/* Auteurs à la une */}
-              {topAuthors.length > 0 && (
-                <section>
-                  <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
-                    <h2 className="text-lg font-black text-[#1a0a40] flex items-center gap-2">
-                      <div className="w-1.5 h-5 bg-[#F97316] rounded-full"></div>
-                      Auteurs à la une
-                    </h2>
-                    <Link
-                      href="/books/auteurs"
-                      className="text-xs font-bold text-[#6D28D9] hover:text-[#4c1d95] flex items-center gap-1 transition-colors"
-                    >
-                      Tous les auteurs <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {topAuthors.map((author) => (
-                      <Link
-                        key={author.slug}
-                        href={`/books/auteurs/${author.slug}`}
-                        className="group flex items-center gap-3 bg-white rounded-xl border border-gray-200/90 p-3 shadow-xs hover:border-[#6D28D9]/40 hover:shadow-md transition-all"
-                      >
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-700 text-white flex items-center justify-center text-sm font-black shrink-0">
-                          {author.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-gray-900 truncate group-hover:text-[#6D28D9] transition-colors">
-                            {author.name}
-                          </p>
-                          <p className="text-[11px] text-gray-400 font-bold">
-                            {author.books_count} titre{author.books_count > 1 ? "s" : ""}
-                          </p>
-                        </div>
-                        <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#6D28D9] transition-colors shrink-0" />
-                      </Link>
-                    ))}
-                  </div>
-                </section>
-              )}
+              {/* Auteurs à la une supprimés (04/09/2026) : les pages auteurs
+                  n'existent plus — la recherche Meilisearch matche `authors`. */}
             </div>
           ) : (
             /* VUE RECHERCHE / FILTRES : PAGINATION CLASSIQUE */
             <>
               {/* Sub-toolbar: Compteur + Bascule Vue Grille / Vue Ligne */}
               <div className="flex items-center justify-between gap-4 mb-5 pb-3 border-b border-gray-150">
-                <div className="text-xs sm:text-sm font-bold text-gray-700">
-                  {total > 0 ? (
-                    <span>
-                      Affichage de <span className="text-[#6D28D9]">{books.length}</span> sur {total} livre{total > 1 ? "s" : ""}
-                    </span>
-                  ) : (
-                    <span>0 livre trouvé</span>
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <div className="text-xs sm:text-sm font-bold text-gray-700">
+                    {total > 0 ? (
+                      <span>
+                        Affichage de <span className="text-[#6D28D9]">{books.length}</span> sur {total} livre{total > 1 ? "s" : ""}
+                      </span>
+                    ) : (
+                      <span>0 livre trouvé</span>
+                    )}
+                  </div>
+                  {/* Chip filtre auteur : /books?author=… (box de recherche vide) */}
+                  {filters.author && (
+                    <Link
+                      href={`/books?${buildFilterQuery({
+                        categories: filters.categories,
+                        languages: filters.languages,
+                        levels: filters.levels,
+                        search: filters.search || undefined,
+                        sort: filters.sort === "recent" ? "recent" : undefined,
+                        page: 1,
+                      }).toString()}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-50 border border-violet-200 text-xs font-bold text-[#6D28D9] hover:bg-violet-100 transition-colors cursor-pointer"
+                      title="Retirer le filtre auteur"
+                    >
+                      Auteur : {filters.author}
+                      <X className="w-3 h-3" />
+                    </Link>
                   )}
                 </div>
 

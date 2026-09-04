@@ -31,6 +31,13 @@ class BookCatalogueService
 
         $search = trim($request->get('search', ''));
         $field = $request->get('field', 'all');
+        // Filtre auteur (04/09/2026) : les noms d'auteurs du front pointent vers
+        // /books?author={nom} — la box de recherche du front reste VIDE. Côté
+        // Meilisearch, `authors` n'est PAS filterable (indexé en chaîne "A, B, C"
+        // pour la pertinence), donc on ne peut pas faire where('authors', …) :
+        // on cherche l'auteur en restreignant la requête à l'attribut `authors`
+        // (attributesToSearchOn). Aucun scan MySQL (règle architecture 03/09).
+        $author = trim($request->get('author', ''));
 
         // --- 1. Facettes : UNE seule requête Meilisearch calcule les 3 distributions,
         //        SANS le filtre langue (pour garder la liste des langues complète), comme
@@ -40,9 +47,12 @@ class BookCatalogueService
         $computeFacets = $request->get('facets', '1') !== '0';
 
         if ($computeFacets) {
-            $facetBuilder = Book::search($search, function ($meilisearch, $query, $options) {
+            $facetBuilder = Book::search($author !== '' ? $author : $search, function ($meilisearch, $query, $options) use ($author) {
                 $options['facets'] = ['default_category_id', 'language_id', 'default_level_id'];
                 $options['hitsPerPage'] = 0; // On ne veut que les facettes
+                if ($author !== '') {
+                    $options['attributesToSearchOn'] = ['authors'];
+                }
 
                 return $meilisearch->search($query, $options);
             });
@@ -59,7 +69,19 @@ class BookCatalogueService
         }
 
         // --- 2. Requête principale (avec tous les filtres) ---
-        $builder = Book::search($search);
+        if ($author !== '') {
+            // Le filtre auteur remplace la recherche plein-texte comme requête
+            // (le front ne combine jamais les deux : soumettre la box retire le
+            // chip auteur). paginate()/orderBy() du builder restent appliqués :
+            // Scout fusionne leurs options avant d'invoquer le callback.
+            $builder = Book::search($author, function ($meilisearch, $query, $options) {
+                $options['attributesToSearchOn'] = ['authors'];
+
+                return $meilisearch->search($query, $options);
+            });
+        } else {
+            $builder = Book::search($search);
+        }
         $this->applyCrossFilters($builder, $request);
         $this->applySort($builder, $request);
 

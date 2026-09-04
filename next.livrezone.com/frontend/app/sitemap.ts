@@ -31,12 +31,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.6,
     },
-    {
-      url: `${SITE_URL}/books/auteurs`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 0.5,
-    },
   ];
 
   // Pages rayons (familles + sous-catégories) du catalogue livres.

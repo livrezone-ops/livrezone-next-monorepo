@@ -229,6 +229,7 @@ export default function FilterSidebar({
       maxLimit: priceMaxLimit,
       search: filters.search,
       isbn: filters.isbn || undefined,
+      author: filters.author || undefined,
       sort: filters.sort,
     });
     const qs = params.toString();
@@ -251,6 +252,7 @@ export default function FilterSidebar({
     setOpenCycles(new Set());
     const params = new URLSearchParams();
     if (filters.search) params.set("search", filters.search);
+    if (filters.author) params.set("author", filters.author);
     const qs = params.toString();
     router.push(qs ? `${targetPath}?${qs}` : targetPath, { scroll: false });
     setOpen(false);

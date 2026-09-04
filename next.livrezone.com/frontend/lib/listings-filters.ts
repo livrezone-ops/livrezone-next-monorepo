@@ -11,6 +11,7 @@ export interface AnnoncesFilters {
   maxPrice: number | null;
   search: string;
   isbn: string;
+  author: string;
   sort: string;
   page: number;
 }
@@ -63,6 +64,9 @@ export function parseFilters(get: ParamGetter): AnnoncesFilters {
     maxPrice: toNumber(get("max_price") ?? get("max")),
     search: get("search") || "",
     isbn: (get("isbn") || "").trim(),
+    // Filtre auteur (04/09/2026) : /books?author={nom} — distinct de `search`
+    // (la box de recherche du front reste vide). Seule la page /books l'utilise.
+    author: (get("author") || "").trim(),
     sort: get("sort") || "latest",
     page: toNumber(get("page")) || 1,
   };
@@ -71,6 +75,7 @@ export function parseFilters(get: ParamGetter): AnnoncesFilters {
 export interface SerializedFilters {
   search?: string;
   isbn?: string;
+  author?: string;
   category?: string;
   level?: string;
   language?: string;
@@ -95,6 +100,7 @@ export function buildFilterQuery(
     maxLimit?: number;
     search?: string;
     isbn?: string;
+    author?: string;
     sort?: string;
     page?: number;
   }
@@ -102,6 +108,7 @@ export function buildFilterQuery(
   const params = new URLSearchParams();
 
   if (filters.search) params.set("search", filters.search);
+  if (filters.author) params.set("author", filters.author);
   if (filters.categories?.length) params.set("category", filters.categories.join(","));
   if (filters.levels?.length) params.set("level", filters.levels.join(","));
   if (filters.languages?.length) params.set("language", filters.languages.join(","));
