@@ -77,14 +77,107 @@ class NotificationController extends Controller
 
     /**
      * Masque une notification (sort de la liste sans être supprimée).
+     * Une notification masquée est automatiquement marquée comme lue :
+     * elle ne doit plus ressortir dans les compteurs de non-lues.
      */
     public function hide(Request $request, string $id): JsonResponse
     {
         $notification = $request->user()->notifications()->where('id', $id)->firstOrFail();
 
-        $notification->forceFill(['dismissed_at' => now()])->save();
+        $attributes = ['dismissed_at' => now()];
+        if (! $notification->read_at) {
+            $attributes['read_at'] = now();
+        }
+        $notification->forceFill($attributes)->save();
 
-        return response()->json(['message' => 'Notification masquée.']);
+        return response()->json([
+            'message' => 'Notification masquée.',
+            'unread_count' => $request->user()->notifications()->visible()->whereNull('read_at')->count(),
+        ]);
+    }
+
+    /**
+     * Actions groupées sur une sélection de notifications.
+     * Body : { action: 'read'|'hide', ids: [uuid, ...] } (100 ids max).
+     * - read : marque la sélection comme lue (visibles uniquement).
+     * - hide : masque la sélection (dismissed_at) + passage en lu.
+     */
+    public function bulk(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'action' => ['required', Rule::in(['read', 'hide'])],
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['required', 'uuid'],
+        ]);
+
+        $user = $request->user();
+
+        if ($validated['action'] === 'read') {
+            // Seules les notifications visibles et non lues sont affectées.
+            $user->notifications()
+                ->visible()
+                ->whereIn('id', $validated['ids'])
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
+
+            $message = 'Notifications sélectionnées marquées comme lues.';
+        } else {
+            // Masquer = lire puis dissimuler (une notification masquée ne
+            // doit plus compter comme non lue).
+            $user->notifications()
+                ->whereIn('id', $validated['ids'])
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
+
+            $user->notifications()
+                ->whereIn('id', $validated['ids'])
+                ->update(['dismissed_at' => now()]);
+
+            $message = 'Notifications sélectionnées masquées.';
+        }
+
+        return response()->json([
+            'message' => $message,
+            'unread_count' => $user->notifications()->visible()->whereNull('read_at')->count(),
+        ]);
+    }
+
+    /**
+     * Efface TOUS les badges d'un coup : notifications non lues (visibles)
+     * passées en lu + messages de chat reçus marqués comme lus.
+     * Utilisé par le bouton « Effacer les badges » du dashboard.
+     */
+    public function clearBadges(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // 1. Notifications : toutes les visibles non lues passent en lu.
+        $notificationsRead = $user->notifications()
+            ->visible()
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        // 2. Chat : tous les messages reçus (pas les siens) non lus,
+        // dans les fils où l'utilisateur participe.
+        $threadIds = \App\Models\ChatThread::query()
+            ->where(function ($query) use ($user) {
+                $query->where('user_one_id', $user->id)
+                    ->orWhere('user_two_id', $user->id);
+            })
+            ->pluck('id');
+
+        $messagesRead = \App\Models\ChatMessage::query()
+            ->whereIn('chat_thread_id', $threadIds)
+            ->where('sender_id', '!=', $user->id)
+            ->where('is_read', false)
+            ->update(['is_read' => true, 'read_at' => now()]);
+
+        return response()->json([
+            'message' => 'Badges effacés.',
+            'notifications_read' => $notificationsRead,
+            'messages_read' => $messagesRead,
+            'unread_count' => 0,
+        ]);
     }
 
     /**

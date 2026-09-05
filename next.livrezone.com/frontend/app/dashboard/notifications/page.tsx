@@ -11,6 +11,7 @@ import {
   CheckCircle,
   Settings2,
   CheckCheck,
+  Eraser,
   ChevronLeft,
   ChevronRight,
   EyeOff,
@@ -68,10 +69,16 @@ export default function NotificationsPage() {
   // Mode d'affichage, identique au dashboard (tableau sm+ / cartes partout).
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   // Confirmation avant masquage (même pattern que la modale du dashboard).
-  const [confirmHide, setConfirmHide] = useState<{ isOpen: boolean; id: string | null }>({
-    isOpen: false,
-    id: null,
-  });
+  // `bulk: true` = confirmation de masquage de la sélection (actions groupées).
+  const [confirmHide, setConfirmHide] = useState<{
+    isOpen: boolean;
+    id: string | null;
+    bulk: boolean;
+  }>({ isOpen: false, id: null, bulk: false });
+  // Sélection (cases à cocher) pour les actions groupées — vidée à chaque
+  // changement de page ou de filtre pour éviter des actions hors écran.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -121,7 +128,36 @@ export default function NotificationsPage() {
   const changeFilter = (key: string) => {
     setTypeFilter(key);
     setPage(1); // retour à la première page du filtre sélectionné
+    setSelected(new Set()); // la sélection ne survit pas à un changement de filtre
   };
+
+  // Pagination + sélection : la sélection est propre à la page affichée.
+  const goToPage = (p: number) => {
+    setPage(p);
+    setSelected(new Set());
+  };
+
+  // Cases à cocher de sélection (actions groupées).
+  const allSelected =
+    notifications.length > 0 && notifications.every((n) => selected.has(n.id));
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelected(allSelected ? new Set() : new Set(notifications.map((n) => n.id)));
+  };
+
+  const clearSelection = () => setSelected(new Set());
 
   const markRead = async (id: string) => {
     try {
@@ -144,6 +180,28 @@ export default function NotificationsPage() {
     }
   };
 
+  // Efface TOUS les badges d'un coup (notifications + messages de chat) :
+  // les non-lus côté API passent en lu, puis on invalide les caches
+  // de la boîte de réception, du user (badge notifications) et du chat
+  // (badge messages du Header).
+  const clearBadges = async () => {
+    try {
+      const { data: res } = await api.post<{
+        notifications_read: number;
+        messages_read: number;
+      }>("/notifications/clear-badges");
+      queryClient.invalidateQueries({ queryKey: ["notifications", "inbox"] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.invalidateQueries({ queryKey: ["chat", "threads"] });
+      showToast(
+        `Badges effacés : ${res.notifications_read ?? 0} notification(s), ${res.messages_read ?? 0} message(s).`
+      );
+    } catch (e) {
+      console.error("Erreur:", e);
+      showToast("Impossible d'effacer les badges.");
+    }
+  };
+
   // Épinglage / désépinglage (toggle) — POST /notifications/{id}/pin.
   const togglePin = async (id: string) => {
     try {
@@ -159,16 +217,43 @@ export default function NotificationsPage() {
   };
 
   // Masquage — POST /notifications/{id}/hide : sort la notification de la
-  // liste (dismissed_at) sans la supprimer de la base.
+  // liste (dismissed_at) sans la supprimer de la base. Le backend la marque
+  // aussi comme lue : masquer une notification = la considérer comme vue.
   const hideNotification = async (id: string) => {
     try {
       await api.post(`/notifications/${id}/hide`);
       queryClient.invalidateQueries({ queryKey: ["notifications", "inbox"] });
       queryClient.invalidateQueries({ queryKey: ["user"] });
-      showToast("Notification masquée.");
+      showToast("Notification masquée et marquée comme lue.");
     } catch (e) {
       console.error("Erreur:", e);
       showToast("Impossible de masquer cette notification.");
+    }
+  };
+
+  // Actions groupées — POST /notifications/bulk avec la sélection courante.
+  const bulkApply = async (action: "read" | "hide") => {
+    if (selected.size === 0) return;
+    setBulkBusy(true);
+    try {
+      const { data: res } = await api.post<{ message?: string }>(
+        "/notifications/bulk",
+        { action, ids: [...selected] }
+      );
+      queryClient.invalidateQueries({ queryKey: ["notifications", "inbox"] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      showToast(
+        res.message ??
+          (action === "read"
+            ? "Sélection marquée comme lue."
+            : "Sélection masquée et marquée comme lue.")
+      );
+      clearSelection();
+    } catch (e) {
+      console.error("Erreur:", e);
+      showToast("Impossible d'appliquer l'action sur la sélection.");
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -236,6 +321,15 @@ export default function NotificationsPage() {
         key={n.id}
         className={`transition-colors ${unread ? "bg-violet-50/50" : "hover:bg-gray-50/60"}`}
       >
+        <td className="px-3 py-3.5 align-top w-10">
+          <input
+            type="checkbox"
+            checked={selected.has(n.id)}
+            onChange={() => toggleSelect(n.id)}
+            className="h-4 w-4 cursor-pointer accent-[#6D28D9]"
+            aria-label={`Sélectionner : ${title}`}
+          />
+        </td>
         <td className="px-4 py-3.5 align-top">
           {titleCell}
           {unread && (
@@ -270,7 +364,7 @@ export default function NotificationsPage() {
               {pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
             </button>
             <button
-              onClick={() => setConfirmHide({ isOpen: true, id: n.id })}
+              onClick={() => setConfirmHide({ isOpen: true, id: n.id, bulk: false })}
               title="Masquer"
               aria-label="Masquer la notification"
               className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:border-red-200 hover:text-red-600 transition-colors cursor-pointer"
@@ -320,7 +414,7 @@ export default function NotificationsPage() {
             {pinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
           </button>
           <button
-            onClick={guard(() => setConfirmHide({ isOpen: true, id: n.id }))}
+            onClick={guard(() => setConfirmHide({ isOpen: true, id: n.id, bulk: false }))}
             title="Masquer"
             aria-label="Masquer la notification"
             className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:border-red-200 hover:text-red-600 transition-colors cursor-pointer"
@@ -334,9 +428,20 @@ export default function NotificationsPage() {
     const body = (
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between gap-2 mb-2.5">
-          <span className="px-2.5 py-1 rounded-full bg-violet-50 text-[#6D28D9] text-xs font-bold whitespace-nowrap">
-            {typeLabel}
-          </span>
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Les cartes sont cliquables (Link) : stop propagation sur la case. */}
+            <input
+              type="checkbox"
+              checked={selected.has(n.id)}
+              onChange={() => toggleSelect(n.id)}
+              onClick={guard(() => {})}
+              className="h-4 w-4 cursor-pointer accent-[#6D28D9] shrink-0"
+              aria-label={`Sélectionner : ${title}`}
+            />
+            <span className="px-2.5 py-1 rounded-full bg-violet-50 text-[#6D28D9] text-xs font-bold whitespace-nowrap">
+              {typeLabel}
+            </span>
+          </div>
           {pinned && (
             <span title="Notification épinglée">
               <Pin className="w-4 h-4 text-[#6D28D9] fill-current" />
@@ -489,8 +594,55 @@ export default function NotificationsPage() {
                   <CheckCheck className="w-4 h-4" /> Tout marquer comme lu
                 </button>
               )}
+              {/* Efface tous les badges d'un coup : notifications non lues +
+                  messages de chat reçus (utile si un badge reste « coincé »). */}
+              <button
+                onClick={clearBadges}
+                title="Marquer toutes les notifications et tous les messages de chat comme lus (efface les badges de l'en-tête)"
+                className="flex items-center gap-1.5 text-xs font-bold text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 hover:text-gray-800 px-3 py-2 rounded-lg transition-colors cursor-pointer"
+              >
+                <Eraser className="w-4 h-4" /> Effacer les badges
+              </button>
             </div>
           </div>
+
+          {/* Barre d'actions groupées — visible quand au moins une case est cochée. */}
+          {selected.size > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 px-4 py-3 rounded-xl bg-violet-50 border border-violet-200">
+              <p className="text-sm font-bold text-[#6D28D9]">
+                {selected.size} notification{selected.size > 1 ? "s" : ""} sélectionnée
+                {selected.size > 1 ? "s" : ""}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => bulkApply("read")}
+                  disabled={bulkBusy}
+                  className="flex items-center gap-1.5 text-xs font-bold text-[#6D28D9] bg-white border border-violet-200 hover:bg-violet-100 px-3 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {bulkBusy ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CheckCheck className="w-4 h-4" />
+                  )}
+                  Marquer comme lu
+                </button>
+                <button
+                  onClick={() => setConfirmHide({ isOpen: true, id: null, bulk: true })}
+                  disabled={bulkBusy}
+                  className="flex items-center gap-1.5 text-xs font-bold text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 px-3 py-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <EyeOff className="w-4 h-4" /> Masquer
+                </button>
+                <button
+                  onClick={clearSelection}
+                  disabled={bulkBusy}
+                  className="text-xs font-bold text-gray-500 hover:text-gray-700 px-2 py-2 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
 
           {isLoading ? (
             <div className="flex justify-center py-12">
@@ -514,7 +666,17 @@ export default function NotificationsPage() {
                 <table className="w-full table-fixed text-left text-sm">
                   <thead className="border-b border-gray-100 text-xs uppercase font-bold text-gray-500">
                     <tr>
-                      <th className="px-4 py-3 w-[46%]">Titre de notification</th>
+                      <th className="px-3 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={toggleSelectAll}
+                          disabled={notifications.length === 0}
+                          className="h-4 w-4 cursor-pointer accent-[#6D28D9]"
+                          aria-label="Tout sélectionner sur cette page"
+                        />
+                      </th>
+                      <th className="px-4 py-3 w-[42%]">Titre de notification</th>
                       <th className="px-4 py-3 w-[17%]">Date</th>
                       <th className="px-4 py-3 w-[19%]">Type</th>
                       <th className="px-4 py-3 w-[18%] text-right">Actions</th>
@@ -543,7 +705,7 @@ export default function NotificationsPage() {
         {lastPage > 1 && (
           <div className="flex justify-center items-center gap-2">
             <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => goToPage(Math.max(1, page - 1))}
               disabled={page <= 1}
               className="flex items-center px-3 py-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 cursor-pointer transition-colors"
               aria-label="Page précédente"
@@ -559,7 +721,7 @@ export default function NotificationsPage() {
                 ) : (
                   <button
                     key={p}
-                    onClick={() => setPage(p)}
+                    onClick={() => goToPage(p)}
                     className={`px-3 py-2 border rounded-lg font-bold text-xs transition-colors cursor-pointer ${
                       p === page
                         ? "border-[#6D28D9] bg-[#6D28D9] text-white"
@@ -572,7 +734,7 @@ export default function NotificationsPage() {
               )}
             </div>
             <button
-              onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
+              onClick={() => goToPage(Math.min(lastPage, page + 1))}
               disabled={page >= lastPage}
               className="flex items-center px-3 py-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 cursor-pointer transition-colors"
               aria-label="Page suivante"
@@ -591,22 +753,32 @@ export default function NotificationsPage() {
               <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center mb-4 border border-rose-100">
                 <EyeOff className="w-6 h-6 text-rose-500" />
               </div>
-              <h3 className="text-lg font-black text-gray-900 mb-2">Masquer cette notification ?</h3>
+              <h3 className="text-lg font-black text-gray-900 mb-2">
+                {confirmHide.bulk
+                  ? `Masquer ${selected.size} notification${selected.size > 1 ? "s" : ""} ?`
+                  : "Masquer cette notification ?"}
+              </h3>
               <p className="text-xs text-gray-500 mb-6 px-2">
-                Elle disparaîtra de votre boîte de réception. Êtes-vous sûr ?
+                {confirmHide.bulk
+                  ? "Elles disparaîtront de votre boîte de réception et seront marquées comme lues. Êtes-vous sûr ?"
+                  : "Elle disparaîtra de votre boîte de réception et sera marquée comme lue. Êtes-vous sûr ?"}
               </p>
               <div className="flex items-center gap-3 w-full">
                 <button
-                  onClick={() => setConfirmHide({ isOpen: false, id: null })}
+                  onClick={() => setConfirmHide({ isOpen: false, id: null, bulk: false })}
                   className="flex-1 py-2.5 bg-white border border-gray-200 text-gray-700 font-bold text-xs rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={() => {
-                    const id = confirmHide.id;
-                    setConfirmHide({ isOpen: false, id: null });
-                    if (id) hideNotification(id);
+                    const { id, bulk } = confirmHide;
+                    setConfirmHide({ isOpen: false, id: null, bulk: false });
+                    if (bulk) {
+                      bulkApply("hide");
+                    } else if (id) {
+                      hideNotification(id);
+                    }
                   }}
                   className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 border border-rose-600 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer shadow-sm"
                 >

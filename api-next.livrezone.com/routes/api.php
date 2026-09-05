@@ -24,7 +24,10 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     $user = $request->user()->load('profile');
     $user->is_online = $user->isOnline();
-    $user->unread_notifications_count = $user->notifications()->whereNull('read_at')->count();
+    $user->unread_notifications_count = $user->notifications()
+        ->visible()
+        ->whereNull('read_at')
+        ->count();
 
     return $user;
 });
@@ -73,6 +76,8 @@ Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    Route::post('/notifications/clear-badges', [NotificationController::class, 'clearBadges']);
+    Route::post('/notifications/bulk', [NotificationController::class, 'bulk']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
     Route::post('/notifications/{id}/pin', [NotificationController::class, 'togglePin']);
     Route::post('/notifications/{id}/hide', [NotificationController::class, 'hide']);
