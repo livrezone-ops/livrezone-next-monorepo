@@ -28,6 +28,8 @@ import {
     RefreshCw,
 } from 'lucide-react';
 import Logo from '@/components/Logo';
+import CgvCheckbox from '@/components/CgvCheckbox';
+import { useCgvConsent } from '../../hooks/useCgvConsent';
 
 type Tab = 'login' | 'register' | 'forgot';
 
@@ -66,8 +68,13 @@ function LoginForm() {
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
-    // Acceptation des CGV — obligatoire pour l'inscription (standard ou Google)
-    const [acceptedCgv, setAcceptedCgv] = useState(false);
+    // Consentement CGV (hook centralisé) — obligatoire pour toute création de
+    // compte : inscription standard, Google, ou tout autre provider
+    const {
+        accepted: acceptedCgv,
+        accept: acceptCgv,
+        ensureAccepted,
+    } = useCgvConsent();
 
     // Form states
     const [name, setName] = useState('');
@@ -140,7 +147,7 @@ function LoginForm() {
     const handleRegister = async (event: FormEvent) => {
         event.preventDefault();
 
-        if (!acceptedCgv) {
+        if (!ensureAccepted()) {
             setError(
                 'Vous devez accepter les Conditions Générales pour créer un compte.',
             );
@@ -190,18 +197,24 @@ function LoginForm() {
         }
     };
 
-    // Toute poursuite via Google exige l'acceptation préalable des CGV : le même
-    // bouton sert de connexion ET d'inscription (Socialite crée le compte s'il
-    // n'existe pas), et un nouvel arrivant est sur l'onglet « Connexion » par
-    // défaut — le blocage s'applique donc sur tous les onglets.
-    const handleGoogleClick = () => {
-        if (!acceptedCgv) {
+    // Point d'entrée UNIQUE des connexions provider (Google, Facebook…) : le
+    // même bouton sert de connexion ET d'inscription (Socialite crée le compte
+    // s'il n'existe pas) — les CGV sont donc exigées sur tous les onglets.
+    const providerLabels: Record<string, string> = {
+        google: 'Google',
+        facebook: 'Facebook',
+    };
+
+    const handleProviderClick = (provider: string) => {
+        if (!ensureAccepted()) {
             setError(
-                'Pour continuer avec Google, vous devez d’abord accepter les Conditions Générales.',
+                `Pour continuer avec ${
+                    providerLabels[provider] ?? provider
+                }, vous devez d’abord accepter les Conditions Générales.`,
             );
             return;
         }
-        loginWithProvider('google');
+        loginWithProvider(provider);
     };
 
     const handleForgot = async (event: FormEvent) => {
@@ -277,7 +290,7 @@ function LoginForm() {
                     <div className="mb-4">
                         <button
                             type="button"
-                            onClick={handleGoogleClick}
+                            onClick={() => handleProviderClick('google')}
                             className="group relative flex w-full h-11 sm:h-12 items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-[0.99]"
                         >
                             <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
@@ -301,37 +314,20 @@ function LoginForm() {
                             <span>Continuer avec Google</span>
                         </button>
 
-                        {/* Acceptation des CGV — obligatoire pour toute création de compte
-                            (standard ou Google) ; le lien ouvre /cgv dans un nouvel onglet
-                            sans perdre l'état de la page */}
-                        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                            <input
-                                id="accept-cgv"
-                                type="checkbox"
-                                checked={acceptedCgv}
-                                onChange={(e) => setAcceptedCgv(e.target.checked)}
-                                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 accent-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20"
-                            />
-                            <p className="text-xs text-slate-600 leading-relaxed">
-                                <label htmlFor="accept-cgv" className="cursor-pointer">
-                                    J&apos;accepte les{' '}
-                                </label>
-                                <Link
-                                    href="/cgv"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="font-semibold text-[#6D28D9] hover:underline"
-                                >
-                                    Conditions Générales d&apos;Utilisation et de Vente
-                                </Link>{' '}
-                                (obligatoire pour créer un compte).
-                            </p>
-                        </div>
+                        {/* Acceptation des CGV (composant partagé) — obligatoire pour
+                            toute création de compte ; le lien ouvre /cgv en nouvel onglet */}
+                        <CgvCheckbox
+                            id="accept-cgv"
+                            accepted={acceptedCgv}
+                            onChange={acceptCgv}
+                            className="mt-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3"
+                            note="(obligatoire pour créer un compte)."
+                        />
 
                         {SHOW_FACEBOOK && (
                             <button
                                 type="button"
-                                onClick={() => loginWithProvider('facebook')}
+                                onClick={() => handleProviderClick('facebook')}
                                 className="mt-2.5 flex w-full h-11 sm:h-12 items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-[0.99]"
                             >
                                 <span className="text-sm font-bold text-[#1877F2]">f</span>
