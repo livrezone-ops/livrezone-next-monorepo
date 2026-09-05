@@ -31,6 +31,7 @@ class ConfigureBookSearch extends Command
             'language_id',
             'default_level_id',
             'isbn_13',
+            'authors_list',
         ]);
 
         $index->updateSortableAttributes([

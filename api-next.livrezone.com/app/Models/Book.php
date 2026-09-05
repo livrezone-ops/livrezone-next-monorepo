@@ -22,6 +22,10 @@ class Book extends Model
             'id' => (int) $this->id,
             'title' => $this->title,
             'authors' => is_array($this->authors) ? implode(', ', $this->authors) : $this->authors,
+            // Filtre exact par auteur (04/09) : tableau d'auteurs déclarés filterable.
+            // Un filtre Meilisearch `authors_list = "Nom Prenom"` matche l'élément exact
+            // (insensible à la casse), sans fuzzy ni fallback approximatif.
+            'authors_list' => array_values(array_filter((array) ($this->authors ?? []), fn ($a) => trim((string) $a) !== '')),
             'isbn_13' => $this->isbn_13,
             'publisher' => $this->publisher,
             'cover_url' => $this->cover_url, // Inclus pour affichage direct depuis Meilisearch

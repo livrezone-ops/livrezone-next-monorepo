@@ -33,10 +33,11 @@ class BookCatalogueService
         $field = $request->get('field', 'all');
         // Filtre auteur (04/09/2026) : les noms d'auteurs du front pointent vers
         // /books?author={nom} — la box de recherche du front reste VIDE. Côté
-        // Meilisearch, `authors` n'est PAS filterable (indexé en chaîne "A, B, C"
-        // pour la pertinence), donc on ne peut pas faire where('authors', …) :
-        // on cherche l'auteur en restreignant la requête à l'attribut `authors`
-        // (attributesToSearchOn). Aucun scan MySQL (règle architecture 03/09).
+        // Meilisearch, `authors` est indexé en chaîne "A, B, C" pour la pertinence,
+        // on ne peut donc pas faire where('authors', …). On utilise l'attribut
+        // dédié `authors_list` (tableau, filterable) : filtre d'égalité EXACTE
+        // (insensible à la casse), sans fuzzy ni fallback approximatif.
+        // Aucun scan MySQL (règle architecture 03/09).
         $author = trim($request->get('author', ''));
 
         // --- 1. Facettes : UNE seule requête Meilisearch calcule les 3 distributions,
@@ -47,15 +48,17 @@ class BookCatalogueService
         $computeFacets = $request->get('facets', '1') !== '0';
 
         if ($computeFacets) {
-            $facetBuilder = Book::search($author !== '' ? $author : $search, function ($meilisearch, $query, $options) use ($author) {
+            $facetBuilder = Book::search($author !== '' ? '' : $search, function ($meilisearch, $query, $options) {
                 $options['facets'] = ['default_category_id', 'language_id', 'default_level_id'];
                 $options['hitsPerPage'] = 0; // On ne veut que les facettes
-                if ($author !== '') {
-                    $options['attributesToSearchOn'] = ['authors'];
-                }
 
                 return $meilisearch->search($query, $options);
             });
+            if ($author !== '') {
+                // Filtre EXACT par auteur (égalité sur un élément du tableau
+                // authors_list) — pas de recherche plein-texte fuzzy ici.
+                $facetBuilder->where('authors_list', $author);
+            }
             $this->applyCrossFilters($facetBuilder, $request, ['languages']);
 
             $rawFacets = $facetBuilder->raw();
@@ -70,15 +73,13 @@ class BookCatalogueService
 
         // --- 2. Requête principale (avec tous les filtres) ---
         if ($author !== '') {
-            // Le filtre auteur remplace la recherche plein-texte comme requête
-            // (le front ne combine jamais les deux : soumettre la box retire le
-            // chip auteur). paginate()/orderBy() du builder restent appliqués :
+            // Requête vide + filtre EXACT authors_list = "{author}" : Meilisearch
+            // renvoie uniquement les livres dont un auteur correspond exactement
+            // (insensible à la casse), sans fuzzy ni fallback approximatif.
+            // paginate()/orderBy() du builder restent appliqués :
             // Scout fusionne leurs options avant d'invoquer le callback.
-            $builder = Book::search($author, function ($meilisearch, $query, $options) {
-                $options['attributesToSearchOn'] = ['authors'];
-
-                return $meilisearch->search($query, $options);
-            });
+            $builder = Book::search('');
+            $builder->where('authors_list', $author);
         } else {
             $builder = Book::search($search);
         }
