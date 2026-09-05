@@ -40,6 +40,12 @@ Route::prefix('auth')->group(function () {
     Route::get('/callback/{provider}', [SocialAuthController::class, 'callback'])
         ->middleware('web');
 
+    // Consentement CGV pour les nouvelles inscriptions via provider (Google…) :
+    // aperçu du compte en attente, puis création UNIQUEMENT après acceptation.
+    Route::get('/provider/consent/pending', [SocialAuthController::class, 'pendingConsent']);
+    Route::post('/provider/consent', [SocialAuthController::class, 'acceptConsent'])
+        ->middleware('throttle:auth');
+
     // Auth classique (email + mot de passe)
     Route::post('/register', [AuthController::class, 'register']);
     // Throttle « auth » (cf. AppServiceProvider) : anti brute-force sur login,

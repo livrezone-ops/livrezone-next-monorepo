@@ -68,13 +68,11 @@ function LoginForm() {
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
-    // Consentement CGV (hook centralisé) — obligatoire pour toute création de
-    // compte : inscription standard, Google, ou tout autre provider
-    const {
-        accepted: acceptedCgv,
-        accept: acceptCgv,
-        ensureAccepted,
-    } = useCgvConsent();
+    // Consentement CGV (hook centralisé) — obligatoire pour l'inscription
+    // standard. Pour Google et les autres providers, le consentement se fait
+    // APRÈS le retour OAuth, uniquement pour les nouveaux comptes (page
+    // /auth/consent) — les comptes existants se connectent sans aucune case.
+    const { accepted: acceptedCgv, accept: acceptCgv } = useCgvConsent();
 
     // Form states
     const [name, setName] = useState('');
@@ -147,7 +145,7 @@ function LoginForm() {
     const handleRegister = async (event: FormEvent) => {
         event.preventDefault();
 
-        if (!ensureAccepted()) {
+        if (!acceptedCgv) {
             setError(
                 'Vous devez accepter les Conditions Générales pour créer un compte.',
             );
@@ -195,26 +193,6 @@ function LoginForm() {
         } finally {
             setPending(false);
         }
-    };
-
-    // Point d'entrée UNIQUE des connexions provider (Google, Facebook…) : le
-    // même bouton sert de connexion ET d'inscription (Socialite crée le compte
-    // s'il n'existe pas) — les CGV sont donc exigées sur tous les onglets.
-    const providerLabels: Record<string, string> = {
-        google: 'Google',
-        facebook: 'Facebook',
-    };
-
-    const handleProviderClick = (provider: string) => {
-        if (!ensureAccepted()) {
-            setError(
-                `Pour continuer avec ${
-                    providerLabels[provider] ?? provider
-                }, vous devez d’abord accepter les Conditions Générales.`,
-            );
-            return;
-        }
-        loginWithProvider(provider);
     };
 
     const handleForgot = async (event: FormEvent) => {
@@ -290,7 +268,7 @@ function LoginForm() {
                     <div className="mb-4">
                         <button
                             type="button"
-                            onClick={() => handleProviderClick('google')}
+                            onClick={() => loginWithProvider('google')}
                             className="group relative flex w-full h-11 sm:h-12 items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-[0.99]"
                         >
                             <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
@@ -314,20 +292,10 @@ function LoginForm() {
                             <span>Continuer avec Google</span>
                         </button>
 
-                        {/* Acceptation des CGV (composant partagé) — obligatoire pour
-                            toute création de compte ; le lien ouvre /cgv en nouvel onglet */}
-                        <CgvCheckbox
-                            id="accept-cgv"
-                            accepted={acceptedCgv}
-                            onChange={acceptCgv}
-                            className="mt-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3"
-                            note="(obligatoire pour créer un compte)."
-                        />
-
                         {SHOW_FACEBOOK && (
                             <button
                                 type="button"
-                                onClick={() => handleProviderClick('facebook')}
+                                onClick={() => loginWithProvider('facebook')}
                                 className="mt-2.5 flex w-full h-11 sm:h-12 items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-[0.99]"
                             >
                                 <span className="text-sm font-bold text-[#1877F2]">f</span>
@@ -630,6 +598,16 @@ function LoginForm() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Acceptation des CGV (composant partagé) — obligatoire pour
+                                l'inscription standard ; le lien ouvre /cgv en nouvel onglet */}
+                            <CgvCheckbox
+                                id="accept-cgv"
+                                accepted={acceptedCgv}
+                                onChange={acceptCgv}
+                                className="rounded-xl border border-slate-100 bg-slate-50/60 p-3"
+                                note="(obligatoire pour créer un compte)."
+                            />
 
                             <button
                                 type="submit"

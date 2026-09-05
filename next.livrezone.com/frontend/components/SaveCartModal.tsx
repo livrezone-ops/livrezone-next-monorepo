@@ -4,29 +4,21 @@ import Image from "next/image";
 import { Clock, X } from "lucide-react";
 import { useCommerce } from "@/lib/commerce-store";
 import { useAuth } from "@/hooks/useAuth";
-import { useCgvConsent } from "@/hooks/useCgvConsent";
-import CgvCheckbox from "@/components/CgvCheckbox";
 
 export default function SaveCartModal() {
   const { guestModalOpen, guestItem, guestModalType, closeGuestModal } =
     useCommerce();
   const { loginWithProvider } = useAuth();
-  // Consentement CGV (hook centralisé, même règle que la page /login) :
-  // la connexion via un provider peut créer un compte.
-  const {
-    accepted: cgvAccepted,
-    accept: acceptCgv,
-    rejected: cgvError,
-    ensureAccepted,
-  } = useCgvConsent();
 
   if (!guestModalOpen || !guestModalType) return null;
 
   const label =
     guestModalType === "cart" ? "panier" : "wishlist";
 
+  // Le consentement CGV pour les nouveaux comptes se fait APRÈS le retour
+  // OAuth, sur la page /auth/consent (backend : aucun compte créé sans
+  // acceptation). Les comptes existants se connectent sans aucune case.
   const handleLogin = () => {
-    if (!ensureAccepted()) return;
     void loginWithProvider("google");
   };
 
@@ -70,19 +62,6 @@ export default function SaveCartModal() {
             </p>
 
             <div className="flex flex-col gap-3">
-              <CgvCheckbox
-                id="save-cart-cgv"
-                accepted={cgvAccepted}
-                onChange={acceptCgv}
-                className="text-left"
-              />
-
-              {cgvError && (
-                <p className="text-xs font-medium text-rose-600">
-                  Vous devez accepter les Conditions Générales pour continuer.
-                </p>
-              )}
-
               <button
                 onClick={handleLogin}
                 className="w-full h-11 rounded-lg text-xs font-bold text-white hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-sm"

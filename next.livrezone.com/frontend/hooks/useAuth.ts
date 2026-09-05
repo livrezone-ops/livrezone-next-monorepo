@@ -62,6 +62,22 @@ export function useAuth() {
         window.location.href = data.url;
     };
 
+    // Consentement CGV (nouvelles inscriptions provider) : aperçu du compte en
+    // attente, puis création effective après acceptation (POST /auth/provider/consent).
+    const getProviderPending = async (token: string) => {
+        const { data } = await api.get('/auth/provider/consent/pending', {
+            params: { token },
+        });
+        return data;
+    };
+
+    const acceptProviderConsent = async (token: string) => {
+        await ensureCsrf();
+        const { data } = await api.post('/auth/provider/consent', { token });
+        queryClient.setQueryData(['user'], data.user);
+        return data;
+    };
+
     const loginWithCredentials = async (email: string, password: string) => {
         await ensureCsrf();
         const { data } = await api.post('/auth/login', { email, password });
@@ -117,6 +133,8 @@ export function useAuth() {
         isLoading,
         isAuthenticated: !!user,
         loginWithProvider,
+        getProviderPending,
+        acceptProviderConsent,
         loginWithCredentials,
         registerUser,
         forgotPassword,
