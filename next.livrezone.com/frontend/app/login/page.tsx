@@ -66,6 +66,9 @@ function LoginForm() {
     const [showPassword, setShowPassword] = useState(false);
     const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
+    // Acceptation des CGV — obligatoire pour l'inscription (standard ou Google)
+    const [acceptedCgv, setAcceptedCgv] = useState(false);
+
     // Form states
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -137,6 +140,13 @@ function LoginForm() {
     const handleRegister = async (event: FormEvent) => {
         event.preventDefault();
 
+        if (!acceptedCgv) {
+            setError(
+                'Vous devez accepter les Conditions Générales pour créer un compte.',
+            );
+            return;
+        }
+
         if (name.trim().length < 3) {
             setError('Le nom doit contenir au moins 3 caractères.');
             return;
@@ -178,6 +188,18 @@ function LoginForm() {
         } finally {
             setPending(false);
         }
+    };
+
+    // Inscription via Google : les CGV doivent être acceptées au préalable
+    // (onglet register uniquement — la connexion d'un compte existant reste libre)
+    const handleGoogleClick = () => {
+        if (tab === 'register' && !acceptedCgv) {
+            setError(
+                'Pour créer un compte via Google, vous devez d’abord accepter les Conditions Générales.',
+            );
+            return;
+        }
+        loginWithProvider('google');
     };
 
     const handleForgot = async (event: FormEvent) => {
@@ -253,7 +275,7 @@ function LoginForm() {
                     <div className="mb-4">
                         <button
                             type="button"
-                            onClick={() => loginWithProvider('google')}
+                            onClick={handleGoogleClick}
                             className="group relative flex w-full h-11 sm:h-12 items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-2xs transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-[0.99]"
                         >
                             <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
@@ -582,6 +604,36 @@ function LoginForm() {
                                         </button>
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Acceptation des CGV (obligatoire) — le lien ouvre /cgv dans un
+                                nouvel onglet sans perdre l'état du formulaire */}
+                            <div className="flex items-start gap-2.5">
+                                <input
+                                    id="accept-cgv"
+                                    type="checkbox"
+                                    required
+                                    checked={acceptedCgv}
+                                    onChange={(e) => setAcceptedCgv(e.target.checked)}
+                                    className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 accent-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20"
+                                />
+                                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                                    <label
+                                        htmlFor="accept-cgv"
+                                        className="cursor-pointer"
+                                    >
+                                        J&apos;accepte les{' '}
+                                    </label>
+                                    <Link
+                                        href="/cgv"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-semibold text-[#6D28D9] hover:underline"
+                                    >
+                                        Conditions Générales d&apos;Utilisation et de Vente
+                                    </Link>
+                                    .
+                                </p>
                             </div>
 
                             <button
