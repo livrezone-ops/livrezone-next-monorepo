@@ -190,12 +190,14 @@ function LoginForm() {
         }
     };
 
-    // Inscription via Google : les CGV doivent être acceptées au préalable
-    // (onglet register uniquement — la connexion d'un compte existant reste libre)
+    // Toute poursuite via Google exige l'acceptation préalable des CGV : le même
+    // bouton sert de connexion ET d'inscription (Socialite crée le compte s'il
+    // n'existe pas), et un nouvel arrivant est sur l'onglet « Connexion » par
+    // défaut — le blocage s'applique donc sur tous les onglets.
     const handleGoogleClick = () => {
-        if (tab === 'register' && !acceptedCgv) {
+        if (!acceptedCgv) {
             setError(
-                'Pour créer un compte via Google, vous devez d’abord accepter les Conditions Générales.',
+                'Pour continuer avec Google, vous devez d’abord accepter les Conditions Générales.',
             );
             return;
         }
@@ -298,6 +300,33 @@ function LoginForm() {
                             </svg>
                             <span>Continuer avec Google</span>
                         </button>
+
+                        {/* Acceptation des CGV — obligatoire pour toute création de compte
+                            (standard ou Google) ; le lien ouvre /cgv dans un nouvel onglet
+                            sans perdre l'état de la page */}
+                        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+                            <input
+                                id="accept-cgv"
+                                type="checkbox"
+                                checked={acceptedCgv}
+                                onChange={(e) => setAcceptedCgv(e.target.checked)}
+                                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 accent-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20"
+                            />
+                            <p className="text-xs text-slate-600 leading-relaxed">
+                                <label htmlFor="accept-cgv" className="cursor-pointer">
+                                    J&apos;accepte les{' '}
+                                </label>
+                                <Link
+                                    href="/cgv"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-semibold text-[#6D28D9] hover:underline"
+                                >
+                                    Conditions Générales d&apos;Utilisation et de Vente
+                                </Link>{' '}
+                                (obligatoire pour créer un compte).
+                            </p>
+                        </div>
 
                         {SHOW_FACEBOOK && (
                             <button
@@ -604,36 +633,6 @@ function LoginForm() {
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* Acceptation des CGV (obligatoire) — le lien ouvre /cgv dans un
-                                nouvel onglet sans perdre l'état du formulaire */}
-                            <div className="flex items-start gap-2.5">
-                                <input
-                                    id="accept-cgv"
-                                    type="checkbox"
-                                    required
-                                    checked={acceptedCgv}
-                                    onChange={(e) => setAcceptedCgv(e.target.checked)}
-                                    className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 accent-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20"
-                                />
-                                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                                    <label
-                                        htmlFor="accept-cgv"
-                                        className="cursor-pointer"
-                                    >
-                                        J&apos;accepte les{' '}
-                                    </label>
-                                    <Link
-                                        href="/cgv"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="font-semibold text-[#6D28D9] hover:underline"
-                                    >
-                                        Conditions Générales d&apos;Utilisation et de Vente
-                                    </Link>
-                                    .
-                                </p>
                             </div>
 
                             <button

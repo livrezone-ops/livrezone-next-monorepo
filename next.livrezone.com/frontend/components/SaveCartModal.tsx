@@ -10,13 +10,21 @@ export default function SaveCartModal() {
   const { guestModalOpen, guestItem, guestModalType, closeGuestModal } =
     useCommerce();
   const { loginWithProvider } = useAuth();
+  const [cgvAccepted, setCgvAccepted] = React.useState(false);
+  const [cgvError, setCgvError] = React.useState(false);
 
   if (!guestModalOpen || !guestModalType) return null;
 
   const label =
     guestModalType === "cart" ? "panier" : "wishlist";
 
+  // La connexion via Google peut créer un compte : les CGV doivent être
+  // acceptées au préalable (même règle que la page /login).
   const handleLogin = () => {
+    if (!cgvAccepted) {
+      setCgvError(true);
+      return;
+    }
     void loginWithProvider("google");
   };
 
@@ -60,6 +68,42 @@ export default function SaveCartModal() {
             </p>
 
             <div className="flex flex-col gap-3">
+              <div className="flex items-start gap-2 text-left">
+                <input
+                  id="save-cart-cgv"
+                  type="checkbox"
+                  checked={cgvAccepted}
+                  onChange={(e) => {
+                    setCgvAccepted(e.target.checked);
+                    if (e.target.checked) setCgvError(false);
+                  }}
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-gray-300 accent-[#6D28D9] focus:ring-2 focus:ring-[#6D28D9]/20"
+                />
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  <label
+                    htmlFor="save-cart-cgv"
+                    className="cursor-pointer"
+                  >
+                    J&apos;accepte les{' '}
+                  </label>
+                  <a
+                    href="/cgv"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-[#6D28D9] hover:underline"
+                  >
+                    Conditions Générales d&apos;Utilisation et de Vente
+                  </a>
+                  .
+                </p>
+              </div>
+
+              {cgvError && (
+                <p className="text-xs font-medium text-rose-600">
+                  Vous devez accepter les Conditions Générales pour continuer.
+                </p>
+              )}
+
               <button
                 onClick={handleLogin}
                 className="w-full h-11 rounded-lg text-xs font-bold text-white hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-sm"
