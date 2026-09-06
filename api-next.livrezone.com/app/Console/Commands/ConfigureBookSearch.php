@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Book;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Http;
 use Meilisearch\Client;
 
 class ConfigureBookSearch extends Command
@@ -40,7 +41,17 @@ class ConfigureBookSearch extends Command
             'id',
         ]);
 
-        $this->info('Index Meilisearch « '.(new Book)->searchableAs().' » : filterable + sortable appliqués.');
+        // Cap de pagination relevé (défaut Meili = 1000) : sans lui, toute
+        // requête matchant > 1000 livres renvoyait « total: 1000 » au front
+        // (constaté 06/09 avec search=a → 693 691 réels). Le SDK embarqué
+        // n'expose pas updatePaginationSettings() → PATCH HTTP direct, qui ne
+        // touche QUE ce réglage (updateSettings() ferait un remplacement global).
+        Http::withHeaders(['Authorization' => 'Bearer '.$key])
+            ->patch(rtrim($host, '/').'/indexes/'.(new Book)->searchableAs().'/settings/pagination', [
+                'maxTotalHits' => 1000000,
+            ]);
+
+        $this->info('Index Meilisearch « '.(new Book)->searchableAs().' » : filterable + sortable + maxTotalHits appliqués.');
         $this->info('Ensuite, réindexez : php artisan scout:import "App\Models\Book"');
 
         return 0;

@@ -21,8 +21,13 @@ Parcours publics restants + manques produit (revue 29/08). Ajouts 06/09 :
 - **Vitrine `/books` : section « Nouveautés » réintroduite** (décision propriétaire 06/09) —
   12 titres via UNE requête Meili plafonnée (`sort=recent`, `facets=0`), servie en SSR.
   Le code + l'incident associé : `.agents/incident-index-books-20260906.md`.
-- **Filtre matière (`default_subject_id`)** : champ désormais indexé (06/09) — reste
-  l'UI (FilterSidebar + param API) et le filtre côté `BookCatalogueService`.
+- **Filtre matière (`default_subject_id`) : LIVRÉ 06/09 soir** — champ indexé (réimport du
+  matin) + filtre API `?subject=CODE` (`ReferenceFilterService::resolveSubjectIds`,
+  `BookCatalogueService`), facettes `subjects` (codes, comptes), section « Matière » dans
+  la sidebar /books (opt-in, liste statique `SUBJECTS` alignée sur la table `subjects`),
+  cap Meili `maxTotalHits` relevé 1000 → 1 000 000 (les totaux affichaient « 1000 » pour
+  toute requête > 1000 matchs ; persisté dans `books:configure-search` via PATCH HTTP, le
+  SDK embarqué n'exposant pas la méthode).
 - Enquête : identifier l'origine des builds front du 05/09 soir (22h41 → 02h47) et
   du run manuel Meili 05/09 02:40 (cause de l'appauvrissement de l'index books).
 

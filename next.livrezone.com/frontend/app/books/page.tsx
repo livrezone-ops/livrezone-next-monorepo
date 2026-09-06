@@ -100,6 +100,7 @@ export default async function LivresPage({ searchParams }: PageProps) {
     f.categories.length === 0 &&
     f.languages.length === 0 &&
     f.levels.length === 0 &&
+    f.subjects.length === 0 &&
     f.page === 1;
 
   // Vue par défaut : vitrine légère (décision 03/09) enrichie le 06/09 d'une
@@ -122,6 +123,7 @@ export default async function LivresPage({ searchParams }: PageProps) {
     categories: f.categories.length ? f.categories : undefined,
     languages: f.languages.length ? f.languages : undefined,
     levels: f.levels.length ? f.levels : undefined,
+    subjects: f.subjects.length ? f.subjects : undefined,
     sort: f.sort !== "latest" ? f.sort : undefined,
     page: f.page,
     limit: 12,

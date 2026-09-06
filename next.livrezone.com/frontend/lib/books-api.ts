@@ -51,6 +51,7 @@ export async function getBooks(query: {
   categories?: string[] | string;
   languages?: string[] | string;
   levels?: string[] | string;
+  subjects?: string[] | string;
   page?: number;
   limit?: number;
   facets?: boolean;
@@ -62,7 +63,7 @@ export async function getBooks(query: {
   if (query.field) params.set("field", query.field);
   if (query.facets === false) params.set("facets", "0");
   if (query.sort) params.set("sort", query.sort);
-  
+
   if (query.categories) {
     params.set("categories", Array.isArray(query.categories) ? query.categories.join(",") : query.categories);
   } else if (query.category_id) {
@@ -75,6 +76,10 @@ export async function getBooks(query: {
 
   if (query.levels) {
     params.set("levels", Array.isArray(query.levels) ? query.levels.join(",") : query.levels);
+  }
+
+  if (query.subjects) {
+    params.set("subjects", Array.isArray(query.subjects) ? query.subjects.join(",") : query.subjects);
   }
 
   params.set("page", String(query.page || 1));

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Category;
 use App\Models\Language;
 use App\Models\Level;
+use App\Models\Subject;
 use Illuminate\Http\Request;
 
 class ReferenceFilterService
@@ -175,6 +176,36 @@ class ReferenceFilterService
 
         if (! empty($codes)) {
             $foundIds = Level::whereIn('code', $codes)->pluck('id')->all();
+            $numericIds = array_merge($numericIds, $foundIds);
+        }
+
+        return array_values(array_unique(array_filter($numericIds)));
+    }
+
+    /**
+     * Résout les IDs de matières depuis des codes textuels ("MATHEMATIQUES", "ANGLAIS"…)
+     * ou des IDs numériques (structure plate : pas d'inclusion récursive contrairement aux catégories).
+     */
+    public function resolveSubjectIds(Request|array $source, array $keys = ['subjects', 'subject', 'subject_id']): array
+    {
+        $rawValues = $this->csvParam($source, $keys);
+        if (empty($rawValues)) {
+            return [];
+        }
+
+        $codes = [];
+        $numericIds = [];
+
+        foreach ($rawValues as $val) {
+            if (is_numeric($val)) {
+                $numericIds[] = (int) $val;
+            } else {
+                $codes[] = $val;
+            }
+        }
+
+        if (! empty($codes)) {
+            $foundIds = Subject::whereIn('code', $codes)->pluck('id')->all();
             $numericIds = array_merge($numericIds, $foundIds);
         }
 

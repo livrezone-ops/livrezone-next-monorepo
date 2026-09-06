@@ -7,6 +7,7 @@ import {
   CATEGORIES,
   LANGUAGES,
   CONDITIONS,
+  SUBJECTS,
   SCOLAIRE_SUBTREE,
   UNIVERSITAIRE_SUBTREE,
   SCOLAIRE_CYCLES,
@@ -52,6 +53,7 @@ export type FilterSection =
   | "categories"
   | "levels"
   | "languages"
+  | "subjects"
   | "conditions"
   | "cities"
   | "price";
@@ -77,6 +79,7 @@ interface FilterSidebarProps {
     languages?: Record<string, number>;
     conditions?: Record<string, number>;
     levels?: Record<string, number>;
+    subjects?: Record<string, number>;
     cities?: Record<string, number>;
   };
 }
@@ -85,6 +88,7 @@ interface Draft {
   categories: string[];
   levels: string[];
   languages: string[];
+  subjects: string[];
   conditions: string[];
   cities: number[];
   minPrice: number;
@@ -116,6 +120,7 @@ export default function FilterSidebar({
     categories: [...filters.categories],
     levels: [...filters.levels],
     languages: [...filters.languages],
+    subjects: [...filters.subjects],
     conditions: [...filters.conditions],
     cities: [...filters.cities],
     minPrice: filters.minPrice ?? priceMinLimit,
@@ -144,6 +149,20 @@ export default function FilterSidebar({
         return a.id - b.id;
       });
   }, [facets?.languages]);
+
+  // Matières : comme les langues, seules celles avec des résultats s'affichent,
+  // triées par volume décroissant (facettes default_subject_id renvoyées par l'API).
+  const sortedSubjects = useMemo(() => {
+    return SUBJECTS.map(subj => ({
+      ...subj,
+      count: facets?.subjects?.[subj.code] || 0
+    }))
+      .filter((subj) => subj.count > 0)
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.name.localeCompare(b.name, "fr");
+      });
+  }, [facets?.subjects]);
 
   const conditionsWithCount = useMemo(() => {
     return CONDITIONS.map(cond => ({
@@ -190,6 +209,7 @@ export default function FilterSidebar({
     filters.categories,
     filters.levels,
     filters.languages,
+    filters.subjects,
     filters.conditions,
     filters.cities,
     filters.minPrice,
@@ -221,6 +241,7 @@ export default function FilterSidebar({
       categories: isSectionVisible("categories") ? draft.categories : [],
       levels: isSectionVisible("levels") ? draft.levels : [],
       languages: isSectionVisible("languages") ? draft.languages : [],
+      subjects: isSectionVisible("subjects") ? draft.subjects : [],
       conditions: isSectionVisible("conditions") ? draft.conditions : [],
       cities: isSectionVisible("cities") ? draft.cities : [],
       minPrice: isSectionVisible("price") ? draft.minPrice : undefined,
@@ -244,6 +265,7 @@ export default function FilterSidebar({
       categories: [],
       levels: [],
       languages: [],
+      subjects: [],
       conditions: [],
       cities: [],
       minPrice: priceMinLimit,
@@ -259,7 +281,7 @@ export default function FilterSidebar({
   };
 
   const toggleValue = (
-    key: "categories" | "levels" | "languages" | "conditions",
+    key: "categories" | "levels" | "languages" | "subjects" | "conditions",
     value: string,
     expandCategory?: string
   ) => {
@@ -413,6 +435,7 @@ export default function FilterSidebar({
     if (isSectionVisible("categories")) count += filters.categories.length;
     if (isSectionVisible("levels")) count += filters.levels.length;
     if (isSectionVisible("languages")) count += filters.languages.length;
+    if (isSectionVisible("subjects")) count += filters.subjects.length;
     if (isSectionVisible("conditions")) count += filters.conditions.length;
     if (isSectionVisible("cities")) count += filters.cities.length;
     if (isSectionVisible("price")) {
@@ -494,6 +517,47 @@ export default function FilterSidebar({
               />
               {openSections.categories && (
                 <div className="mt-4">{renderCategoryNode(CATEGORIES, 0)}</div>
+              )}
+            </div>
+          )}
+
+          {/* Matière (uniquement /books — sections opt-in ; facettes default_subject_id) */}
+          {isSectionVisible("subjects") && (
+            <div className="border-b border-gray-100 py-5">
+              <SectionToggle
+                open={!!openSections.subjects}
+                onToggle={() => toggleSection("subjects")}
+                title="Matière"
+              />
+              {openSections.subjects && (
+                <div className="mt-4 space-y-3">
+                  {sortedSubjects.length === 0 && (
+                    <p className="text-xs text-gray-400">Aucune matière disponible.</p>
+                  )}
+                  {sortedSubjects.map((subj) => (
+                    <label
+                      key={subj.code}
+                      className="flex items-center justify-between cursor-pointer group"
+                    >
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={draft.subjects.includes(subj.code)}
+                          onChange={() => toggleValue("subjects", subj.code)}
+                          className="w-4 h-4 rounded-sm border-gray-300 text-[#F97316] focus:ring-[#F97316] mr-3"
+                        />
+                        <span className="text-[15px] text-gray-700 group-hover:text-black transition-colors">
+                          {subj.name}
+                          {subj.count > 0 && (
+                            <span className="ml-1.5 text-[11px] text-gray-400 font-semibold">
+                              ({subj.count})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               )}
             </div>
           )}

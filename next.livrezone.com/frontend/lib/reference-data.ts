@@ -138,6 +138,46 @@ export const LANGUAGES: LanguageRef[] = [
   { id: 2, code: "fr", name: "Français" },
 ];
 
+export interface SubjectRef {
+  code: string;
+  name: string;
+  family: string;
+}
+
+// Matières (table `subjects` du backend, export 06/09/2026, 27 entrées actives).
+// Filtre /books via default_subject_id — champ indexé dans Meilisearch sur les
+// ~697k documents. Libellés d'affichage : coquilles de la base corrigées ici
+// ("Data sciense" → Data science, "finance des marchés" → Finance des marchés).
+// NON_APPLICABLE volontairement absente (poubelle technique).
+export const SUBJECTS: SubjectRef[] = [
+  { code: "MATHEMATIQUES", name: "Mathématiques", family: "commun" },
+  { code: "PHYSIQUE_CHIMIE", name: "Physique-Chimie", family: "commun" },
+  { code: "INFORMATIQUE", name: "Informatique", family: "commun" },
+  { code: "ARTS", name: "Arts", family: "commun" },
+  { code: "ANGLAIS", name: "Anglais", family: "scolaire" },
+  { code: "ARABE", name: "Arabe", family: "scolaire" },
+  { code: "FRANCAIS", name: "Français", family: "scolaire" },
+  { code: "ESPAGNOL", name: "Espagnol", family: "scolaire" },
+  { code: "HISTOIRE_GEO", name: "Histoire-Géographie", family: "scolaire" },
+  { code: "PHILOSOPHIE", name: "Philosophie", family: "scolaire" },
+  { code: "SVT", name: "Sciences de la vie et de la Terre", family: "scolaire" },
+  { code: "EDUCATION_ISLAMIQUE", name: "Éducation islamique", family: "scolaire" },
+  { code: "EPS", name: "Éducation physique", family: "scolaire" },
+  { code: "AUDIT", name: "Audit", family: "universitaire_professionnel" },
+  { code: "BIG_DATA", name: "Big Data", family: "universitaire_professionnel" },
+  { code: "COMPTABILITE", name: "Comptabilité", family: "universitaire_professionnel" },
+  { code: "DATA_SCIENCE", name: "Data science", family: "universitaire_professionnel" },
+  { code: "DROIT", name: "Droit", family: "universitaire_professionnel" },
+  { code: "ECONOMIE_GESTION", name: "Économie-Gestion", family: "universitaire_professionnel" },
+  { code: "FINANCE_MARCHES", name: "Finance des marchés", family: "universitaire_professionnel" },
+  { code: "FORMATION_PRO", name: "Formation professionnelle", family: "universitaire_professionnel" },
+  { code: "MEDECINE_SANTE", name: "Médecine et santé", family: "universitaire_professionnel" },
+  { code: "RESEAU", name: "Réseau", family: "universitaire_professionnel" },
+  { code: "SCIENCES_HUMAINES", name: "Sciences humaines", family: "universitaire_professionnel" },
+  { code: "STATISTIQUE", name: "Statistique", family: "universitaire_professionnel" },
+  { code: "AUTRE", name: "Autre", family: "autre" },
+];
+
 // Codes de la catégorie SCOLAIRE et de ses sous-catégories.
 // Le bloc « Niveau » est actif quand une de ces catégories est sélectionnée.
 export const SCOLAIRE_SUBTREE: ReadonlySet<string> = new Set([

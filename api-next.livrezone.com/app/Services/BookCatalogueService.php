@@ -6,6 +6,7 @@ use App\Models\Book;
 use App\Models\Category;
 use App\Models\Language;
 use App\Models\Level;
+use App\Models\Subject;
 use Illuminate\Http\Request;
 
 class BookCatalogueService
@@ -49,7 +50,7 @@ class BookCatalogueService
 
         if ($computeFacets) {
             $facetBuilder = Book::search($author !== '' ? '' : $search, function ($meilisearch, $query, $options) {
-                $options['facets'] = ['default_category_id', 'language_id', 'default_level_id'];
+                $options['facets'] = ['default_category_id', 'language_id', 'default_level_id', 'default_subject_id'];
                 $options['hitsPerPage'] = 0; // On ne veut que les facettes
 
                 return $meilisearch->search($query, $options);
@@ -65,10 +66,12 @@ class BookCatalogueService
             $categoryFacets = $rawFacets['facetDistribution']['default_category_id'] ?? [];
             $languageFacets = $rawFacets['facetDistribution']['language_id'] ?? [];
             $levelFacets = $rawFacets['facetDistribution']['default_level_id'] ?? [];
+            $subjectFacets = $rawFacets['facetDistribution']['default_subject_id'] ?? [];
         } else {
             $categoryFacets = [];
             $languageFacets = [];
             $levelFacets = [];
+            $subjectFacets = [];
         }
 
         // --- 2. Requête principale (avec tous les filtres) ---
@@ -102,10 +105,11 @@ class BookCatalogueService
 
         $response = $paginated->toArray();
 
-        // Map numeric IDs to string codes for the frontend (catégories, langues, niveaux).
+        // Map numeric IDs to string codes for the frontend (catégories, langues, niveaux, matières).
         $categoryMap = Category::pluck('code', 'id')->toArray();
         $languageMap = Language::pluck('code', 'id')->toArray();
         $levelMap = Level::pluck('code', 'id')->toArray();
+        $subjectMap = Subject::pluck('code', 'id')->toArray();
 
         $mappedCategories = [];
         foreach ($categoryFacets as $id => $count) {
@@ -122,11 +126,17 @@ class BookCatalogueService
             $code = $levelMap[$id] ?? $id;
             $mappedLevels[$code] = ($mappedLevels[$code] ?? 0) + $count;
         }
+        $mappedSubjects = [];
+        foreach ($subjectFacets as $id => $count) {
+            $code = $subjectMap[$id] ?? $id;
+            $mappedSubjects[$code] = ($mappedSubjects[$code] ?? 0) + $count;
+        }
 
         $response['facets'] = [
             'categories' => $mappedCategories,
             'languages' => $mappedLanguages,
             'levels' => $mappedLevels,
+            'subjects' => $mappedSubjects,
         ];
 
         return $response;
@@ -215,6 +225,16 @@ class BookCatalogueService
             $levelIds = $this->filterService->resolveLevelIds($request, ['levels', 'level', 'level_id']);
             if (! empty($levelIds)) {
                 $builder->whereIn('default_level_id', $levelIds);
+            }
+        }
+
+        // Filtre matière (demande 23/08, livré 06/09) : /books?subject=MATHEMATIQUES,ANGLAIS
+        // → whereIn default_subject_id. Le champ est filterable + indexé sur les 697k docs
+        // (cf. books:configure-search et l'incident-index-books-20260906.md).
+        if (! in_array('subjects', $exclude, true)) {
+            $subjectIds = $this->filterService->resolveSubjectIds($request, ['subjects', 'subject', 'subject_id']);
+            if (! empty($subjectIds)) {
+                $builder->whereIn('default_subject_id', $subjectIds);
             }
         }
     }

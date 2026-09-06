@@ -6,6 +6,7 @@ export interface AnnoncesFilters {
   levels: string[];
   languages: string[];
   conditions: string[];
+  subjects: string[];
   cities: number[];
   minPrice: number | null;
   maxPrice: number | null;
@@ -53,6 +54,9 @@ export function parseFilters(get: ParamGetter): AnnoncesFilters {
     levels: unionLists([get("levels"), get("level"), get("lvl")]),
     languages: unionLists([get("languages"), get("language"), get("l")]),
     conditions: unionLists([get("conditions"), get("condition"), get("cond")]),
+    // Filtre matière (06/09/2026) : /books?subject=MATHEMATIQUES,ANGLAIS —
+    // uniquement exploité par le catalogue /books (default_subject_id Meili).
+    subjects: unionLists([get("subjects"), get("subject"), get("subject_id")]),
     cities: Array.from(
       new Set([
         ...toNumbers(get("city")),
@@ -93,6 +97,7 @@ export function buildFilterQuery(
     levels?: string[];
     languages?: string[];
     conditions?: string[];
+    subjects?: string[];
     cities?: number[];
     minPrice?: number | null;
     maxPrice?: number | null;
@@ -113,6 +118,7 @@ export function buildFilterQuery(
   if (filters.levels?.length) params.set("level", filters.levels.join(","));
   if (filters.languages?.length) params.set("language", filters.languages.join(","));
   if (filters.conditions?.length) params.set("condition", filters.conditions.join(","));
+  if (filters.subjects?.length) params.set("subject", filters.subjects.join(","));
   if (filters.cities?.length) params.set("city", filters.cities.join(","));
 
   const minLimit = filters.minLimit ?? 0;

@@ -430,7 +430,7 @@ export default function BooksClient({
         {/* Sidebar des filtres */}
         <FilterSidebar
           cities={cities}
-          sections={["categories", "languages", "levels"]}
+          sections={["categories", "subjects", "languages", "levels"]}
           basePath="/books"
           facets={initialFacets}
         />
