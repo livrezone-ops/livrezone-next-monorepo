@@ -181,8 +181,18 @@ class AuthController extends Controller
             return response()->json(['message' => 'Mot de passe réinitialisé avec succès.']);
         }
 
+        // Message explicite par statut du broker : le lien générique
+        // « Échec de la réinitialisation » ne permettait pas de distinguer un
+        // lien expiré/déjà utilisé (cas typique : plusieurs emails de reset
+        // demandés, seul le DERNIER lien est valable) d'un compte inconnu.
+        $messages = [
+            Password::INVALID_TOKEN => 'Ce lien de réinitialisation est invalide, expiré ou a déjà été utilisé. Faites une nouvelle demande pour recevoir un lien à jour.',
+            Password::INVALID_USER => 'Aucun compte actif trouvé pour cette adresse email.',
+            Password::INVALID_PASSWORD => 'Le mot de passe choisi ne respecte pas les règles de sécurité.',
+        ];
+
         return response()->json([
-            'message' => 'Échec de la réinitialisation.',
+            'message' => $messages[$status] ?? 'Échec de la réinitialisation.',
             'error' => __($status),
         ], 422);
     }

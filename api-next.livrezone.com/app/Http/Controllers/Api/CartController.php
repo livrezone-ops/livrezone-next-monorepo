@@ -52,6 +52,11 @@ class CartController extends Controller
                     'id' => $seller->id,
                     'nickname' => $seller->profile?->nickname ?? 'utilisateur-'.$seller->id,
                     'city' => $seller->profile?->city?->name,
+                    // WhatsApp uniquement si le vendeur a un numéro portable
+                    // (has_whatsapp auto-dérivé du numéro, cf. Profile::saving).
+                    'phone' => ($seller->profile?->has_whatsapp && $seller->profile?->phone)
+                        ? $seller->profile->phone
+                        : null,
                 ] : null,
                 'items' => $group->values(),
                 'item_count' => $group->sum('quantity'),

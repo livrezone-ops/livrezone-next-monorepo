@@ -204,6 +204,7 @@ interface RawCartGroup {
     id?: number;
     nickname?: string | null;
     city?: string | null;
+    phone?: string | null;
   } | null;
   item_count?: number;
   subtotal?: number;
@@ -223,6 +224,7 @@ interface RawCartItem {
     isbn_13?: string | null;
     quantity?: number | null;
     status?: string | null;
+    user_id?: number;
     user?: {
       profile?: {
         nickname?: string | null;
@@ -270,9 +272,9 @@ async function fetchCart(): Promise<CartSellerGroup[]> {
             id: g.seller.id ?? 0,
             nickname: g.seller.nickname ?? "Vendeur LivreZone",
             city: g.seller.city ?? null,
-            phone:
-              (g.items ?? []).find((i) => i.listing?.user?.profile?.phone)
-                ?.listing?.user?.profile?.phone ?? null,
+            // Téléphone déjà filtré côté API (exposé seulement si le vendeur
+            // a WhatsApp, cf. CartController::index).
+            phone: g.seller.phone ?? null,
           }
         : null,
       items: (g.items ?? []).map(
@@ -280,6 +282,11 @@ async function fetchCart(): Promise<CartSellerGroup[]> {
           const listingData = item.listing;
           const base: StoreListing = {
             id: item.listing_id,
+            // user_id indispensable : le regroupement par vendeur du panier
+            // (cartSellers) se fait côté client sur cette clé. Sans lui,
+            // toutes les lignes tombaient dans un seul groupe « Vendeur
+            // LivreZone » avec un unique lien WhatsApp (bug du 06/09).
+            user_id: listingData?.user_id ?? g.seller?.id ?? null,
             title: listingData?.title ?? "Annonce indisponible",
             price: listingData?.price,
             discountPrice: listingData?.discount_price ?? null,
@@ -289,7 +296,7 @@ async function fetchCart(): Promise<CartSellerGroup[]> {
             sellerNickname:
               listingData?.user?.profile?.nickname ||
               (g.seller?.nickname ?? null),
-            sellerPhone: listingData?.user?.profile?.phone ?? null,
+            sellerPhone: g.seller?.phone ?? null,
             city: listingData?.user?.profile?.city?.name ?? null,
             availableQuantity: listingData?.quantity ?? null,
             // Listing supprimé / introuvable côté serveur => indisponible.
