@@ -6,6 +6,7 @@ import path from "path";
 import nextDynamic from "next/dynamic";
 import { toJsonLd } from "@/lib/safe-json-ld";
 import { SITE_URL } from "@/lib/site-url";
+import { ogDefaults } from "@/lib/og";
 import {
   BookOpen,
   Store,
@@ -193,8 +194,8 @@ export const metadata: Metadata = {
     description:
       "Achetez et vendez vos livres neufs et d'occasion au Maroc. Des milliers d'annonces de librairies et particuliers partout dans le Royaume.",
     type: "website",
-    locale: "fr_MA",
-    siteName: "LivreZone",
+    ...ogDefaults(),
+    url: SITE_URL,
   },
 };
 

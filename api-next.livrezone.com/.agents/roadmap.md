@@ -27,7 +27,12 @@ Parcours publics restants + manques produit (revue 29/08). Ajouts 06/09 :
   la sidebar /books (opt-in, liste statique `SUBJECTS` alignée sur la table `subjects`),
   cap Meili `maxTotalHits` relevé 1000 → 1 000 000 (les totaux affichaient « 1000 » pour
   toute requête > 1000 matchs ; persisté dans `books:configure-search` via PATCH HTTP, le
-  SDK embarqué n'exposant pas la méthode).
+  SDK embarqué n'exposant pas la méthode). Validé propriétaire 06/09.
+- **OpenGraph réparé (06/09 soir)** : `/og-image.png` (1200×630, bannière de marque)
+  référencée par le layout mais ABSENTE de `public/` depuis l'origine + les pages qui
+  redéfinissent `openGraph` remplaçaient tout (og:url/og:image perdus). Helper
+  `lib/og.ts` (`ogDefaults()`/`ogImage()`/`ogImageUrl()`) répandu sur les ~10 pages ;
+  fiches annonce : couverture en og:image avec bannière de marque en repli.
 - Enquête : identifier l'origine des builds front du 05/09 soir (22h41 → 02h47) et
   du run manuel Meili 05/09 02:40 (cause de l'appauvrissement de l'index books).
 

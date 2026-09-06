@@ -5,6 +5,8 @@ import { notFound } from "next/navigation";
 import { BookOpen, ArrowLeft, Layers, ChevronRight, Tag } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import OrderBookButton from "./OrderBookButton";
+import { SITE_URL } from "@/lib/site-url";
+import { ogDefaults } from "@/lib/og";
 
 function normalizeAuthors(authors: string[] | string | null | undefined): string[] {
   if (!authors) return [];
@@ -48,11 +50,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const title = `${book.title} | LivreZone`;
   const description = `Découvrez les annonces pour le livre ${book.title}${book.authors ? ` de ${book.authors}` : ""} sur LivreZone Maroc.`;
+  const canonical = `${SITE_URL}/books/${slug}`;
 
   return {
     title,
     description,
-    openGraph: { title, description, type: "book" },
+    alternates: { canonical },
+    openGraph: { title, description, type: "book", ...ogDefaults(), url: canonical },
   };
 }
 

@@ -12,6 +12,7 @@ import { toJsonLd } from "@/lib/safe-json-ld";
 export const revalidate = 60;
 
 import { SITE_URL } from "@/lib/site-url";
+import { ogDefaults } from "@/lib/og";
 
 interface PageProps {
   params: Promise<{ code: string }>;
@@ -69,11 +70,13 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     ? `Résultats de recherche « ${search} » dans le rayon ${theme.name} du catalogue LivreZone.`
     : `Parcourez les livres ${theme.name} du référentiel LivreZone : titres, auteurs et annonces disponibles à la vente.`;
 
+  const canonical = `${SITE_URL}/books/themes/${code.toUpperCase()}`;
+
   return {
     title,
     description,
-    alternates: { canonical: `${SITE_URL}/books/themes/${code.toUpperCase()}` },
-    openGraph: { title, description, type: "website", locale: "fr_MA", siteName: "LivreZone" },
+    alternates: { canonical },
+    openGraph: { title, description, type: "website", ...ogDefaults(), url: canonical },
     // Les vues de recherche restent explorables mais ne sont pas indexées.
     robots: page > 1 || search ? { index: false, follow: true } : { index: true, follow: true },
   };

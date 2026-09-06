@@ -6,6 +6,7 @@ import { getReferenceData } from "@/lib/listings-api";
 export const revalidate = 30;
 
 import { SITE_URL } from "@/lib/site-url";
+import { ogDefaults } from "@/lib/og";
 const PATH = "/demandes";
 const API_BASE = (process.env.INTERNAL_API_URL
   || process.env.NEXT_PUBLIC_API_URL
@@ -37,10 +38,15 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     ? `Découvrez les acheteurs qui recherchent « ${search} » sur LivreZone. Vous avez ce livre ? Vendez-le facilement !`
     : "Consultez les livres recherchés par la communauté LivreZone au Maroc. Répondez aux demandes des lecteurs et vendez vos livres.";
 
+  const canonical = search
+    ? `${SITE_URL}/demandes?search=${encodeURIComponent(search)}`
+    : `${SITE_URL}/demandes`;
+
   return {
     title,
     description,
-    openGraph: { title, description, type: "website", locale: "fr_MA", siteName: "LivreZone" },
+    alternates: { canonical },
+    openGraph: { title, description, type: "website", ...ogDefaults(), url: canonical },
   };
 }
 

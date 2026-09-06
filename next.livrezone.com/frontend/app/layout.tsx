@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { toJsonLd } from "@/lib/safe-json-ld";
 import { SITE_URL } from "@/lib/site-url";
+import { ogDefaults } from "@/lib/og";
 
 const notoSans = Noto_Sans({
   subsets: ["latin"],
@@ -39,20 +40,11 @@ export const metadata: Metadata = {
     "Achetez et vendez vos livres neufs et d'occasion au Maroc. Des milliers d'annonces de librairies et particuliers partout dans le Royaume.",
   openGraph: {
     type: "website",
-    locale: "fr_MA",
     url: SITE_URL,
-    siteName: "LivreZone",
+    ...ogDefaults(),
     title: "LivreZone | Achat & Vente de Livres Neufs et d'Occasion au Maroc",
     description:
       "Achetez et vendez vos livres neufs et d'occasion au Maroc. Des milliers d'annonces de librairies et particuliers partout dans le Royaume.",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "LivreZone - Marketplace de livres neufs et d'occasion au Maroc",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",

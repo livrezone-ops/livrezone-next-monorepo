@@ -4,6 +4,7 @@ import Link from "next/link";
 import { X } from "lucide-react";
 import FilterSidebar from "@/components/FilterSidebar";
 import { toJsonLd } from "@/lib/safe-json-ld";
+import { ogDefaults } from "@/lib/og";
 import ListingsSearch from "@/components/ListingsSearch";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import {
@@ -163,8 +164,7 @@ export async function generateMetadata({
       title,
       description,
       type: "website",
-      locale: "fr_MA",
-      siteName: "LivreZone",
+      ...ogDefaults(),
       url: canonical,
     },
     robots:

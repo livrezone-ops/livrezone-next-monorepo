@@ -20,6 +20,7 @@ import { parseFilters, type AnnoncesFilters } from "@/lib/listings-filters";
 export const revalidate = 60;
 
 import { SITE_URL } from "@/lib/site-url";
+import { ogDefaults } from "@/lib/og";
 const PRICE_MIN_LIMIT = 0;
 const PRICE_MAX_LIMIT = 500;
 
@@ -68,7 +69,7 @@ export async function generateMetadata({
       title,
       description,
       type: "profile",
-      siteName: "LivreZone",
+      ...ogDefaults(),
       url: canonical,
     },
     robots: { index: true, follow: true },

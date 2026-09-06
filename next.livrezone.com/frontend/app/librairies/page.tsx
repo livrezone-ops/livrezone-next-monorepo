@@ -7,6 +7,7 @@ import LibrariesClient from "./LibrariesClient";
 export const revalidate = 60;
 
 import { SITE_URL } from "@/lib/site-url";
+import { ogDefaults } from "@/lib/og";
 const PATH = "/librairies";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -50,11 +51,13 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     ? `Découvrez les librairies correspondant à « ${search} » sur LivreZone : ville, note et nombre de publications.`
     : "Parcourez l'annuaire des librairies et vendeurs de livres au Maroc. Filtrez par ville et par condition des livres, triez par note ou par nombre de publications.";
 
+  const canonical = canonicalHref(search, conditions, cities, firstParam(sp.sort), page);
+
   return {
     title,
     description,
-    alternates: { canonical: canonicalHref(search, conditions, cities, firstParam(sp.sort), page) },
-    openGraph: { title, description, type: "website", locale: "fr_MA", siteName: "LivreZone" },
+    alternates: { canonical },
+    openGraph: { title, description, type: "website", ...ogDefaults(), url: canonical },
     robots: page > 1 ? { index: false, follow: true } : { index: true, follow: true },
   };
 }

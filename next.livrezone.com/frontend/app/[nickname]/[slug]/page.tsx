@@ -7,6 +7,7 @@ import { toJsonLd } from "@/lib/safe-json-ld";
 export const dynamic = 'force-dynamic';
 
 import { SITE_URL } from "@/lib/site-url";
+import { ogImage, ogImageUrl } from "@/lib/og";
 
 interface PageProps {
   params: Promise<{
@@ -114,13 +115,15 @@ export async function generateMetadata({
       locale: "fr_MA",
       siteName: "LivreZone",
       url: canonical,
-      images: coverUrl ? [{ url: coverUrl, alt: listing.title }] : [],
+      // Couverture de l'annonce si disponible, sinon visuel de marque
+      // (images: [] ferait tomber le partage sans aucune vignette).
+      images: coverUrl ? [{ url: coverUrl, alt: listing.title }] : [ogImage()],
     },
     twitter: {
       card: coverUrl ? "summary_large_image" : "summary",
       title: listing.title,
       description,
-      images: coverUrl ? [coverUrl] : [],
+      images: coverUrl ? [coverUrl] : [ogImageUrl()],
     },
     robots: { index: true, follow: true },
   };

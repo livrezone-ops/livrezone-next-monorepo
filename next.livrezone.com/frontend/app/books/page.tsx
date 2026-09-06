@@ -10,6 +10,7 @@ import BooksHome from "./BooksHome";
 export const revalidate = 60;
 
 import { SITE_URL } from "@/lib/site-url";
+import { ogDefaults } from "@/lib/og";
 const PATH = "/books";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -75,11 +76,13 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     description = "Parcourez le référentiel des livres, recherchez par titre et par auteur, et créez des demandes de livres.";
   }
 
+  const canonical = canonicalHref(search, page, categoryCodes, author);
+
   return {
     title,
     description,
-    alternates: { canonical: canonicalHref(search, page, categoryCodes, author) },
-    openGraph: { title, description, type: "website", locale: "fr_MA", siteName: "LivreZone" },
+    alternates: { canonical },
+    openGraph: { title, description, type: "website", ...ogDefaults(), url: canonical },
     robots:
       author || page > 1
         ? { index: false, follow: true }
