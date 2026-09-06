@@ -1,38 +1,75 @@
-# Roadmap LivreZone — Session 4 & 5 (14/08/2026)
+# Roadmap LivreZone — Backlog consolidé 06/09/2026
 
-## Fonctionnel en production
+> Source : backlog validé du 03/09 (décisions propriétaire) + audit technique complet du 06/09 (`.agents/AUDIT-2026-09-06.md`) + décision propriétaire du 06/09 : **migration du domaine frontend par POINTEUR** (pas de copie de fichiers). Détail opérationnel : `.agents/MIGRATION-livrezone-com-2026-09-06.md`.
+> Règle de session : chaque étape documentée ; git push après validation de test du propriétaire ; `lz` quand le frontend change.
 
-- Auth Google OAuth (Sanctum + Socialite)
-- Complétion de profil (villes, logo, nickname)
-- Dashboard listing : liste, inline-edit, update status (sold/deleted/archived), republish, bulk-status, bulk-discount
-- Création d'annonce (formulaire complet + recherche ISBN)
-- Édition d'annonce (photo, ISBN, PUT)
-- Listing detail public (client-side, TanStack Query, policy par statut)
-- Messages Toast (hook useToasts)
-- Quantité forcée à 1, validation backend catégorie/niveau/matière
+## 🔴 Priorité 1 — Migration domaine frontend `next.livrezone.com` → `livrezone.com` (option pointer)
 
-## Welcome page (accueil public SEO) — FAIT, DÉPLOYÉ (autre session)
+Décision propriétaire 06/09 : on POINTE le domaine vers le conteneur existant `livrezone-next` (aucune copie de fichiers, aucun second conteneur). Le dossier de build reste `_data/next.livrezone.com/frontend`. Rollback à tout moment = restaurer la conf Caddy sauvegardée + `FRONTEND_URL`.
 
-- Hero carrousel dynamique (mur éditorial de couvertures, messages JSON fr/ar, RTL, auto-play)
-- 7 grilles horizontales (récemment ajoutés, scolaire, romans, mangas & BD, jeunesse, universitaire, religion)
-- Bannière vente + section « Pourquoi LivreZone » (scroll horizontal sur mobile)
-- Titres SEO (H1 unique visible, H2 par section, métas, JSON-LD)
-- Messages hero configurable via `data/hero-messages.json` (préparé pour migration table Laravel)
-- Nombre de couvertures du hero configurable via `.env` (`HERO_COVERS_NUMBER_PER_SECTION`)
+| Étape | Contenu | Statut |
+|---|---|---|
+| **0. Préparation** | a) Backend : 5 URLs `https://next.livrezone.com` en dur → `config('app.frontend_url')` (TelegramNotificationService, NotifyDemandersOnListingPublished, BookOrderedNotification, NotificationContentService). b) Front : centraliser le domaine du site dans `lib/site-url.ts` (`NEXT_PUBLIC_SITE_URL`, fallback actuel) — robots/sitemap/layout/SITE_URL/Referer SSR. c) Quick wins audit C1/C4 : `APP_ENV=production`, `APP_DEBUG=false`, `LOG_CHANNEL=daily`, `LOG_LEVEL=info` + archivage des logs exposés dans `public/`. | 🔄 en cours |
+| **1. Caddy** | Sauvegarder `domains/livrezone.com.conf` HORS de `domains/` (leçon 521), copier `next.livrezone.com.conf` → `livrezone.com.conf` (server_name apex+www, proxy `192.168.1.202:3000`, WAF Coraza et règle `/_next/image` hérités), `caddy validate` + reload à chaud, curl 200. | ⏳ |
+| **2. Bascule config** | `FRONTEND_URL=https://livrezone.com` + `NEXT_PUBLIC_SITE_URL=https://livrezone.com` (front, puis `lz`) + `SANCTUM_STATEFUL_DOMAINS=next.livrezone.com,livrezone.com` + `optimize:clear`. CORS suit automatiquement (`config/cors.php` lit `FRONTEND_URL`). `SESSION_DOMAIN=.livrezone.com` et OAuth Google : rien à faire. | ⏳ |
+| **3. Recette** | Login + OAuth Google, chat temps réel (Reverb), images `/_next/image`, liens Telegram/mails (reset, verification, paiement), canonicals en view-source, sitemap/robots. | ⏳ |
+| **4. 301** | À J+7/14 : conf `next.livrezone.com` → redirection 301 `https://livrezone.com{uri}`. Fin du contenu dupliqué. | ⏳ |
 
-## Annonces page — FAIT (commit `d1952cb`), À DÉPLOYER
+## 🟠 Priorité 2 — Finir le site (Étape 1 du backlog 03/09, inchangée)
 
-- SSR + SEO : `generateMetadata` par filtre (title/description/OG uniques), `canonical` normalisé, `noindex, follow` hors page 1, JSON-LD BreadcrumbList + ItemList.
-- Sidebar `FilterSidebar.tsx` : portage de `filter-sidebar.blade.php` — Catégories (arbre), Langues, Niveau (par cycles : primaire/collège/lycée pour scolaire, universitaire/professionnel pour univ, tous les cycles au démarrage), État, Ville (menu déroulant multi-sélection), Prix (double slider), Appliquer/Effacer, drawer mobile.
-- Filtres API multi-critères : catégories, niveaux, langues, états, villes (`city=1,2`), prix de vente (`COALESCE(discount_price, price)`), bornes `price_min`/`price_max` dynamiques. Compatibilité params historiques (`c`, `l`, `lvl`, `cond`, `min`, `max`).
-- Prix : filtre sur le **prix de vente effectif**, slider avec **max dynamique**.
-- Recherche : barre `/annonces` **réactive** à la saisie (debounce), recherche **sans la description** (titre, ISBN, auteur, éditeur).
-- Header : recherche vers « Livres en vente » (`/annonces?search=`) ou « Base des livres » (`/livres?search=`), placeholder « Rechercher par ISBN, titre ou auteur ».
-- Catalogue livres : page `/livres` (SSR + SEO) sur la table `books` via `GET /api/books` (recherche titre, ISBN, éditeur, auteur), lien « Voir les annonces de ce livre ».
-- Layout historique : fil d'Ariane, H1 « Annonces », compteur, tri, bascule grille/liste, pagination chiffrée.
-- Fix bug : URL client `…/api/api/listings` (404 → mockups) → normalisation base + adoption SSR, fallback mock supprimé.
+Parcours publics restants + manques produit (revue 29/08). **Non redémarré tant que la migration domaine n'est pas passée en 301** (éviter de recetter deux domaines).
 
-## Backlog validé — 03/09/2026 (décisions propriétaire)
+## 🟠 Priorité 3 — Quick wins audit restants (C5-C7, demi-journée)
+
+- **C5** : cap `limit` ≤ 50 sur `GET /api/listings` (`ListingSearchService.php:174`) + réactiver un throttle public (`ANTI_SCRAPING_ENABLED` ou limiter dédié).
+- **C6** : import `Illuminate\Validation\ValidationException` manquant dans `AdminController.php` (bug 500 réel ligne 273).
+- **C7** : ajouter `php artisan migrate --force` au script `lz` **et** sécuriser les 3 migrations destructrices (`rebuild_orders_table`, `create_payments_table`, `create_notification_preferences_table` : `dropIfExists` en tête de `up()` → garde `hasTable`).
+
+## 🟡 Priorité 4 — Z7 : recette front notifications V2 (03/09, inchangée)
+
+Tests manuels connectés (suite de la session 09-09).
+
+## 🟡 Priorité 5 — Tier code (03/09 enrichi par l'audit, ~2-3 j)
+
+Items 03/09 : Form Requests `OrderController`/`DashboardController`, extraire `ensureProfileExists`, middleware `EnsureActive`, centraliser map `Category::pluck`, neutraliser `dropIfExists` (→ Priorité 3), `trustProxies`.
+Ajouts audit 06/09 :
+- Transactions sur écritures critiques : `ChatController::sendMessage:153`, `PaymentController::store:99`, `NotificationController::clearBadges/bulk`, `AdminController::updateUserStatus:64` ; `firstOrCreate` sur `WishlistController::store:252` / `CartController::store:81`.
+- Réindexation Meili `listings` après mass updates (admin/vendeur) + planifier un `scout:import Listing` quotidien (actuellement seul `Profile` est réindexé à 03:30).
+- `SANCTUM_TOKEN_EXPIRATION`, throttle sur `/auth/reset-password`, `composer remove aws/aws-sdk-php`, `git rm` des débris racine (`nul`, `mapping.json`, `populate-authors-list-ephemere.php`, `storage/health-check-0209.php`).
+- Contrainte unique `(user_id, book_id)` actif sur `orders` ; soft-delete des codes promo (compteur `times_used` faussé par le hard delete).
+- Déploiement : `php artisan optimize` dans `lz`, tags d'images datés + procédure rollback, suppression `NODE_TLS_REJECT_UNAUTHORIZED=0` (`lz:47`, **après** avoir fait confiance au certificat local dans le conteneur), healthcheck conteneur.
+- CI : APP_KEY via `secrets.APP_KEY` + **rotation de l'APP_KEY prod** (invalidation sessions) ; mesure de couverture nightly.
+- Tests : suite `AuthTest` (login/register/reset/consent) + `TelegramWebhookTest` — domaine sensible à 0 % de couverture.
+
+## 🟢 Priorité 6 — Migration `livrezone.com` / SSD dédié (03/09, après la bascule domaine)
+
+État des lieux SSD → périmètre (code, conteneurs rootless, volumes, dumps MariaDB, Meilisearch, sauvegardes) → fenêtre de coupure + plan de rollback écrits AVANT (leçon incident 28/08) → DNS Cloudflare. Backup Drive fonctionnel = prérequis couvert. ⚠️ Re-vérifier la synchro `userpackage` OpenPanel (risque de réécriture des MemoryMax du slice — cause racine 524).
+
+## 🟢 Priorité 7 — SES production access + DKIM (03/09, après migration SSD)
+
+Propriétaire : demande production access (site `livrezone.com`) + 3 CNAME DKIM Cloudflare. Agent ensuite : `queue:retry 18`, test réel forgot-password, rotation creds SMTP, vérifier l'absence de `.aws.txt` (déjà absent, vérifié 06/09). Reprise : `.agents/PROMPT-SESSION-SES.txt`.
+
+## 🔵 Moyen terme (1-3 mois) — dette structurante issue de l'audit 06/09
+
+- ApiResources + contrat de réponse unique (payloads listings/orders d'abord).
+- Enums PHP de statuts (`ListingStatus`, `OrderStatus`, `PaymentStatus`).
+- Colonnes générées `effective_price` + `normalized_title` + index composites (cf. audit §5).
+- Métier : modération appliquée à `DashboardController::updateInline` ; `RatingService` avec achat vérifié ; `applyVisibility()` avant pagination.
+- Front : découpage `AdminClient` (1193 l.)/`DashboardClient`/`ListingForm`, `AbortController` (0 occurrence), `error.tsx`/`loading.tsx`, `dynamic()` sur les composants lourds, CSP.
+- Observabilité : router `Log::critical` + watchdog vers Telegram (canal existant), uptime externe, Sentry.
+- Staging minimal.
+
+## ⚪ Long terme (3-6 mois)
+
+- API `/v1` versionnée ; centralisation URLs complète (15 refs front restantes après migration).
+- Paiement réel CMI/Fatourati (dès credentials) en remplaçant le stub `PaymentGatewayService`.
+- Découpage monolithes restants, monitoring/alerting complet, centralisation URLs (P5 de l'audit 25/08).
+
+---
+
+# Historique
+
+## Backlog validé — 03/09/2026 (décisions propriétaire) — SUPERSEDED par le backlog consolidé ci-dessus
 
 Décisions du jour :
 - **Base books : FINALISÉE** (Étape 2 close, retirée du backlog).
@@ -49,15 +86,11 @@ Décisions du jour :
 | 5 | **SES — production access + DKIM** (après migration) | Propriétaire : demande production access avec site `livrezone.com` + 3 CNAME DKIM Cloudflare. Agent ensuite : `queue:retry 18`, test réel forgot-password, rotation creds SMTP, suppression `.aws.txt` (exposé à la racine du bind mount). Reprise : `.agents/PROMPT-SESSION-SES.txt` |
 | 6 | **Après bascule** | Stack marketing sur le nouveau stockage (n8n + Postiz + worker Python/IA) puis long terme (Étape 5) : API `/v1`, découpage monolithes front, monitoring/alerting, centralisation URLs (P5), CMI/Fatourati (dès credentials) |
 
-## Prochaines sessions (historique 14/08 — périmètre largement traité depuis)
+## Fonctionnel en production (état 03/09)
 
-| Priorité | Sujet | Notes |
-|---|---|---|
-| Haute | Déployer page annonces + welcome page | Build + rebuild conteneur `livrezone-next` (annonces commit `d1952cb`) |
-| Haute | Route [login] not defined | Middleware Authenticate → retour JSON 401 |
-| Moyenne | Profil / Bibliothèque | Page publique vendeur + bibliothèque dashboard |
-| Moyenne | Hero messages via API Laravel | Remplacer `hero-messages.json` par une table + endpoint |
-| Faible | Couvertures uniformes | public_path vs Storage |
-| Faible | Tri avancé / facettes | Sidebar filtres dashboard |
-| Faible | Seeders | Cohérence nouvelle base |
-| Faible | Détection ville par IP | Retirée (garder le filtre ville) ; réactivable via Cloudflare/`cf-ipcountry` si besoin |
+- Auth Google OAuth (Sanctum + Socialite) + auth classique + consentement CGV post-OAuth
+- Complétion de profil (villes, logo, nickname), dashboard listing complet (inline-edit, bulk-status, bulk-discount, republish)
+- Annonces (SSR + SEO + filtres multi-critères), catalogue `/books` (Meilisearch exclusif), annuaire `/librairies`
+- Notifications V2 (tri épinglé, hide/bulk/clear-badges, digest chat horaire, canaux mail/Telegram)
+- Fiche user admin (désactivation → annonces `hidden`), fiche livre, recherche thèmes
+- Backup quotidien Google Drive + test de restauration mensuel
