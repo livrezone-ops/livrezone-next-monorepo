@@ -61,7 +61,9 @@ Comportement **identique aujourd'hui** (`config/app.php:68` → `FRONTEND_URL=ht
 | 06/09 | Étape 0a : 5 URLs backend + fallback blade → `config('app.frontend_url')` | ✅ pint PASS — comportement identique tant que `FRONTEND_URL` inchangé |
 | 06/09 | Étape 0b : `lib/site-url.ts` + 15 fichiers front (`SITE_URL`, Referer SSR) + `NEXT_PUBLIC_SITE_URL` dans `.env.production` | ✅ tsc 0 err, eslint 0 err |
 | 06/09 | Étape 0c : `.env` durci (production/debug off/logs daily/info) + logs publics archivés | ✅ (ancien laravel.log unique conservé ; nouvelle rotation 14 j dès le prochain log) |
-| — | En attente : test propriétaire → `lz` → push | ⏳ |
+| 06/09 | Test propriétaire + `lz` : validé (« c fait ») | ✅ |
+| 06/09 | Push des commits (57149b3 docs, 3aa71d7 backend, 529f6d3 front + journal) | ✅ |
+| — | Prochaine action : **Étape 1** (conf Caddy, commandes prêtes ci-dessus) | ⏳ |
 
 ---
 
