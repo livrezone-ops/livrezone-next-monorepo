@@ -44,8 +44,8 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const conditions = toList(sp.condition).filter(c => c === "neuf" || c === "occas");
 
   const title = search
-    ? `Librairies à « ${search} » | LivreZone`
-    : "Annuaire des librairies en ligne au Maroc | LivreZone";
+    ? `Librairies à « ${search} »`
+    : "Annuaire des librairies en ligne au Maroc";
 
   const description = search
     ? `Découvrez les librairies correspondant à « ${search} » sur LivreZone : ville, note et nombre de publications.`

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Listing;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class TelegramNotificationService
 {
@@ -29,11 +30,18 @@ class TelegramNotificationService
             return;
         }
 
-        $listing->load('user');
+        $listing->load('user.profile');
         $sellerName = $listing->user->name ?? 'Inconnu';
         $sellerPhone = $listing->user->phone ?? 'Inconnu';
         $statusText = $listing->status === 'published' ? '✅ Auto-validé (published)' : '⏳ En attente (pending_admin)';
-        $url = rtrim(config('app.frontend_url'), '/')."/books/{$listing->id}";
+        // Lien vers la FICHE ANNONCE (/{nickname}/{id}-{isbn}-{titre-slugifié},
+        // format attendu par la route [nickname]/[slug] du front) et non vers la
+        // page livre : l'admin veut atterrir directement sur l'annonce à modérer
+        // (demande propriétaire 06/09).
+        $nickname = $listing->user?->profile?->nickname ?? ('utilisateur-'.$listing->user_id);
+        $isbn = $listing->isbn_13 ?: 'livre';
+        $url = rtrim(config('app.frontend_url'), '/')
+            ."/{$nickname}/{$listing->id}-{$isbn}-".Str::slug((string) $listing->title);
 
         $message = "📚 *Nouvelle Annonce sur LivreZone !*\n"
             ."━━━━━━━━━━━━━━━━━━\n"

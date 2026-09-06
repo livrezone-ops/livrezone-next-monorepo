@@ -46,9 +46,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const book = await getBookDetails(slug);
 
-  if (!book) return { title: "Livre introuvable | LivreZone" };
+  if (!book) return { title: "Livre introuvable" };
 
-  const title = `${book.title} | LivreZone`;
+  // Le template de title du layout ajoute « | LivreZone » — ne pas le doubler.
+  const title = book.title;
   const description = `Découvrez les annonces pour le livre ${book.title}${book.authors ? ` de ${book.authors}` : ""} sur LivreZone Maroc.`;
   const canonical = `${SITE_URL}/books/${slug}`;
 

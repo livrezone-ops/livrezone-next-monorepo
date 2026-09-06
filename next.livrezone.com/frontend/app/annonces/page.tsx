@@ -113,7 +113,8 @@ function buildTitle(f: AnnoncesFilters, cities: CityRef[]): string {
       : `Annonces de ${parts.join(" ")}`;
   const capitalized = head.charAt(0).toUpperCase() + head.slice(1);
   const pageSuffix = f.page > 1 ? ` - Page ${f.page}` : "";
-  return `${capitalized} au Maroc${pageSuffix} | LivreZone`;
+  // Le template de title du layout ajoute « | LivreZone » — ne pas le doubler.
+  return `${capitalized} au Maroc${pageSuffix}`;
 }
 
 function buildDescription(f: AnnoncesFilters, cities: CityRef[]): string {

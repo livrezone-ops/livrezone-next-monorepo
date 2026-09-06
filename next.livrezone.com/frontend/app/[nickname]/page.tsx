@@ -44,7 +44,8 @@ function buildCanonical(nickname: string): string {
 }
 
 function buildTitle(nickname: string): string {
-  return `Bibliothèque de @${nickname} | LivreZone`;
+  // Le template de title du layout ajoute « | LivreZone » — ne pas le doubler.
+  return `Bibliothèque de @${nickname}`;
 }
 
 function buildDescription(profile: { nickname: string }, total: number): string {
@@ -57,7 +58,7 @@ export async function generateMetadata({
 }: PageProps): Promise<Metadata> {
   const { nickname } = await params;
   const profile = await getPublicProfile(nickname);
-  if (!profile) return { title: "Bibliothèque introuvable | LivreZone" };
+  if (!profile) return { title: "Bibliothèque introuvable" };
   const title = buildTitle(profile.nickname);
   const description = buildDescription(profile, profile.listing_count);
   const canonical = buildCanonical(profile.nickname);

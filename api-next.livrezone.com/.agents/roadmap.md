@@ -33,6 +33,13 @@ Parcours publics restants + manques produit (revue 29/08). Ajouts 06/09 :
   redéfinissent `openGraph` remplaçaient tout (og:url/og:image perdus). Helper
   `lib/og.ts` (`ogDefaults()`/`ogImage()`/`ogImageUrl()`) répandu sur les ~10 pages ;
   fiches annonce : couverture en og:image avec bannière de marque en repli.
+- **Titres doublés « | LivreZone | LivreZone » corrigés (06/09 soir)** — le template
+  `%s | LivreZone` du layout s'ajoutait à des titres de page qui finissaient déjà par
+  le suffixe (annonces, demandes, librairies, bibliothèques, fiches annonce/livre).
+- **Lien Telegram admin → fiche annonce (06/09 soir, demande propriétaire)** :
+  `TelegramNotificationService` pointait `/books/{id}` ; désormais
+  `/{nickname}/{id}-{isbn}-{titre-slugifié}` (format `[nickname]/[slug]` du front,
+  vérifié 200 en ligne).
 - Enquête : identifier l'origine des builds front du 05/09 soir (22h41 → 02h47) et
   du run manuel Meili 05/09 02:40 (cause de l'appauvrissement de l'index books).
 

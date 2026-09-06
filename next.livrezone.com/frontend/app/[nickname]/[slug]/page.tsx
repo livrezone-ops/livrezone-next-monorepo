@@ -71,10 +71,11 @@ function resolveCoverUrl(listing: Listing): string | null {
 
 function buildTitle(listing: Listing): string {
   const isbn = listing.book?.isbn_13 || listing.isbn_13;
+  // Le template de title du layout ajoute « | LivreZone » — ne pas le doubler.
   if (isbn) {
-    return `${listing.title} (ISBN: ${isbn}) | LivreZone`;
+    return `${listing.title} (ISBN: ${isbn})`;
   }
-  return `${listing.title} | LivreZone`;
+  return listing.title;
 }
 
 function buildDescription(listing: Listing): string {
@@ -91,12 +92,12 @@ export async function generateMetadata({
   const { nickname, slug } = await params;
   const match = slug.match(/^(\d+)-(.*)$/);
   if (!match) {
-    return { title: "Annonce introuvable | LivreZone" };
+    return { title: "Annonce introuvable" };
   }
 
   const listing = await getPublicListing(match[1]);
   if (!listing) {
-    return { title: "Annonce introuvable | LivreZone" };
+    return { title: "Annonce introuvable" };
   }
 
   const canonical = `${SITE_URL}/${nickname}/${slug}`;

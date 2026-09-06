@@ -32,8 +32,8 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const search = f.search;
 
   const title = search
-    ? `Demandes de livres « ${search} » | LivreZone`
-    : "Demandes de livres recherchés au Maroc | LivreZone";
+    ? `Demandes de livres « ${search} »`
+    : "Demandes de livres recherchés au Maroc";
   const description = search
     ? `Découvrez les acheteurs qui recherchent « ${search} » sur LivreZone. Vous avez ce livre ? Vendez-le facilement !`
     : "Consultez les livres recherchés par la communauté LivreZone au Maroc. Répondez aux demandes des lecteurs et vendez vos livres.";
