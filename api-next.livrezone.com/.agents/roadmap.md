@@ -49,6 +49,10 @@ Parcours publics restants + manques produit (revue 29/08). Ajouts 06/09 :
 - **C6** : import `Illuminate\Validation\ValidationException` manquant dans `AdminController.php` (bug 500 réel ligne 273).
 - **C7** : ajouter `php artisan migrate --force` au script `lz` **et** sécuriser les 3 migrations destructrices (`rebuild_orders_table`, `create_payments_table`, `create_notification_preferences_table` : `dropIfExists` en tête de `up()` → garde `hasTable`).
 
+## 🟣 Priorité 3-bis — SEO catalogue 697k fiches (stratégie 06/09, rôle SEO Lead)
+
+Stratégie complète : `.agents/SEO-catalogue-697k-2026-09-06.md` (données mesurées : 100 % ISBN, 0 doublon, 90 % résumés → indexation massive justifiée type Goodreads/OpenLibrary). Lots : **SEO-1 (P1)** sitemap index+chunks (~14×50k livres) + canonical/301 des slugs + JSON-LD Book ; **SEO-2 (P2)** livres similaires + pages éditeurs (47k) + noindex facettes ; **SEO-3 (P2)** reconstruire les pages auteurs (revisite décision 04/09) ; **SEO-4 (P3)** suivi GSC + enrichissement des 35 690 fiches minimales.
+
 ## 🟡 Priorité 4 — Z7 : recette front notifications V2 (03/09, inchangée)
 
 Tests manuels connectés (suite de la session 09-09).
