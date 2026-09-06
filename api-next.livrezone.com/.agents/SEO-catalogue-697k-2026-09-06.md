@@ -203,3 +203,16 @@ combinaisons qui génèrent du trafic (browse nodes Amazon).
 - R7 : `/books?filtre=…` (subjects/languages/levels/publisher) → noindex,follow ; la
   recherche simple reste indexable. Rayons et fiches inchangés. Pages auteurs : NON
   concernées (R6 exclu).
+
+### Correctifs post-livraison (06/09 ~21:30, constats en logs de prod)
+
+- **`id` ajouté aux filterableAttributes Meili** (oubli initial : le filtre
+  « NOT id = courant » de `related` échouait → repli silencieux + log ERROR à chaque
+  fiche vue). books:configure-search relancé, vérifié : 8 livres du rayon réels.
+- **Cache = tableaux PHP purs, jamais de Collection/Eloquent** (`sitemap:publishers`,
+  `book:related*` → clé v2) : en prod, désérialiser un objet caché ressortait en
+  « incomplete object » → 500 sur /api/sitemap/publishers (purge cache + fix).
+- **Auto-validation annonces (hors SEO, signalé propriétaire)** : `ListingValidationService`
+  normalise désormais fins de ligne (\r\n→\n), marques de direction RTL/LTR, zéro-largeur
+  et espaces insécables — l'annonce 79 partait en pending_admin pour 4 caractères
+  \r invisibles (\r\n Windows) dans une description visuellement identique au catalogue.

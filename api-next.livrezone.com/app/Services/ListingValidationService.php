@@ -52,17 +52,27 @@ class ListingValidationService
             return 'pending_admin';
         }
 
-        $normalizedTitle = mb_strtolower(trim($title));
-        $normalizedBookTitle = mb_strtolower(trim($book->title));
-
-        $normalizedDesc = mb_strtolower(trim($description));
-        $normalizedBookDesc = mb_strtolower(trim($book->description ?? ''));
-
-        if ($normalizedTitle === $normalizedBookTitle && (empty($normalizedDesc) || $normalizedDesc === $normalizedBookDesc)) {
+        if ($this->normalize($title) === $this->normalize($book->title)
+            && ($this->normalize($description) === '' || $this->normalize($description) === $this->normalize((string) $book->description))) {
             return 'published';
         }
 
         return 'pending_admin';
+    }
+
+    /**
+     * Normalisation pour comparaison : minuscules + trim + retrait des
+     * caractères invisibles (marques de direction RTL/LTR, zéro-largeur, BOM,
+     * espaces insécables) + unification des fins de ligne (l'annonce 79 du
+     * 06/09 partait en pending_admin pour des \r\n Windows contre \n Unix dans
+     * le catalogue — invisibles à l'écran, fatals à la comparaison stricte).
+     */
+    private function normalize(string $value): string
+    {
+        $value = (string) preg_replace('/[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}\x{00AD}]/u', '', $value);
+        $value = str_replace(["\r\n", "\r"], "\n", $value);
+
+        return mb_strtolower(trim(str_replace("\xC2\xA0", ' ', $value)));
     }
 
     /**

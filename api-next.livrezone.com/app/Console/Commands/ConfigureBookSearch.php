@@ -36,6 +36,8 @@ class ConfigureBookSearch extends Command
             'authors_list',
             // Hubs éditeurs (SEO 06/09) : /books?publisher=… sur les 697k docs.
             'publisher',
+            // Livres similaires (SEO 06/09) : filtre « NOT id = courant ».
+            'id',
         ]);
 
         $index->updateSortableAttributes([

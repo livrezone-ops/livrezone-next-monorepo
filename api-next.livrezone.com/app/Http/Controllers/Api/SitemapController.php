@@ -184,7 +184,9 @@ class SitemapController extends Controller
 
     private function cachedPublishers()
     {
-        return Cache::remember('sitemap:publishers', 86400, function () {
+        // Tableau PHP pur dans le cache (jamais une Collection) : en production,
+        // désérialiser un objet cache => « incomplete object » (constat 21:24).
+        $list = Cache::remember('sitemap:publishers', 86400, function () {
             return Book::query()
                 ->whereNotNull('publisher')
                 ->selectRaw('publisher, COUNT(*) as books_count')
@@ -196,7 +198,10 @@ class SitemapController extends Controller
                     'slug' => Str::slug((string) $row->publisher),
                     'books_count' => (int) $row->books_count,
                 ])
-                ->values();
+                ->values()
+                ->all();
         });
+
+        return collect($list);
     }
 }

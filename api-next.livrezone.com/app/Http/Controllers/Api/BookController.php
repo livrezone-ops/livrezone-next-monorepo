@@ -77,7 +77,9 @@ class BookController extends Controller
      */
     public function related(Book $book)
     {
-        $books = Cache::remember('book:related:'.$book->id, 21600, function () use ($book) {
+        // Clé v2 + tableau PHP pur dans le cache (jamais une Collection/Eloquent) :
+        // les entrées v1 sérialisées ressortent en « incomplete object » en prod.
+        $books = Cache::remember('book:related2:'.$book->id, 21600, function () use ($book) {
             $filter = $book->default_category_id
                 ? 'default_category_id = '.$book->default_category_id.' AND NOT id = '.$book->id
                 : 'NOT id = '.$book->id;
@@ -108,7 +110,7 @@ class BookController extends Controller
             }
 
             if ($ids->isEmpty()) {
-                return collect();
+                return [];
             }
 
             return Book::query()
@@ -118,7 +120,18 @@ class BookController extends Controller
                 ->each(fn ($b) => $b->setAppends(['cover_url', 'cover_thumbnail_url']))
                 // Ordre du résultat Meili (pertinence), pas celui du whereIn MySQL.
                 ->sortBy(fn ($b) => array_search($b->id, $ids->all(), true))
-                ->values();
+                ->values()
+                // Payload carte final en tableau pur — caché tel quel.
+                ->map(fn ($b) => [
+                    'id' => $b->id,
+                    'isbn_13' => $b->isbn_13,
+                    'title' => $b->title,
+                    'authors' => $b->authors,
+                    'publisher' => $b->publisher,
+                    'cover_url' => $b->cover_url,
+                    'cover_thumbnail_url' => $b->cover_thumbnail_url,
+                ])
+                ->all();
         });
 
         return response()->json(['data' => $books]);
