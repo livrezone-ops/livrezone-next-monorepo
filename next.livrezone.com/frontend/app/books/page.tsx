@@ -58,6 +58,16 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const categoryFilter = firstParam(sp.categories);
   const categoryCodes = categoryFilter ? categoryFilter.split(",").filter(Boolean) : [];
   const categoryLabel = categoryCodes.length === 1 ? resolveCategoryLabel(categoryCodes[0]) : null;
+  // Facettes (R7, SEO 06/09) : /books?filtre=… n'est pas un hub canonique —
+  // noindex dès qu'un filtre d'axe actif est présent (explosion combinatoire),
+  // sauf la recherche simple qui reste une landing longue traîne.
+  const facetFilters = [
+    firstParam(sp.subjects),
+    firstParam(sp.languages),
+    firstParam(sp.levels),
+    firstParam(sp.publisher),
+  ].filter(Boolean);
+  const activeFacetCount = facetFilters.length;
 
   let title: string;
   let description: string;
@@ -84,7 +94,7 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
     alternates: { canonical },
     openGraph: { title, description, type: "website", ...ogDefaults(), url: canonical },
     robots:
-      author || page > 1
+      author || page > 1 || activeFacetCount > 0
         ? { index: false, follow: true }
         : { index: true, follow: true },
   };

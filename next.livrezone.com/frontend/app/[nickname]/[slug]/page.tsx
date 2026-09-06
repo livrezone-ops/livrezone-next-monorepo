@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { listingSlug } from "@/lib/book-slug";
 import ListingDetailFetcher from "./ListingDetailFetcher";
 import { getPublicListing } from "@/lib/listings-api";
 import { toJsonLd } from "@/lib/safe-json-ld";
@@ -100,7 +101,10 @@ export async function generateMetadata({
     return { title: "Annonce introuvable" };
   }
 
-  const canonical = `${SITE_URL}/${nickname}/${slug}`;
+  // Canonical depuis les données (SEO 06/09) — même format que le lien Telegram
+  // admin (id-isbn-titre). Les variantes de slug sont 308 vers ce canonical.
+  const canonicalSlug = listingSlug(listing);
+  const canonical = `${SITE_URL}/${nickname}/${canonicalSlug}`;
   const title = buildTitle(listing);
   const description = buildDescription(listing);
   const coverUrl = resolveCoverUrl(listing);
@@ -208,7 +212,7 @@ function buildBookJsonLd(listing: Listing, slug: string): Record<string, unknown
 }
 
 export default async function ListingPage({ params }: PageProps) {
-  const { slug } = await params;
+  const { nickname, slug } = await params;
 
   const match = slug.match(/^(\d+)-(.*)$/);
   if (!match) return notFound();
@@ -216,19 +220,25 @@ export default async function ListingPage({ params }: PageProps) {
   const listing = await getPublicListing(match[1]);
   if (!listing) return notFound();
 
+  // Normalisation du slug (SEO 06/09) : variantes 308 vers le canonique.
+  const canonicalSlug = listingSlug(listing);
+  if (slug !== canonicalSlug) {
+    permanentRedirect(`/${nickname}/${canonicalSlug}`);
+  }
+
   return (
     <>
       <ListingDetailFetcher id={match[1]} initialListing={listing} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: toJsonLd(buildBreadcrumbJsonLd(listing, slug)),
+          __html: toJsonLd(buildBreadcrumbJsonLd(listing, canonicalSlug)),
         }}
       />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: toJsonLd(buildBookJsonLd(listing, slug)),
+          __html: toJsonLd(buildBookJsonLd(listing, canonicalSlug)),
         }}
       />
     </>

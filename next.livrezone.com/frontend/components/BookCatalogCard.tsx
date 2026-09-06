@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { BookOpen, Tag, Bell, ArrowRight, Layers } from "lucide-react";
 import type { BookSearchItem } from "@/lib/books-api";
+import { bookHref as buildBookHref } from "@/lib/book-slug";
 
 /** Libellés de référence à ne jamais afficher en tag (ex. niveau id 18). */
 const NOT_APPLICABLE_RE = /^(n\/?a|non applicable)$/i;
@@ -18,18 +19,6 @@ function isOptimizableCover(url: string): boolean {
   return url.startsWith("/")
     || url.startsWith("https://api-next.livrezone.com")
     || url.startsWith("http://localhost");
-}
-
-function buildBookHref(book: BookSearchItem): string {
-  const slug = (book.title || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
-
-  return `/books/${book.id}${book.isbn_13 ? "-" + book.isbn_13 : ""}${slug ? "-" + slug : ""}`;
 }
 
 interface BookCatalogCardProps {

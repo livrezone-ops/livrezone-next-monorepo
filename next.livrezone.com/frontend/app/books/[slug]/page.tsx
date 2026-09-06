@@ -5,8 +5,13 @@ import { notFound } from "next/navigation";
 import { BookOpen, ArrowLeft, Layers, ChevronRight, Tag } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import OrderBookButton from "./OrderBookButton";
+import BookCatalogCard from "@/components/BookCatalogCard";
 import { SITE_URL } from "@/lib/site-url";
 import { ogDefaults } from "@/lib/og";
+import { bookSlug } from "@/lib/book-slug";
+import { toJsonLd } from "@/lib/safe-json-ld";
+import { getRelatedBooks } from "@/lib/books-api";
+import { permanentRedirect } from "next/navigation";
 
 function normalizeAuthors(authors: string[] | string | null | undefined): string[] {
   if (!authors) return [];
@@ -51,7 +56,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // Le template de title du layout ajoute « | LivreZone » — ne pas le doubler.
   const title = book.title;
   const description = `Découvrez les annonces pour le livre ${book.title}${book.authors ? ` de ${book.authors}` : ""} sur LivreZone Maroc.`;
-  const canonical = `${SITE_URL}/books/${slug}`;
+  // Canonical depuis les données (SEO 06/09) : /books/{slug-libre} renvoie 200
+  // sur n'importe quel slug — un seul URL canonique par fiche dans l'index.
+  const canonical = `${SITE_URL}/books/${bookSlug(book)}`;
 
   return {
     title,
@@ -67,10 +74,55 @@ export default async function BookDetailsPage({ params }: PageProps) {
 
   if (!book) return notFound();
 
+  // Normalisation du slug (SEO 06/09) : les variantes /books/{id}-nimporte
+  // 308 vers le canonique {id}-{isbn}-{titre}. Google traite 301 et 308
+  // (redirections permanentes) de façon identique.
+  const canonicalSlug = bookSlug(book);
+  if (slug !== canonicalSlug) {
+    permanentRedirect(`/books/${canonicalSlug}`);
+  }
+
   const listingsCount = book.active_listings_count ?? 0;
+  const relatedBooks = (await getRelatedBooks(book.id)) ?? [];
+
+  const relatedAuthors = normalizeAuthors(book.authors);
+  const bookJsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Book",
+      name: book.title,
+      ...(book.isbn_13 ? { isbn: book.isbn_13 } : {}),
+      ...(relatedAuthors.length > 0
+        ? { author: relatedAuthors.map((name) => ({ "@type": "Person", name })) }
+        : {}),
+      ...(book.publisher
+        ? { publisher: { "@type": "Organization", name: book.publisher } }
+        : {}),
+      ...(book.publication_date ? { datePublished: book.publication_date } : {}),
+      ...(book.page_count ? { numberOfPages: book.page_count } : {}),
+      ...(book.cover_url || book.cover_thumbnail_url
+        ? { image: book.cover_url || book.cover_thumbnail_url }
+        : {}),
+      ...(book.description ? { description: String(book.description).slice(0, 500) } : {}),
+      url: `${SITE_URL}/books/${canonicalSlug}`,
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Accueil", item: SITE_URL },
+        { "@type": "ListItem", position: 2, name: "Catalogue des livres", item: `${SITE_URL}/books` },
+        { "@type": "ListItem", position: 3, name: book.title },
+      ],
+    },
+  ];
 
   return (
     <div className="w-[92%] max-w-6xl mx-auto py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: toJsonLd(bookJsonLd) }}
+      />
       <Breadcrumbs
         items={[
           { label: "Catalogue des livres", href: "/books" },
@@ -201,6 +253,19 @@ export default async function BookDetailsPage({ params }: PageProps) {
           </div>
         </div>
       </div>
+
+      {/* Maillage horizontal (SEO 06/09) : 8 fiches du même rayon — le pattern
+          « customers also viewed » d'Amazon, alimenté par /api/books/{id}/related. */}
+      {relatedBooks.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-lg font-black text-[#1a0a40] mb-4">Du même rayon</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {relatedBooks.map((related) => (
+              <BookCatalogCard key={related.id} book={related} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
