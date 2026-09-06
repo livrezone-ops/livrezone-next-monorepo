@@ -66,6 +66,8 @@ Comportement **identique aujourd'hui** (`config/app.php:68` → `FRONTEND_URL=ht
 | 06/09 | Étape 1 — tentative 1 : reload **rejeté** (`ambiguous site definition: https://next.livrezone.com` — copie non éditée = double déclaration du site, mécanisme identique à la panne 521 du 02/09). Caddy est resté sur l'ancienne config (aucune coupure) ; les 200 constatés = placeholder, PAS le site. ⚠️ Leçon : éditer le server_name AVANT le reload, et tant que l'ambiguïté existe, un restart de Caddy = outage global | ⚠️ corrigé |
 | 06/09 | Étape 1 — tentative 2 : `sed -E 's/(^|[^-a-zA-Z0-9])next\.livrezone\.com/\1livrezone.com/g'` (garde anti-hyphen pour préserver `api-next.livrezone.com`) sur les 6 occurrences (blocs http/https, `domain_log`, `SecAuditLog` Coraza) → `Valid configuration` → reload OK → `_next` servi sur Host livrezone.com en interne | ✅ |
 | — | En attente : vérification externe https://livrezone.com (navigateur) → puis Étape 2 | ⏳ |
+| 06/09 | Vérif externe : le site s'affiche sur livrezone.com MAIS catalogue vide + Google login bloqué → cause : CORS (origine livrezone.com non autorisée tant que FRONTEND_URL=next) | ⚠️ = signal de l'Étape 2 |
+| 06/09 | Étape 2 — config basculée (FRONTEND_URL, SANCTUM_STATEFUL_DOMAINS, NEXT_PUBLIC_SITE_URL) | ✅ CORS actif immédiatement ; `lz` en attente |
 
 ---
 
@@ -96,7 +98,18 @@ sudo -n curl -s -o /dev/null -w "%{http_code}\n" https://livrezone.com
 
 **Rollback** : `mv` la conf restaurée dans `domains/` + reload. Rien d'autre n'a bougé.
 
-## Étape 2 — Bascule config — ⏳
+## Étape 2 — Bascule config — ✅ CONFIG FAIT 06/09, `lz` en attente
+
+**Constat post-Étape 1 (leçon)** : le site s'affichait (SSR) mais catalogue vide + Google login inopérant — le navigateur sur l'origine `https://livrezone.com` se faisait bloquer **toutes** les requêtes client par CORS (origine non autorisée tant que `FRONTEND_URL` n'était pas basculée). L'Étape 2 n'était donc pas optionnelle pour la fonctionnalité, pas seulement pour les liens.
+
+Basculé le 06/09 (vérifié par grep après sed) :
+- Backend `.env` : `FRONTEND_URL=https://livrezone.com`, `SANCTUM_STATEFUL_DOMAINS=next.livrezone.com,livrezone.com` (effet immédiat — pas de config cache ; CORS inclut automatiquement l'origine via `config/cors.php`).
+- Front `.env.production` : `NEXT_PUBLIC_SITE_URL=https://livrezone.com` (figé au build → nécessite `lz` pour canonicals/sitemap/JSON-LD).
+
+```bash
+# Frontend : rebuild + redéploiement (bake NEXT_PUBLIC_SITE_URL=https://livrezone.com)
+lz
+```
 
 ```bash
 # Backend .env (php-fpm relit .env à chaque requête — pas de config cache ; optimize:clear par sûreté)
