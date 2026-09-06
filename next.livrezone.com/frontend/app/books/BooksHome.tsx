@@ -292,29 +292,8 @@ export default function BooksHome({ newBooks = [] }: { newBooks?: BookSearchItem
         </div>
       </div>
 
-      {/* Nouveautés : UNE requête Meili plafonnée, servie en props par le SSR
-          (décision 06/09 — reprise partielle de l'interdit d'appel API du 03/09,
-          qui visait le scan 700k de l'index auteurs, pas les requêtes Meili). */}
-      {newBooks.length > 0 && (
-        <section className="mb-8">
-          <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
-            <h2 className="text-lg font-black text-[#1a0a40]">Nouveautés du catalogue</h2>
-            <Link
-              href="/books?sort=recent"
-              className="text-xs font-bold text-[#6D28D9] hover:text-[#4c1d95] transition-colors"
-            >
-              Voir plus →
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {newBooks.map((book) => (
-              <BookCatalogCard key={book.id} book={book} view="grid" />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Rayons (arbre statique, aucun appel API) */}
+      {/* Rayons (arbre statique, aucun appel API) — placés AVANT les
+          nouveautés (demande propriétaire 06/09). */}
       <h2 className="text-lg font-black text-[#1a0a40] flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
         Explorer par rayon
       </h2>
@@ -336,6 +315,28 @@ export default function BooksHome({ newBooks = [] }: { newBooks?: BookSearchItem
           </Link>
         ))}
       </div>
+
+      {/* Nouveautés : UNE requête Meili plafonnée, servie en props par le SSR
+          (décision 06/09 — reprise partielle de l'interdit d'appel API du 03/09,
+          qui visait le scan 700k de l'index auteurs, pas les requêtes Meili). */}
+      {newBooks.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
+            <h2 className="text-lg font-black text-[#1a0a40]">Nouveautés du catalogue</h2>
+            <Link
+              href="/books?sort=recent"
+              className="text-xs font-bold text-[#6D28D9] hover:text-[#4c1d95] transition-colors"
+            >
+              Voir plus →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {newBooks.map((book) => (
+              <BookCatalogCard key={book.id} book={book} view="grid" />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
