@@ -68,6 +68,7 @@ Comportement **identique aujourd'hui** (`config/app.php:68` → `FRONTEND_URL=ht
 | — | En attente : vérification externe https://livrezone.com (navigateur) → puis Étape 2 | ⏳ |
 | 06/09 | Vérif externe : le site s'affiche sur livrezone.com MAIS catalogue vide + Google login bloqué → cause : CORS (origine livrezone.com non autorisée tant que FRONTEND_URL=next) | ⚠️ = signal de l'Étape 2 |
 | 06/09 | Étape 2 — config basculée (FRONTEND_URL, SANCTUM_STATEFUL_DOMAINS, NEXT_PUBLIC_SITE_URL) | ✅ CORS actif immédiatement ; `lz` en attente |
+| 06/09 | Recette : Google login OK (propriétaire) ; alarme « catalogue vide » sur /books → **non-bug** : vitrine sans appel API voulue depuis le 03/09 (recherche OK, 12 résultats identiques sur les 2 domaines) ; `/api/listings` CORS+données OK | 🔄 en cours |
 
 ---
 
@@ -124,14 +125,16 @@ lz
 
 Automatique via `FRONTEND_URL` : CORS (`config/cors.php` ajoute l'origine validée). Inchangé : `SESSION_DOMAIN=.livrezone.com` (sessions préservées), OAuth Google, `APP_URL`, `NEXT_PUBLIC_API_URL`, Reverb.
 
-## Étape 3 — Recette — ⏳
+## Étape 3 — Recette — 🔄 EN COURS 06/09
 
-- [ ] Login email + OAuth Google (nouvelle session et session existante conservée)
+- [x] Login Google sur livrezone.com (CORS ouvert — confirmé propriétaire)
+- [x] Catalogue `/books` : **la vue par défaut SANS résultats est le comportement voulu depuis le 03/09** (décision anti-incident MariaDB, commentée dans `app/books/page.tsx` : « Vue par défaut : page légère SANS aucun appel API… La recherche Meilisearch prend le relais via le formulaire »). Vérifié depuis le serveur : `/books?search=petit` → 12 résultats, HTML strictement identique sur next et livrezone (40 844 o) ; fetch Node/undici dans le conteneur OK ; API `/api/books` 200 en 0,27 s
+- [x] API annonces avec origine livrezone.com : `GET /api/listings` → 200 + `access-control-allow-origin: https://livrezone.com` + données (cartes chargées côté client dans le navigateur — vérifier visuellement)
 - [ ] Chat temps réel (Reverb : message entre 2 comptes)
 - [ ] Images optimisées `/_next/image` (couvertures + avatar Google)
 - [ ] Email reset password + vérification → liens vers `https://livrezone.com/...`
 - [ ] Notification Telegram → lien vers `https://livrezone.com/...`
-- [ ] canonical/OG en view-source (annonces, livres, profils) + `sitemap.xml` + `robots.txt`
+- [ ] canonical/OG en view-source (après `lz` avec `NEXT_PUBLIC_SITE_URL=https://livrezone.com` — si pas encore fait) + `sitemap.xml` + `robots.txt`
 - [ ] Parcours achat complet (panier → commande) + notifications
 
 ## Étape 4 — 301 next → livrezone — ⏳ (J+7/14)
