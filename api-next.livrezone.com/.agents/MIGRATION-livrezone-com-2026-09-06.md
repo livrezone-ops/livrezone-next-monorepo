@@ -76,6 +76,7 @@ Comportement **identique aujourd'hui** (`config/app.php:68` → `FRONTEND_URL=ht
 | 06/09 soir | **Chat — broadcast serveur cassé** : le backend poussait vers `https://api-next.livrezone.com:443` (Cloudflare → Caddy → 404, page Laravel+beacon CF, logs 17:49/17:50). Les clients WS, eux, passaient bien via Caddy `handle /app/* → 127.0.0.1:6060`. Fix : `REVERB_HOST=reverb`, `REVERB_PORT=6060`, `REVERB_SCHEME=http` (réseau docker interne `livrezone_db`, php-fpm et reverb dessus). Test réel : `broadcast(new MessageSent)` → OK sans exception | ✅ |
 | 06/09 soir | **Panier — un seul groupe vendeur** : `fetchCart` (commerce-store.tsx) ne copiait pas `listing.user_id` dans la ligne → regroupement client sur clé undefined → toutes les lignes dans « Vendeur LivreZone » → 1 seul lien WhatsApp avec les articles des 2 vendeurs. Fix : `user_id: listingData?.user_id ?? g.seller?.id` + téléphone vendeur piloté par l'API. Backend : `CartController::index` expose `seller.phone` **uniquement si `has_whatsapp`** (sinon null → « Contact indisponible » affiché) | ✅ lz requis |
 | 06/09 soir | **Reset password — « Échec de la réinitialisation »** : mécanisme vérifié sain en base (roundtrip create/exists OK, expire=60 min, record présent, user id=12). Cause la plus probable : lien d'un email antérieur (chaque nouvelle demande invalide les liens précédents — et chaque demande a bien remplacé le record). Le message générique ne disait rien. Fix UX : `AuthController::resetPassword` renvoie désormais le motif exact (lien invalide/expiré vs compte inconnu vs règles mot de passe) | ✅ à retester |
+| 06/09 soir | `lz` + retests propriétaires : **« ça marche à 100 % »** — chat temps réel, panier multi-vendeurs (sections + liens WhatsApp par vendeur), reset password. **Recette Étape 3 close** | ✅ migration fonctionnellement terminée |
 
 ---
 
@@ -132,7 +133,7 @@ lz
 
 Automatique via `FRONTEND_URL` : CORS (`config/cors.php` ajoute l'origine validée). Inchangé : `SESSION_DOMAIN=.livrezone.com` (sessions préservées), OAuth Google, `APP_URL`, `NEXT_PUBLIC_API_URL`, Reverb.
 
-## Étape 3 — Recette — 🔄 EN COURS 06/09
+## Étape 3 — Recette — ✅ FAITE 06/09 soir (« ça marche à 100 % » — propriétaire)
 
 - [x] Login Google sur livrezone.com (CORS ouvert — confirmé propriétaire)
 - [x] Catalogue `/books` : **la vue par défaut SANS résultats est le comportement voulu depuis le 03/09** (décision anti-incident MariaDB, commentée dans `app/books/page.tsx` : « Vue par défaut : page légère SANS aucun appel API… La recherche Meilisearch prend le relais via le formulaire »). Vérifié depuis le serveur : `/books?search=petit` → 12 résultats, HTML strictement identique sur next et livrezone (40 844 o) ; fetch Node/undici dans le conteneur OK ; API `/api/books` 200 en 0,27 s
@@ -142,12 +143,60 @@ Automatique via `FRONTEND_URL` : CORS (`config/cors.php` ajoute l'origine valid�
 - [x] Email reset password + vérification → **code piloté par `FRONTEND_URL=https://livrezone.com`** (Étapes 0a + 2 : notifications, mails, `NotificationContentService` ne contiennent plus d'URL en dur). Reste le test réel d'envoi (propriétaire).
 - [x] Notification Telegram → **même mécanisme** (`rtrim(config('app.frontend_url'),'/')`) — liens automatiquement à jour. Reste le test réel (propriétaire).
 - [x] canonical/OG/sitemap/robots vérifiés en ligne après `lz` 06/09 soir : `rel=canonical` → `https://livrezone.com/books` ; `sitemap.xml` 100 % `livrezone.com` ; `robots.txt` `Host: livrezone.com` + sitemap OK ; **0 occurrence** de `next.livrezone.com` hors `api-next` dans le HTML rendu (168 occurrences `api-next` = domaine API, normal). OpenGraph présent (`og:title/description/site_name/locale/type`) — manquent `og:url` + `og:image` → quick win SEO (P3)
-- [ ] Parcours achat complet (panier → commande) + notifications — **test propriétaire**
+- [x] Parcours achat complet (panier → commande) + notifications — **validé propriétaire 06/09 soir** (après fix du panier multi-vendeurs ci-dessous)
+- [x] Chat temps réel **revalidé** après réparation du broadcast (message instantané entre 2 comptes)
+- [x] Reset password **revalidé** avec un lien frais (le motif d'échec est désormais explicite en cas de lien périmé)
 - [x] Vitrine `/books` remise en service (décision 06/09) : section « Nouveautés du catalogue » (12 titres, Meili `sort=recent` sans facettes) sous les rayons — ordre **rayons AU-DESSUS des nouveautés** (demande propriétaire 06/09), déployé par `lz` et vérifié en ligne (cartes réelles `/books/{id}-{isbn}`, couvres proxifiées OK). Commit `2a7629c` poussé.
 
-## Étape 4 — 301 next → livrezone — ⏳ (J+7/14)
+## Étape 4 — 301 next → livrezone — ⏳ (J+7/14, soit 13-20/09 — recette verte, peut être avancée)
 
-Remplacer le contenu de `domains/next.livrezone.com.conf` par une redirection 301 `https://livrezone.com{uri}` (apex+www), reload à chaud. Garder la conf précédente en sauvegarde hors du dossier importé.
+Remplacer le contenu de `domains/next.livrezone.com.conf` par une redirection 301 `https://livrezone.com{uri}` (apex+www), reload à chaud. La recette étant 100 % verte dès le 06/09 soir, cette étape peut être avancée sur simple décision du propriétaire ; l'intérêt du délai laissé initialement : laisser Google référencer la nouvelle URL (sitemap/Host déjà à jour) et couvrir les vieux liens partagés — le 301 les transfère de toute façon dès qu'il est posé.
+
+```bash
+# 1. Sauvegarde de la conf actuelle HORS du dossier importé (leçon 521)
+sudo cp /etc/openpanel/caddy/domains/next.livrezone.com.conf \
+        /etc/openpanel/caddy/next.livrezone.com.conf.pre-301
+
+# 2. Remplacer le contenu par la redirection 301 (chemin + requête préservés via {uri})
+sudo tee /etc/openpanel/caddy/domains/next.livrezone.com.conf > /dev/null <<'EOF'
+# 301 permanent vers l'apex (migration 06/09/2026, posee le JJ/MM) — chemin+query preservés
+http://next.livrezone.com, http://www.next.livrezone.com {
+    import domain_log next.livrezone.com
+    redir https://livrezone.com{uri} permanent
+}
+
+https://next.livrezone.com, https://www.next.livrezone.com {
+    import domain_log next.livrezone.com
+    redir https://livrezone.com{uri} permanent
+
+    tls {
+        on_demand
+    }
+}
+EOF
+
+# 3. Valider puis recharger À CHAUD (méthode éprouvée — jamais de restart tant que
+#    l'ambiguïté de site n'a pas été écartée par validate, cf. incident Étape 1)
+sudo docker exec caddy caddy validate --config /etc/openpanel/caddy/Caddyfile --adapter caddyfile
+sudo docker exec caddy caddy reload --config /etc/openpanel/caddy/Caddyfile --adapter caddyfile
+
+# 4. Vérifications : 301 + Location correcte, home et page profonde
+curl -sI https://next.livrezone.com/books | head -3
+#    attendu : HTTP/2 301 + location: https://livrezone.com/books
+curl -sI "https://next.livrezone.com/annonces?search=test" | grep -i location
+#    attendu : location: https://livrezone.com/annonces?search=test
+```
+
+**Points de vigilance** :
+- `api-next.livrezone.com` contient la sous-chaîne `next.livrezone.com` — ne PAS faire de
+  sed global sur les confs ; ici on remplace un fichier dédié, aucun risque pour l'API.
+- Les sessions vivent sur `.livrezone.com` (cookie de domaine parent) : un visiteur actif
+  sur next.livrezone.com reste connecté après le 301, rien à faire côté PHP.
+- **Rollback** : `sudo cp /etc/openpanel/caddy/next.livrezone.com.conf.pre-301 \
+  /etc/openpanel/caddy/domains/next.livrezone.com.conf` + validate + reload.
+- Après pose : demander à Google Search Console l'inspection de `https://livrezone.com`
+  (accélère la bascule d'indexation) ; vérifier sous 48 h que GSC ne remonte pas d'erreurs
+  404 en masse côté next (auquel cas vérifier les variantes www).
 
 ---
 
