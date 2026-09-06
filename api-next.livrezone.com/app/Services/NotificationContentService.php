@@ -22,9 +22,11 @@ class NotificationContentService
      */
     public function build(string $type, array $data, string $channel = NotificationChannels::MAIL): array
     {
+        $frontend = rtrim(config('app.frontend_url'), '/');
+
         $url = isset($data['url']) && is_string($data['url'])
-            ? (str_starts_with($data['url'], 'http') ? $data['url'] : 'https://next.livrezone.com'.$data['url'])
-            : 'https://next.livrezone.com/dashboard/notifications';
+            ? (str_starts_with($data['url'], 'http') ? $data['url'] : $frontend.$data['url'])
+            : $frontend.'/dashboard/notifications';
 
         return match ($type) {
             'book_orders' => $this->bookOrders($data, $url, $channel),

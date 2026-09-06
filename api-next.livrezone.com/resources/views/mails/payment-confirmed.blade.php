@@ -29,7 +29,7 @@
                                     </td>
                                 </tr>
                             </table>
-                            <a href="{{ config('app.frontend_url', 'https://next.livrezone.com') }}/dashboard/paiements"
+                            <a href="{{ rtrim(config('app.frontend_url'), '/') }}/dashboard/paiements"
                                style="display:inline-block;background:#6D28D9;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 28px;border-radius:12px;">
                                 Gérer mon abonnement
                             </a>

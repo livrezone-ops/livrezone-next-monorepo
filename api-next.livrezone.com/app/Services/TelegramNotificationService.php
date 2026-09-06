@@ -33,7 +33,7 @@ class TelegramNotificationService
         $sellerName = $listing->user->name ?? 'Inconnu';
         $sellerPhone = $listing->user->phone ?? 'Inconnu';
         $statusText = $listing->status === 'published' ? '✅ Auto-validé (published)' : '⏳ En attente (pending_admin)';
-        $url = "https://next.livrezone.com/books/{$listing->id}";
+        $url = rtrim(config('app.frontend_url'), '/')."/books/{$listing->id}";
 
         $message = "📚 *Nouvelle Annonce sur LivreZone !*\n"
             ."━━━━━━━━━━━━━━━━━━\n"

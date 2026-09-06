@@ -36,7 +36,7 @@ class BookOrderedNotification extends Notification implements ShouldQueue
      */
     public static function demandUrl(string $title): string
     {
-        return 'https://next.livrezone.com/demandes?search='.urlencode($title);
+        return rtrim(config('app.frontend_url'), '/').'/demandes?search='.urlencode($title);
     }
 
     /**

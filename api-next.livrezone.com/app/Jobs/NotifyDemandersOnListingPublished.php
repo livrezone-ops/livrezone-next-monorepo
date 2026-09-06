@@ -76,9 +76,10 @@ class NotifyDemandersOnListingPublished implements ShouldQueue
     {
         $listing = $this->listing;
         $price = $listing->discount_price ?? $listing->price;
+        $frontend = rtrim(config('app.frontend_url'), '/');
         $url = $listing->book_id
-            ? 'https://next.livrezone.com/books/'.$listing->book_id
-            : 'https://next.livrezone.com/annonces?isbn='.urlencode((string) $listing->isbn_13);
+            ? $frontend.'/books/'.$listing->book_id
+            : $frontend.'/annonces?isbn='.urlencode((string) $listing->isbn_13);
 
         return "*Bonne nouvelle ! Le livre que vous cherchez est disponible*\n"
             ."━━━━━━━━━━━━━━━━━━\n"
