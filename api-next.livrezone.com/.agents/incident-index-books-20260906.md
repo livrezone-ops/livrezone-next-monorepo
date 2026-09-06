@@ -64,8 +64,12 @@ Inspection de l'index `books` Meilisearch (697 172 documents, conforme aux 697 1
 
 ## Suivi
 
-- [ ] Import terminé + vérifications 1-4 ci-dessus (06/09)
-- [ ] Vitrine `/books` « Nouveautés » déployée (lz) et tri `recent` vérifié
+- [x] **Import terminé 06/09** : 697 172/697 172 documents, « ✅ Envoi terminé avec succès » (~55 min, lots de 5 000)
+- [x] `fieldDistribution` complet : 12 champs × 697 172 docs (title, authors, authors_list, isbn_13, publisher, cover_url, default_category_id, language_id, default_level_id, **default_subject_id**, created_at, id)
+- [x] Recherche « petit » → titres réels (« Petit », « Petit enfant deviendra grand »…) — plus de matchs sur seuls noms d'auteurs
+- [x] Tri `created_at:desc` → ids récents (batch 29/08) en tête ; `books:configure-search` réappliqué
+- [x] Facettes API end-to-end : 35 catégories / 6 langues avec compteurs réels
+- [ ] Vitrine `/books` « Nouveautés » déployée (lz) et tri `recent` vérifié — commit `fb1d718` en attente de test propriétaire
 - [x] **Filtre matière (`default_subject_id`) débloqué dans le même passage** (06/09) :
       champ ajouté à `toSearchableArray` (Book.php) + `filterable` (ConfigureBookSearch) —
       697 165/697 172 livres renseignés en base. Reste : UI (FilterSidebar + param API
