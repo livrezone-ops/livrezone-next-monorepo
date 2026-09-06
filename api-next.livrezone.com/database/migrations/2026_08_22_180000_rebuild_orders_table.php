@@ -11,7 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::dropIfExists('orders');
+        // Garde anti-perte de données (audit C7, 06/09) : en production la
+        // table existe déjà et contient les demandes réelles — un rejeu ne
+        // doit JAMAIS la dropper (l'ancien dropIfExists en tête de up()).
+        if (Schema::hasTable('orders')) {
+            return;
+        }
 
         Schema::create('orders', function (Blueprint $table) {
             $table->id();

@@ -8,7 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::dropIfExists('payments');
+        // Garde anti-perte de données (audit C7, 06/09) : historique financier
+        // en production — un rejeu ne doit JAMAIS dropper la table.
+        if (Schema::hasTable('payments')) {
+            return;
+        }
 
         Schema::create('payments', function (Blueprint $table) {
             $table->id();

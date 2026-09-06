@@ -34,6 +34,8 @@ class ConfigureBookSearch extends Command
             'default_subject_id',
             'isbn_13',
             'authors_list',
+            // Hubs éditeurs (SEO 06/09) : /books?publisher=… sur les 697k docs.
+            'publisher',
         ]);
 
         $index->updateSortableAttributes([

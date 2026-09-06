@@ -43,15 +43,16 @@ Parcours publics restants + manques produit (revue 29/08). Ajouts 06/09 :
 - Enquête : identifier l'origine des builds front du 05/09 soir (22h41 → 02h47) et
   du run manuel Meili 05/09 02:40 (cause de l'appauvrissement de l'index books).
 
-## 🟠 Priorité 3 — Quick wins audit restants (C5-C7, demi-journée)
+## 🟠 Priorité 3 — Quick wins audit C5-C7 — ✅ FAITS le 06/09 soir
 
-- **C5** : cap `limit` ≤ 50 sur `GET /api/listings` (`ListingSearchService.php:174`) + réactiver un throttle public (`ANTI_SCRAPING_ENABLED` ou limiter dédié).
-- **C6** : import `Illuminate\Validation\ValidationException` manquant dans `AdminController.php` (bug 500 réel ligne 273).
-- **C7** : ajouter `php artisan migrate --force` au script `lz` **et** sécuriser les 3 migrations destructrices (`rebuild_orders_table`, `create_payments_table`, `create_notification_preferences_table` : `dropIfExists` en tête de `up()` → garde `hasTable`).
+- **C5 ✅** : cap `limit` ≤ 50 sur `GET /api/listings` (vérifié live : `?limit=100000` → per_page 50) + `/listings` et `/listings/{id}` sous `throttle:catalogue` (no-op tant que `ANTI_SCRAPING_ENABLED=false`, cap 10/min/IP dès activation — décision propriétaire pour le flippage).
+- **C6 ✅** : import `Illuminate\Validation\ValidationException` ajouté dans `AdminController.php`.
+- **C7 ✅** : garde `Schema::hasTable` sur les 3 migrations destructrices (`rebuild_orders_table`, `create_payments_table`, `create_notification_preferences_table`) + `migrate --force` ajouté au script `lz` (0 migration en attente au 06/09) + **`NODE_TLS_REJECT_UNAUTHORIZED=0` retiré du script `lz`** (audit). Backup `/usr/local/bin/lz.bak-20260906`.
+- **Audit CRITIQUE #2 ✅** : l'endpoint public non borné `/api/sitemap/listings` (0 hit dans les logs) est supprimé, remplacé par le contrôleur paginé `SitemapController` (bornes de chunks, throttle 60/min).
 
-## 🟣 Priorité 3-bis — SEO catalogue 697k fiches (stratégie 06/09, rôle SEO Lead)
+## 🟣 Priorité 3-bis — SEO catalogue 697k fiches — SEO-1 + SEO-2 ✅ livrés 06/09 soir (lz en attente)
 
-Stratégie complète : `.agents/SEO-catalogue-697k-2026-09-06.md` (données mesurées : 100 % ISBN, 0 doublon, 90 % résumés → indexation massive justifiée type Goodreads/OpenLibrary). Lots : **SEO-1 (P1)** sitemap index+chunks (~14×50k livres) + canonical/301 des slugs + JSON-LD Book ; **SEO-2 (P2)** livres similaires + pages éditeurs (47k) + noindex facettes ; **SEO-3 (P2)** reconstruire les pages auteurs (revisite décision 04/09) ; **SEO-4 (P3)** suivi GSC + enrichissement des 35 690 fiches minimales.
+Stratégie complète : `.agents/SEO-catalogue-697k-2026-09-06.md` (données mesurées : 100 % ISBN, 0 doublon, 90 % résumés → indexation massive justifiée type Goodreads/OpenLibrary). **Livrés** : sitemap index+chunks (`/sitemap.xml` = index, ~14 chunks de 50k livres + annonces + 47k éditeurs, API `SitemapController` paginée + cachée), canonical/308 des slugs books+annonces (`lib/book-slug.ts`), JSON-LD Book+Breadcrumb sur les fiches catalogue, « Du même rayon » (`/api/books/{id}/related`, cache 6 h), hubs `/books/editeurs` (+[slug], noindex < 3 livres), noindex des facettes /books. **R6 auteurs EXCLU** (décision propriétaire 06/09 : liste d'auteurs pas fiable — à re-étudier après nettoyage des données). Reste : **SEO-4 (P3)** suivi GSC + enrichissement des 35 690 fiches minimales.
 
 ## 🟡 Priorité 4 — Z7 : recette front notifications V2 (03/09, inchangée)
 

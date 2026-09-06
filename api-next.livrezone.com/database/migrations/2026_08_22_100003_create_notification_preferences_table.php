@@ -8,7 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::dropIfExists('notification_preferences');
+        // Garde anti-perte de données (audit C7, 06/09) : préférences réelles
+        // en production — un rejeu ne doit JAMAIS dropper la table.
+        if (Schema::hasTable('notification_preferences')) {
+            return;
+        }
 
         Schema::create('notification_preferences', function (Blueprint $table) {
             $table->id();

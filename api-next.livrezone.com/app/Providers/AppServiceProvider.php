@@ -38,6 +38,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(config('livrezone.anti_scraping.max_requests_per_minute'))->by($request->ip());
         });
 
+        // Sitemaps XML + annuaire éditeurs : consommés par le serveur Next (et
+        // Google ne les télécharge jamais directement), throttle confortable
+        // indépendant du flag anti-scraping.
+        RateLimiter::for('sitemap', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
+        });
+
         // Anti brute-force (login) et anti bombing/énumération (forgot-password).
         // Clé = email + IP : sans trustProxies configuré (chaîne Cloudflare → Caddy →
         // php-fpm), l'IP vue par Laravel est celle du proxy et est partagée par tous

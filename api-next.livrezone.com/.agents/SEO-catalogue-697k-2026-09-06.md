@@ -164,5 +164,42 @@ combinaisons qui génèrent du trafic (browse nodes Amazon).
 |---|---|---|
 | **SEO-1 (P1)** | R1 sitemaps splittés (API paginée backend + chunks Next) + R2 canonical/301 + R3 JSON-LD Book | API actif direct ; front → `lz` |
 | **SEO-2 (P2)** | R4 livres similaires + R5 éditeurs + R7 noindex facettes | front → `lz` |
-| **SEO-3 (P2)** | R6 auteurs (revisite décision 04/09) | front + API → `lz` |
+| **SEO-3 (P2)** | R6 auteurs — **EXCLU par décision propriétaire 06/09 soir : « ma liste n'est pas fiable »** (76,4 % remplis, qualité non garantie). À re-étudier après un nettoyage/dédoublonnage des données auteurs. Les 301 existantes /books/auteurs/{slug} → /books?author= restent en l'état. | — |
 | **SEO-4 (P3)** | R8 suivi GSC + enrichissement fiches minimales + browse nodes | continu |
+
+### ✅ SEO-1 + SEO-2 livrés le 06/09 soir (session ZCode)
+
+**Backend (actif immédiatement, vérifié en live)** :
+- Nouveau `SitemapController` : `/api/sitemap/books/meta` (697 172 livres, 14 chunks de
+  50 000 bornés par intervalles d'id, cache 24 h), `/api/sitemap/books?min_id&max_id`
+  (validation par appartenance aux bornes de la meta — les ids sont troués), `/api/sitemap/
+  listings/meta` + `?page` (49 annonces, 5 000/page), `/api/sitemap/publishers`
+  (46 933 éditeurs, slug calculé côté API, `per_page` jusqu'à 50k) + `/api/sitemap/
+  publishers/{slug}`. Throttle dédié 60/min/IP.
+- **Ancien `GET /api/sitemap/listings` SUPPRIMÉ** (audit CRITIQUE #2 : get() non borné sur
+  les annonces publiées, 0 hit dans les logs).
+- `GET /api/books/{book}/related` (Meili même rayon, cache 6 h, fallback fiches récentes).
+- Filtre `publisher` sur `/api/books` + `publisher` ajouté aux filterableAttributes Meili
+  (books:configure-search relancé).
+- C5 : cap `limit` ≤ 50 sur `/api/listings` (vérifié : `?limit=100000` → per_page 50) +
+  `/listings` et `/listings/{id}` passés sous `throttle:catalogue` (Limit::none() tant que
+  ANTI_SCRAPING_ENABLED=false, cap par IP dès activation).
+- C6 : import `ValidationException` corrigé dans `AdminController`.
+- C7 : garde `hasTable` sur les 3 migrations destructrices + `migrate --force` ajouté au
+  script `lz` + `NODE_TLS_REJECT_UNAUTHORIZED=0` retiré du script (audit). Backup :
+  `/usr/local/bin/lz.bak-20260906`.
+
+**Front (en attente de `lz`)** :
+- Sitemaps : `app/sitemap.ts` remplacé par des route handlers — `/sitemap.xml` devient un
+  **sitemap index** (pages, chunks livres, annonces, éditeurs ; robots.txt inchangé),
+  `/sitemap-pages.xml`, `/sitemap-books/[chunk].xml` (50k URLs, lastmod=updated_at),
+  `/sitemap-listings/[chunk].xml`, `/sitemap-editeurs.xml`.
+- R2 : canonical + 308 des slugs sur `books/[slug]` et `[nickname]/[slug]` (canonical
+  construit depuis les données via `lib/book-slug.ts`, partagé cartes/sitemaps/pages).
+- R3 : JSON-LD `Book` + `BreadcrumbList` sur les fiches catalogue (les fiches annonces ont
+  déjà Book+Offer). WebSite+SearchAction déjà en place dans le layout.
+- R4 : section « Du même rayon » (8 fiches) sur chaque fiche livre.
+- R5 : hub `/books/editeurs` (paginé) + `/books/editeurs/[slug]` (noindex si < 3 livres).
+- R7 : `/books?filtre=…` (subjects/languages/levels/publisher) → noindex,follow ; la
+  recherche simple reste indexable. Rayons et fiches inchangés. Pages auteurs : NON
+  concernées (R6 exclu).

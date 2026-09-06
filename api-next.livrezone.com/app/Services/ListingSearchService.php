@@ -170,8 +170,9 @@ class ListingSearchService
             $query->orderByRaw('COALESCE(published_at, created_at) DESC')->latest('id');
         }
 
-        // Pagination
-        $limit = $request->integer('limit', 12);
+        // Pagination — cap dur (audit C5) : /api/listings est public, un
+        // ?limit=100000 ne doit jamais pouvoir extraire la table entière.
+        $limit = min(50, max(1, $request->integer('limit', 12)));
         $listings = $query->paginate($limit);
 
         // S'assurer que les accesseurs cover du livre sont bien inclus dans le JSON

@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReferenceDataController;
+use App\Http\Controllers\Api\SitemapController;
 use App\Http\Controllers\Api\TelegramWebhookController;
 use App\Http\Controllers\Api\WishlistController;
 use Illuminate\Http\Request;
@@ -105,10 +106,12 @@ Route::middleware('auth:sanctum')->prefix('payments')->group(function () {
     Route::post('/{payment}/simulate-confirm', [PaymentController::class, 'simulateConfirm']);
 });
 
-// Public Listings Routes
-Route::get('/listings', [ListingController::class, 'index']);
-Route::get('/listings/{id}', [ListingController::class, 'show']);
-Route::get('/sitemap/listings', [ListingController::class, 'sitemap']);
+// Public Listings Routes — throttle catalogue : Limit::none() tant que
+// ANTI_SCRAPING_ENABLED=false, cap par IP dès activation (audit C5).
+Route::middleware('throttle:catalogue')->group(function () {
+    Route::get('/listings', [ListingController::class, 'index']);
+    Route::get('/listings/{id}', [ListingController::class, 'show']);
+});
 
 // Public Demandes (Book Requests) Routes
 Route::get('/demandes', [OrderController::class, 'publicDemandes']);
@@ -129,10 +132,25 @@ Route::get('/reference-data', [ReferenceDataController::class, 'index']);
 // Public Books Catalogue Routes
 Route::middleware('throttle:catalogue')->group(function () {
     Route::get('/books', [BookController::class, 'publicSearch']);
+    // Livres similaires (maillage interne SEO, 06/09) — 2 segments, sans
+    // conflit avec les catch-all /books/{idOrIsbn}.
+    Route::get('/books/{book}/related', [BookController::class, 'related']);
     Route::get('/books/autocomplete', [BookController::class, 'autocomplete']);
     Route::get('/books/{idOrIsbn}', [BookController::class, 'show']);
     Route::get('/books/search', [BookController::class, 'searchByIsbn']);
     Route::get('/books/{identifier}', [BookController::class, 'show']);
+});
+
+// Sitemaps XML (SEO catalogue 06/09) — consommés par le serveur Next, throttle
+// dédié confortable (60/min/IP). Remplace l'ancien /sitemap/listings non borné
+// (audit CRITIQUE #2 : get() complet sur les annonces publiées).
+Route::middleware('throttle:sitemap')->prefix('sitemap')->group(function () {
+    Route::get('/books/meta', [SitemapController::class, 'booksMeta']);
+    Route::get('/books', [SitemapController::class, 'books']);
+    Route::get('/listings/meta', [SitemapController::class, 'listingsMeta']);
+    Route::get('/listings', [SitemapController::class, 'listings']);
+    Route::get('/publishers', [SitemapController::class, 'publishers']);
+    Route::get('/publishers/{slug}', [SitemapController::class, 'publisher']);
 });
 
 // Wishlist (Favorites) - Authenticated

@@ -237,5 +237,14 @@ class BookCatalogueService
                 $builder->whereIn('default_subject_id', $subjectIds);
             }
         }
+
+        // Filtre éditeur (hubs SEO éditeurs, 06/09) : /books?publisher=Nom+Éditeur.
+        // « publisher » est filterable dans Meili (cf. books:configure-search).
+        if (! in_array('publisher', $exclude, true)) {
+            $publisher = trim((string) $request->get('publisher', ''));
+            if ($publisher !== '') {
+                $builder->where('publisher', $publisher);
+            }
+        }
     }
 }
