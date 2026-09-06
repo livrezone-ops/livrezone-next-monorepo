@@ -63,11 +63,15 @@ Comportement **identique aujourd'hui** (`config/app.php:68` → `FRONTEND_URL=ht
 | 06/09 | Étape 0c : `.env` durci (production/debug off/logs daily/info) + logs publics archivés | ✅ (ancien laravel.log unique conservé ; nouvelle rotation 14 j dès le prochain log) |
 | 06/09 | Test propriétaire + `lz` : validé (« c fait ») | ✅ |
 | 06/09 | Push des commits (57149b3 docs, 3aa71d7 backend, 529f6d3 front + journal) | ✅ |
-| — | Prochaine action : **Étape 1** (conf Caddy, commandes prêtes ci-dessus) | ⏳ |
+| 06/09 | Étape 1 — tentative 1 : reload **rejeté** (`ambiguous site definition: https://next.livrezone.com` — copie non éditée = double déclaration du site, mécanisme identique à la panne 521 du 02/09). Caddy est resté sur l'ancienne config (aucune coupure) ; les 200 constatés = placeholder, PAS le site. ⚠️ Leçon : éditer le server_name AVANT le reload, et tant que l'ambiguïté existe, un restart de Caddy = outage global | ⚠️ corrigé |
+| 06/09 | Étape 1 — tentative 2 : `sed -E 's/(^|[^-a-zA-Z0-9])next\.livrezone\.com/\1livrezone.com/g'` (garde anti-hyphen pour préserver `api-next.livrezone.com`) sur les 6 occurrences (blocs http/https, `domain_log`, `SecAuditLog` Coraza) → `Valid configuration` → reload OK → `_next` servi sur Host livrezone.com en interne | ✅ |
+| — | En attente : vérification externe https://livrezone.com (navigateur) → puis Étape 2 | ⏳ |
 
 ---
 
-## Étape 1 — Caddy : pointer `livrezone.com` vers le conteneur — ⏳
+## Étape 1 — Caddy : pointer `livrezone.com` vers le conteneur — ✅ FAIT 06/09
+
+**Résultat** : conf créée par copie de `next.livrezone.com.conf` + renommage des 6 occurrences du domaine (sed avec garde `(^|[^-a-zA-Z0-9])next\.livrezone\.com` pour ne pas toucher `api-next.livrezone.com`). Sauvegarde de l'ancienne conf : `/etc/openpanel/caddy/livrezone.com.conf.removed-20260906`. `caddy validate` OK, reload à chaud OK, `_next` servi sur `Host: livrezone.com` en interne.
 
 ```bash
 # 1. Sauvegarder la conf actuelle HORS du dossier importé (leçon 521)
