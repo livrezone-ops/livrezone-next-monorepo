@@ -1,18 +1,21 @@
-// Page d'accueil du catalogue — volontairement légère (décision propriétaire
-// 03/09) : AUCUN appel serveur lourd. La vitrine précédente attendait
+// Page d'accueil du catalogue — vitrine légère (décision propriétaire 03/09,
+// enrichie le 06/09) : AUCUN appel serveur lourd. L'ancienne vitrine attendait
 // /api/books/authors qui, cache froid, scanne les ~700 000 livres → timeout.
 // Ici : recherche avec autocomplétion live (endpoint Meilisearch rapide,
-// /books/autocomplete) + panneau « + Filtres » (auteur, catégorie, niveau,
-// langue). Les fiches ne sont chargées qu'à la demande.
+// /books/autocomplete) + panneau « + Filtres » + section « Nouveautés »
+// alimentée côté serveur par UNE requête Meilisearch plafonnée (12 titres,
+// tri created_at desc, sans facettes — voir app/books/page.tsx).
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import SmartCoverImage from "@/components/SmartCoverImage";
+import BookCatalogCard from "@/components/BookCatalogCard";
 import { useRouter } from "next/navigation";
 import { Search, Loader2, BookOpen, SlidersHorizontal, X, ArrowRight } from "lucide-react";
 import api from "@/lib/axios";
 import { CATEGORIES, LEVELS, LANGUAGES } from "@/lib/reference-data";
+import type { BookSearchItem } from "@/lib/books-api";
 
 interface BookSuggestion {
   id?: number;
@@ -23,7 +26,7 @@ interface BookSuggestion {
   authors?: string[] | string | null;
 }
 
-export default function BooksHome() {
+export default function BooksHome({ newBooks = [] }: { newBooks?: BookSearchItem[] }) {
   const router = useRouter();
   const [term, setTerm] = useState("");
   const [author, setAuthor] = useState("");
@@ -288,6 +291,28 @@ export default function BooksHome() {
           )}
         </div>
       </div>
+
+      {/* Nouveautés : UNE requête Meili plafonnée, servie en props par le SSR
+          (décision 06/09 — reprise partielle de l'interdit d'appel API du 03/09,
+          qui visait le scan 700k de l'index auteurs, pas les requêtes Meili). */}
+      {newBooks.length > 0 && (
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
+            <h2 className="text-lg font-black text-[#1a0a40]">Nouveautés du catalogue</h2>
+            <Link
+              href="/books?sort=recent"
+              className="text-xs font-bold text-[#6D28D9] hover:text-[#4c1d95] transition-colors"
+            >
+              Voir plus →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {newBooks.map((book) => (
+              <BookCatalogCard key={book.id} book={book} view="grid" />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Rayons (arbre statique, aucun appel API) */}
       <h2 className="text-lg font-black text-[#1a0a40] flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">

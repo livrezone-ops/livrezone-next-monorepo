@@ -15,9 +15,16 @@ Décision propriétaire 06/09 : on POINTE le domaine vers le conteneur existant 
 | **3. Recette** | Login + OAuth Google, chat temps réel (Reverb), images `/_next/image`, liens Telegram/mails (reset, verification, paiement), canonicals en view-source, sitemap/robots. | ⏳ |
 | **4. 301** | À J+7/14 : conf `next.livrezone.com` → redirection 301 `https://livrezone.com{uri}`. Fin du contenu dupliqué. | ⏳ |
 
-## 🟠 Priorité 2 — Finir le site (Étape 1 du backlog 03/09, inchangée)
+## 🟠 Priorité 2 — Finir le site (Étape 1 du backlog 03/09)
 
-Parcours publics restants + manques produit (revue 29/08). **Non redémarré tant que la migration domaine n'est pas passée en 301** (éviter de recetter deux domaines).
+Parcours publics restants + manques produit (revue 29/08). Ajouts 06/09 :
+- **Vitrine `/books` : section « Nouveautés » réintroduite** (décision propriétaire 06/09) —
+  12 titres via UNE requête Meili plafonnée (`sort=recent`, `facets=0`), servie en SSR.
+  Le code + l'incident associé : `.agents/incident-index-books-20260906.md`.
+- **Filtre matière (`default_subject_id`)** : champ désormais indexé (06/09) — reste
+  l'UI (FilterSidebar + param API) et le filtre côté `BookCatalogueService`.
+- Enquête : identifier l'origine des builds front du 05/09 soir (22h41 → 02h47) et
+  du run manuel Meili 05/09 02:40 (cause de l'appauvrissement de l'index books).
 
 ## 🟠 Priorité 3 — Quick wins audit restants (C5-C7, demi-journée)
 

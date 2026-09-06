@@ -102,11 +102,13 @@ export default async function LivresPage({ searchParams }: PageProps) {
     f.levels.length === 0 &&
     f.page === 1;
 
-  // Vue par défaut : page légère SANS aucun appel API (l'ancienne vitrine
-  // attendait l'index auteurs = scan des ~700k livres, cache froid → page
-  // inaccessible). La recherche Meilisearch prend le relais via le formulaire.
+  // Vue par défaut : vitrine légère (décision 03/09) enrichie le 06/09 d'une
+  // section « Nouveautés » : UNE requête Meilisearch plafonnée (12 titres, tri
+  // created_at desc, sans facettes) — aucun scan SQL, l'interdit du 03/09
+  // visait le scan 700k de l'index auteurs, pas les requêtes Meili plafonnées.
   if (isDefaultView) {
-    return <BooksHome />;
+    const latest = await getBooks({ sort: "recent", limit: 12, facets: false });
+    return <BooksHome newBooks={latest.data} />;
   }
 
   // 1. Fetching logic — mode Recherche / Filtre uniquement.
@@ -120,6 +122,7 @@ export default async function LivresPage({ searchParams }: PageProps) {
     categories: f.categories.length ? f.categories : undefined,
     languages: f.languages.length ? f.languages : undefined,
     levels: f.levels.length ? f.levels : undefined,
+    sort: f.sort !== "latest" ? f.sort : undefined,
     page: f.page,
     limit: 12,
   });

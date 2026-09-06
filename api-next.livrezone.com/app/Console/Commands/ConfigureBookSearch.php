@@ -30,6 +30,7 @@ class ConfigureBookSearch extends Command
             'default_category_id',
             'language_id',
             'default_level_id',
+            'default_subject_id',
             'isbn_13',
             'authors_list',
         ]);

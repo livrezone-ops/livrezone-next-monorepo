@@ -33,6 +33,9 @@ class Book extends Model
             'default_category_id' => $this->default_category_id,
             'language_id' => $this->language_id,
             'default_level_id' => $this->default_level_id,
+            // Filtre matière (demande 23/08, débloqué 06/09 avec le réimport complet
+            // de l'index — 697 165/697 172 livres renseignés)
+            'default_subject_id' => $this->default_subject_id,
             'created_at' => $this->created_at?->timestamp,
         ];
     }
