@@ -1,0 +1,101 @@
+# HTTP block (port 80) - Handles HTTP traffic
+http://next.livrezone.com, http://www.next.livrezone.com {
+
+  # compress
+  encode zstd gzip
+
+  # logging
+  import domain_log next.livrezone.com
+
+  route {
+
+    # redirects
+    import /etc/openpanel/caddy/redirects.conf
+
+    # modsecurity
+    coraza_waf {
+        load_owasp_crs
+        directives `
+            Include /etc/openpanel/caddy/coraza_rules.conf
+            Include /etc/openpanel/caddy/coreruleset/crs-setup.conf.example
+            Include /etc/openpanel/caddy/coreruleset/rules/*.conf
+            SecRuleEngine On
+            # 03/09/2026 : /_next/image (optimiseur Next.js) — endpoint statique en
+            # lecture seule ; les URL encodees du parametre url declenchent le CRS.
+            SecRule REQUEST_URI "@streq /_next/image" "id:100900,phase:1,pass,nolog,ctl:ruleEngine=Off"
+            SecAuditEngine RelevantOnly
+            SecRuleRemoveById 007
+            SecRuleRemoveByTag example
+            SecAuditLog /var/log/caddy/coraza_waf/next.livrezone.com.log
+            SecAuditLogParts AHFZ
+            SecAuditLogFormat json
+        `
+    }
+
+    # Handle HTTP traffic (port 80)
+    reverse_proxy http://192.168.1.202:3000 {
+      header_up Host {host}
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+# HTTPS block (port 443) - Handles HTTPS traffic
+https://next.livrezone.com, https://www.next.livrezone.com {
+
+  # compress
+  encode zstd gzip
+
+  # logging
+  import domain_log next.livrezone.com
+
+  route {
+
+    # redirects
+    import /etc/openpanel/caddy/redirects.conf
+
+    # modsecurity
+    coraza_waf {
+        load_owasp_crs
+        directives `
+            Include /etc/openpanel/caddy/coraza_rules.conf
+            Include /etc/openpanel/caddy/coreruleset/crs-setup.conf.example
+            Include /etc/openpanel/caddy/coreruleset/rules/*.conf
+            SecRuleEngine On
+            # 03/09/2026 : /_next/image (optimiseur Next.js) — endpoint statique en
+            # lecture seule ; les URL encodees du parametre url declenchent le CRS.
+            SecRule REQUEST_URI "@streq /_next/image" "id:100900,phase:1,pass,nolog,ctl:ruleEngine=Off"
+            SecAuditEngine RelevantOnly
+            SecRuleRemoveById 007
+            SecRuleRemoveByTag example
+            SecAuditLog /var/log/caddy/coraza_waf/next.livrezone.com.log
+            SecAuditLogParts AHFZ
+            SecAuditLogFormat json
+        `
+    }
+
+    # Handle HTTPS traffic (port 443)
+    reverse_proxy http://192.168.1.202:3000 { 
+      header_up Host {host}
+    }
+
+#    # Terminate TLS and pass to Varnish
+#    reverse_proxy http://127.0.0.1:32773 {
+#      header_up Host {host}
+#    }
+
+  }
+
+  # SSL (only when SSL certificate is requested)
+  tls {
+    on_demand
+  }
+}
