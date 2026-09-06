@@ -23,8 +23,8 @@ return [
     ],
 
     'anti_scraping' => [
-        'enabled' => env('ANTI_SCRAPING_ENABLED', false), // Désactivé par défaut comme demandé
-        'max_requests_per_minute' => (int) env('ANTI_SCRAPING_MAX_REQUESTS', 10),
+        'enabled' => env('ANTI_SCRAPING_ENABLED', false), // Activé 06/09 (décision propriétaire)
+        'max_requests_per_minute' => (int) env('ANTI_SCRAPING_MAX_REQUESTS', 300),
     ],
 
     'book_covers_url' => env('BOOK_COVERS_URL', null),

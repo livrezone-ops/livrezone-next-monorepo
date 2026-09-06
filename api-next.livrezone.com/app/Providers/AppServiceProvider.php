@@ -35,7 +35,15 @@ class AppServiceProvider extends ServiceProvider
                 return Limit::none();
             }
 
-            return Limit::perMinute(config('livrezone.anti_scraping.max_requests_per_minute'))->by($request->ip());
+            // Trafic interne = jamais un visiteur : le SSR du front (fetch
+            // serveur → API via le LAN) et les postes du LAN partagent une
+            // poignée d'IPs privées — les brider tuerait le site, pas les bots.
+            $ip = (string) $request->ip();
+            if ($ip === '' || ! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return Limit::none();
+            }
+
+            return Limit::perMinute(config('livrezone.anti_scraping.max_requests_per_minute'))->by($ip);
         });
 
         // Sitemaps XML + annuaire éditeurs : consommés par le serveur Next (et

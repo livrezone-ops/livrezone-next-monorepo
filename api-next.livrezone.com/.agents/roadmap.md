@@ -50,6 +50,14 @@ Parcours publics restants + manques produit (revue 29/08). Ajouts 06/09 :
 - **C7 ✅** : garde `Schema::hasTable` sur les 3 migrations destructrices (`rebuild_orders_table`, `create_payments_table`, `create_notification_preferences_table`) + `migrate --force` ajouté au script `lz` (0 migration en attente au 06/09) + **`NODE_TLS_REJECT_UNAUTHORIZED=0` retiré du script `lz`** (audit). Backup `/usr/local/bin/lz.bak-20260906`.
 - **Audit CRITIQUE #2 ✅** : l'endpoint public non borné `/api/sitemap/listings` (0 hit dans les logs) est supprimé, remplacé par le contrôleur paginé `SitemapController` (bornes de chunks, throttle 60/min).
 
+## 🔵 Anti-scraping — ✅ couche Laravel active le 06/09 soir + couche Cloudflare à activer (propriétaire)
+
+Décision propriétaire 06/09 : bloquer le scraping même avec rotation de proxies → deux étages.
+
+**Laravel (fait, vérifié en live)** : `trustProxies` (plages Cloudflare publiques + sauts locaux Caddy/Apache, inline dans `bootstrap/app.php` — config() indisponible à ce stade, incident 2 min corrigé) → `Request::ip()` = vraie IP client ; limiter `catalogue` activé (`ANTI_SCRAPING_ENABLED=true`, 300 req/min/IP — couvre les bursts d'autocomplétion) **avec exemption du trafic interne** (SSR du front via le LAN + postes privés : jamais des visiteurs). Test : 310 requêtes parallèles → 246×429, fenêtre réinitialisée après 60 s. Limite connue : la rotation de proxies contourne un comptage par IP — d'où le 2ᵉ étage.
+
+**Cloudflare (à activer par le propriétaire, ~5 min)** : (1) proxifier `livrezone.com` (orange cloud) — l'IP origin 41.251.35.31 est actuellement exposée ; SSL/TLS « Full (strict) » ; les WebSockets /app/* passent via CF ; (2) Security → Bots → **Bot Fight Mode** ON ; (3) Security → WAF → **Rate limiting rule** (1 gratuite) : URI Path starts with `/api/`, >100 req/min, Same IP → Block 10 min ; (4) option : règle WAF « Managed Challenge » sur /api/* si user_agent vide.
+
 ## 🟣 Priorité 3-bis — SEO catalogue 697k fiches — SEO-1 + SEO-2 ✅ livrés 06/09 soir (lz en attente)
 
 Stratégie complète : `.agents/SEO-catalogue-697k-2026-09-06.md` (données mesurées : 100 % ISBN, 0 doublon, 90 % résumés → indexation massive justifiée type Goodreads/OpenLibrary). **Livrés** : sitemap index+chunks (`/sitemap.xml` = index, ~14 chunks de 50k livres + annonces + 47k éditeurs, API `SitemapController` paginée + cachée), canonical/308 des slugs books+annonces (`lib/book-slug.ts`), JSON-LD Book+Breadcrumb sur les fiches catalogue, « Du même rayon » (`/api/books/{id}/related`, cache 6 h), hubs `/books/editeurs` (+[slug], noindex < 3 livres), noindex des facettes /books. **R6 auteurs EXCLU** (décision propriétaire 06/09 : liste d'auteurs pas fiable — à re-étudier après nettoyage des données). Reste : **SEO-4 (P3)** suivi GSC + enrichissement des 35 690 fiches minimales.
