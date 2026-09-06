@@ -44,14 +44,18 @@ class WishlistController extends Controller
      */
     public function store(WishlistStoreRequest $request): JsonResponse
     {
-        $favorite = Favorite::create([
+        // Idempotent (audit #6) : unique (user_id, listing_id) — un double-clic
+        // renvoie l'entrée existante au lieu d'un QueryException 500.
+        $favorite = Favorite::firstOrCreate([
             'user_id' => $request->user()->id,
             'listing_id' => $request->integer('listing_id'),
         ]);
 
         return response()->json([
             'data' => $favorite,
-            'message' => 'Annonce ajoutée à la wishlist.',
+            'message' => $favorite->wasRecentlyCreated
+                ? 'Annonce ajoutée à la wishlist.'
+                : 'Annonce déjà dans la wishlist.',
         ], 201);
     }
 

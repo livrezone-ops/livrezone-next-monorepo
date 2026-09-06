@@ -105,14 +105,13 @@ class ListingSearchService
             $request->has('max_price') ? $request->get('max_price') : $request->get('max')
         );
 
-        $priceExpr = '
-            COALESCE(discount_price, price)';
-
+        // Colonne générée indexable (audit #3, migration effective_price) —
+        // plus de full scan sur COALESCE à chaque recherche filtrée publique.
         if ($minPrice !== null) {
-            $query->whereRaw($priceExpr.' >= ?', [$minPrice]);
+            $query->where('effective_price', '>=', $minPrice);
         }
         if ($maxPrice !== null) {
-            $query->whereRaw($priceExpr.' <= ?', [$maxPrice]);
+            $query->where('effective_price', '<=', $maxPrice);
         }
 
         // 6b. Filtrer par villes (city=1,2 ou city_id=1,2) — communes de l'annonceur
@@ -159,9 +158,9 @@ class ListingSearchService
         $sort = $request->get('sort', 'latest');
         if ($sort === 'price_asc') {
             // Utilise le prix de promotion si disponible, sinon le prix normal
-            $query->orderByRaw('COALESCE(discount_price, price) ASC');
+            $query->orderBy('effective_price');
         } elseif ($sort === 'price_desc') {
-            $query->orderByRaw('COALESCE(discount_price, price) DESC');
+            $query->orderByDesc('effective_price');
         } else {
             // Tri par date de publication décroissante.
             // COALESCE gère les annonces sans published_at (import), et l'id
@@ -198,7 +197,7 @@ class ListingSearchService
                 $boundsQuery->where('user_id', $request->get('user_id'));
             }
             $bounds = $boundsQuery
-                ->selectRaw('MIN(COALESCE(discount_price, price)) as min_price, MAX(COALESCE(discount_price, price)) as max_price')
+                ->selectRaw('MIN(effective_price) as min_price, MAX(effective_price) as max_price')
                 ->first();
 
             $payload['price_min'] = (float) ($bounds->min_price ?? 0);

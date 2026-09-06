@@ -20,6 +20,15 @@ class Listing extends Model
      *
      * @return array
      */
+    /**
+     * Eager load des relations utilisées par toSearchableArray (audit #5) :
+     * sans cela, l'indexation de masse déclenche un N+1 par annonce.
+     */
+    public static function makeAllSearchableUsing(Builder $query): Builder
+    {
+        return $query->with('user.profile');
+    }
+
     public function toSearchableArray()
     {
         return [

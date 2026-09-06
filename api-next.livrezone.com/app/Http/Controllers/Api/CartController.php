@@ -83,15 +83,26 @@ class CartController extends Controller
         $maxQty = $this->maxQuantityFor($listingId);
         $qty = max(1, min($maxQty, $request->integer('quantity', 1)));
 
-        $item = CartItem::create([
+        // Idempotent (audit #6) : la table a une unique (user_id, listing_id) —
+        // un double-clic ne doit pas créer de doublon (QueryException 500) mais
+        // fusionner la quantité, bornée au stock.
+        $item = CartItem::firstOrCreate([
             'user_id' => $request->user()->id,
             'listing_id' => $listingId,
+        ], [
             'quantity' => $qty,
         ]);
 
+        $message = 'Article ajouté au panier.';
+        if (! $item->wasRecentlyCreated) {
+            $item->quantity = min($maxQty, $item->quantity + $qty);
+            $item->save();
+            $message = 'Quantité mise à jour.';
+        }
+
         return response()->json([
             'data' => $item,
-            'message' => 'Article ajouté au panier.',
+            'message' => $message,
         ], 201);
     }
 
