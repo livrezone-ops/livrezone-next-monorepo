@@ -50,6 +50,12 @@ Parcours publics restants + manques produit (revue 29/08). Ajouts 06/09 :
 - **C7 ✅** : garde `Schema::hasTable` sur les 3 migrations destructrices (`rebuild_orders_table`, `create_payments_table`, `create_notification_preferences_table`) + `migrate --force` ajouté au script `lz` (0 migration en attente au 06/09) + **`NODE_TLS_REJECT_UNAUTHORIZED=0` retiré du script `lz`** (audit). Backup `/usr/local/bin/lz.bak-20260906`.
 - **Audit CRITIQUE #2 ✅** : l'endpoint public non borné `/api/sitemap/listings` (0 hit dans les logs) est supprimé, remplacé par le contrôleur paginé `SitemapController` (bornes de chunks, throttle 60/min).
 
+## 🛡️ Sécurité — inventaire post-lz 06/09 soir (audit C1-C7 soldé)
+
+**Réglé et vérifié** : APP_ENV/APP_DEBUG/LOG_LEVEL corrects ; rien d'exposé dans `public/` ; pas de Telescope/Horizon/debugbar ; HSTS preload + nosniff + X-Frame-Options en place ; cookies `secure` + `http_only` ; rate limits (auth 5/min, catalogue 300/min/IP avec vraies IPs, sitemap 60/min) ; Cloudflare devant les 2 domaines (Bot Fight + rate limit edge + Always Use HTTPS + www→apex) ; NODE_TLS retiré du lz ; migrations destructrices gardées ; endpoint sitemap non borné supprimé. **Correctifs du 06/09 soir** : compte usine `test@example.com` (id 2, trouvé en prod, 0 donnée attachée) **neutralisé** (mot de passe aléatoire + email dévérifié) + garde d'environnement sur `DatabaseSeeder` ; **migration unicités** `payments.transaction_id` (idempotence webhooks) + `profiles.telegram_id` (0 doublon, jouée et vérifiée) ; fichier diagnostic `storage/health-check-0209.php` archivé dans `.agents/`.
+
+**Reste (non bloquant)** : P2 — idempotence wishlist/panier (double-clic → 500) ; P3 — colonne générée `effective_price` indexée (perf), scans `LOWER(TRIM(title))` (perf), N+1 Scout (perf), counter cache `listing_count` (cohérence), évaluer `SameSite=Lax` au lieu de `none` (front et API sont même site), rotation de l'APP_KEY lors d'une fenêtre de maintenance (déconnexion globale), 2FA sur les comptes admin (optionnel).
+
 ## 🔵 Anti-scraping — ✅ couche Laravel active le 06/09 soir + couche Cloudflare à activer (propriétaire)
 
 Décision propriétaire 06/09 : bloquer le scraping même avec rotation de proxies → deux étages.
