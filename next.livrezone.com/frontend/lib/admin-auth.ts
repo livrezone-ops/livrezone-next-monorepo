@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { SITE_URL } from "@/lib/site-url";
 
 export interface AdminAuthUser {
   id: number;
@@ -28,7 +29,7 @@ export async function getAdminUser(): Promise<AdminAuthUser | null> {
         Accept: "application/json",
         Host: "api-next.livrezone.com",
         Cookie: cookieHeader,
-        Referer: "https://next.livrezone.com",
+        Referer: SITE_URL,
       },
     });
 

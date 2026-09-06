@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import nextDynamic from "next/dynamic";
 import { toJsonLd } from "@/lib/safe-json-ld";
+import { SITE_URL } from "@/lib/site-url";
 import {
   BookOpen,
   Store,
@@ -201,7 +202,7 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: "LivreZone",
-  url: "https://next.livrezone.com",
+  url: SITE_URL,
   description:
     "Le carrefour des librairies marocaines. Retrouvez des livres neufs et d'occasion proposés par des librairies et des particuliers.",
   inLanguage: "fr",

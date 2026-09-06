@@ -2,6 +2,7 @@ import React from "react";
 import DashboardClient from "@/components/DashboardClient";
 import PendingAuthRedirect from "@/components/PendingAuthRedirect";
 import { redirect } from 'next/navigation';
+import { SITE_URL } from '@/lib/site-url';
 
 // Forcer le rendu dynamique (SSR) — obligatoire car on utilise cache: no-store
 export const dynamic = 'force-dynamic';
@@ -41,11 +42,11 @@ async function getDashboardData(): Promise<Listing[] | null> {
     // 1. Fetch current authenticated user
     const userRes = await fetch(`${baseUrl}/api/user`, {
       cache: "no-store",
-      headers: { 
-        'Accept': 'application/json', 
+      headers: {
+        'Accept': 'application/json',
         'Host': 'api-next.livrezone.com',
         'Cookie': cookieHeader,
-        'Referer': 'https://next.livrezone.com'
+        'Referer': SITE_URL
       }
     });
 
@@ -59,14 +60,14 @@ async function getDashboardData(): Promise<Listing[] | null> {
     // 2. Fetch dashboard listings for this user (authentifié)
     const res = await fetch(`${baseUrl}/api/dashboard/listings?limit=100&filter=all`, {
       cache: "no-store",
-      headers: { 
-        'Accept': 'application/json', 
+      headers: {
+        'Accept': 'application/json',
         'Host': 'api-next.livrezone.com',
         'Cookie': cookieHeader,
-        'Referer': 'https://next.livrezone.com'
+        'Referer': SITE_URL
       }
     });
-    
+
     if (!res.ok) return [];
     
     const json = await res.json();

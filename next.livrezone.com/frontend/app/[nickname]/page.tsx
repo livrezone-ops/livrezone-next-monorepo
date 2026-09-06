@@ -19,7 +19,7 @@ import { parseFilters, type AnnoncesFilters } from "@/lib/listings-filters";
 
 export const revalidate = 60;
 
-const SITE_URL = "https://next.livrezone.com";
+import { SITE_URL } from "@/lib/site-url";
 const PRICE_MIN_LIMIT = 0;
 const PRICE_MAX_LIMIT = 500;
 

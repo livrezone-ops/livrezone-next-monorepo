@@ -1,5 +1,6 @@
 // Récupération publique des annonces pour le SSR (SEO).
 // Même convention d'URL que la page d'accueil (INTERNAL_API_URL puis NEXT_PUBLIC_API_URL).
+import { SITE_URL } from "@/lib/site-url";
 
 export interface ListingSummary {
   id: number;
@@ -236,7 +237,7 @@ export async function getPublicListing(id: string): Promise<ListingDetail | null
             headers: {
               ...baseHeaders,
               Cookie: cookieHeader,
-              Referer: "https://next.livrezone.com",
+              Referer: SITE_URL,
             },
           }
         : {

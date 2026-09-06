@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { CATEGORIES } from "@/lib/reference-data";
 
-const SITE_URL = "https://next.livrezone.com";
+import { SITE_URL } from "@/lib/site-url";
 
 // Sitemap volontairement allégé (décision propriétaire 03/09) : aucun appel
 // API. L'ancienne version embarquait toutes les annonces publiées (~700k

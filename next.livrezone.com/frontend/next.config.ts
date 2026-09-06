@@ -94,6 +94,13 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "api-next.livrezone.com",
       },
+      {
+        // Avatars Google OAuth (comptes connectés via Google, ex. logo
+        // librairie ouahiblibrary) — sinon /_next/image renvoie 400
+        // « url parameter is not allowed » et l'avatar ne s'affiche pas.
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+      },
     ],
   },
 };

@@ -5,7 +5,7 @@ import { getReferenceData } from "@/lib/listings-api";
 
 export const revalidate = 30;
 
-const SITE_URL = "https://next.livrezone.com";
+import { SITE_URL } from "@/lib/site-url";
 const PATH = "/demandes";
 const API_BASE = (process.env.INTERNAL_API_URL
   || process.env.NEXT_PUBLIC_API_URL

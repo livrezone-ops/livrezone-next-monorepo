@@ -5,6 +5,7 @@ import Providers from "./providers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { toJsonLd } from "@/lib/safe-json-ld";
+import { SITE_URL } from "@/lib/site-url";
 
 const notoSans = Noto_Sans({
   subsets: ["latin"],
@@ -26,7 +27,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://next.livrezone.com"),
+  metadataBase: new URL(SITE_URL),
   alternates: {
     canonical: "/",
   },
@@ -39,7 +40,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "fr_MA",
-    url: "https://next.livrezone.com",
+    url: SITE_URL,
     siteName: "LivreZone",
     title: "LivreZone | Achat & Vente de Livres Neufs et d'Occasion au Maroc",
     description:
@@ -75,23 +76,23 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "Organization",
-      "@id": "https://next.livrezone.com/#organization",
+      "@id": `${SITE_URL}/#organization`,
       name: "LivreZone",
-      url: "https://next.livrezone.com",
-      logo: "https://next.livrezone.com/og-image.png",
+      url: SITE_URL,
+      logo: `${SITE_URL}/og-image.png`,
       description: "Première marketplace de livres neufs et d'occasion au Maroc.",
     },
     {
       "@type": "WebSite",
-      "@id": "https://next.livrezone.com/#website",
-      url: "https://next.livrezone.com",
+      "@id": `${SITE_URL}/#website`,
+      url: SITE_URL,
       name: "LivreZone",
       publisher: {
-        "@id": "https://next.livrezone.com/#organization",
+        "@id": `${SITE_URL}/#organization`,
       },
       potentialAction: {
         "@type": "SearchAction",
-        target: "https://next.livrezone.com/annonces?search={search_term_string}",
+        target: `${SITE_URL}/annonces?search={search_term_string}`,
         "query-input": "required name=search_term_string",
       },
     },

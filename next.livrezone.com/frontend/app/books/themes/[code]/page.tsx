@@ -11,7 +11,7 @@ import { toJsonLd } from "@/lib/safe-json-ld";
 
 export const revalidate = 60;
 
-const SITE_URL = "https://next.livrezone.com";
+import { SITE_URL } from "@/lib/site-url";
 
 interface PageProps {
   params: Promise<{ code: string }>;

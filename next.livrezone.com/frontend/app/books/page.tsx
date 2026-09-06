@@ -9,7 +9,7 @@ import BooksHome from "./BooksHome";
 
 export const revalidate = 60;
 
-const SITE_URL = "https://next.livrezone.com";
+import { SITE_URL } from "@/lib/site-url";
 const PATH = "/books";
 
 type SearchParams = Record<string, string | string[] | undefined>;

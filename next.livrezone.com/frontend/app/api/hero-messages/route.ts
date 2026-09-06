@@ -4,6 +4,7 @@ import path from "path";
 import { cookies } from "next/headers";
 import type { HeroMessage } from "@/components/home/types";
 import { isValidMessage, validateHref } from "@/components/home/types";
+import { SITE_URL } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ async function isAdmin(): Promise<boolean> {
         Accept: "application/json",
         Host: "api-next.livrezone.com",
         Cookie: cookieHeader,
-        Referer: "https://next.livrezone.com",
+        Referer: SITE_URL,
       },
     });
     if (!res.ok) return false;
