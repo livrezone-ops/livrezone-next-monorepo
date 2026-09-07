@@ -32,6 +32,10 @@ Schedule::command('app:queue-health')->everyFiveMinutes();
 // fine est portée par la fenêtre, pas par la fréquence du scheduler.
 Schedule::command('notifications:send-chat-digest')->hourly()->runInBackground();
 
+// Purge des visites de parrainage > 90 j (RGPD + volume). Les compteurs
+// agrégés (users.referral_shares_count / referral_signups_count) ne bougent pas.
+Schedule::command('referral:purge-visits')->dailyAt('03:50')->runInBackground();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');

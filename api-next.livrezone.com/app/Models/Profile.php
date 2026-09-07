@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Referral\ReferralTrackingService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -82,6 +83,7 @@ class Profile extends Model
         'telegram_link_token_expires_at' => 'datetime',
         'telegram_linked_at' => 'datetime',
         'paused_at' => 'datetime',
+        'referral_blocked_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -141,6 +143,58 @@ class Profile extends Model
     public function city()
     {
         return $this->belongsTo(City::class);
+    }
+
+    /*
+     * Parrainage — les colonnes referral_* sont volontairement HORS fillable :
+     * elles ne sont écrites que par ReferralTrackingService et
+     * ReferralRewardService (forceFill/increment), jamais par mass assignment.
+     * referred_by_id et les FK des tables referral_* référencent des id USERS.
+     */
+
+    /** Code de parrainage (généré paresseusement au premier usage). */
+    public function referralCode(): string
+    {
+        if (! $this->referral_code) {
+            $this->forceFill(['referral_code' => app(ReferralTrackingService::class)->generateUniqueCode()])->save();
+        }
+
+        return $this->referral_code;
+    }
+
+    /** Lien de parrainage complet (front), ex. https://monsite.com/?ref=CODE. */
+    public function referralLink(): string
+    {
+        return rtrim(config('app.frontend_url'), '/').'/?ref='.$this->referralCode();
+    }
+
+    /** Visites générées par le lien de ce profil. */
+    public function referralVisits()
+    {
+        return $this->hasMany(ReferralVisit::class, 'referrer_user_id', 'user_id');
+    }
+
+    /** Filleuls parrainés par ce profil. */
+    public function referralSignups()
+    {
+        return $this->hasMany(ReferralSignup::class, 'referrer_user_id', 'user_id');
+    }
+
+    /** Le parrain de ce profil (null si inscrit sans lien). */
+    public function referrer()
+    {
+        return $this->belongsTo(User::class, 'referred_by_id');
+    }
+
+    /** Récompenses obtenues par le parrainage. */
+    public function referralRewardGrants()
+    {
+        return $this->hasMany(ReferralRewardGrant::class, 'user_id', 'user_id');
+    }
+
+    public function isReferralBlocked(): bool
+    {
+        return $this->referral_blocked_at !== null;
     }
 
     public function ratings()

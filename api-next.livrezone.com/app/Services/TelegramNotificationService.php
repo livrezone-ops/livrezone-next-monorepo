@@ -69,6 +69,42 @@ class TelegramNotificationService
     }
 
     /**
+     * Envoie un message libre au chat administrateur (config
+     * `services.telegram.chat_id`). Utilisé par les alertes transverses
+     * (parrainage : paliers atteints, caps anti-abus, fraudes suspectées).
+     * Sans parse_mode : les messages embarquent des noms d'utilisateurs
+     * arbitraires qui casseraient le parsing Markdown/HTML.
+     */
+    public function notifyAdmin(string $message): void
+    {
+        if (! config('services.telegram.enabled', false)) {
+            return;
+        }
+
+        $botToken = config('services.telegram.bot_token');
+        $chatId = config('services.telegram.chat_id');
+
+        if (! $botToken || ! $chatId) {
+            Log::warning('Telegram Notification: Missing configuration (admin generic).');
+
+            return;
+        }
+
+        try {
+            $response = Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                'chat_id' => $chatId,
+                'text' => $message,
+            ]);
+
+            if ($response->failed()) {
+                Log::error('Telegram Notification failed: '.$response->body());
+            }
+        } catch (\Exception $e) {
+            Log::error('Telegram Notification Exception: '.$e->getMessage());
+        }
+    }
+
+    /**
      * Envoie un message texte à un chat Telegram spécifique (par utilisateur).
      * Utilisé par le flux per-user des demandes de livre (telegram_id lié via webhook).
      */

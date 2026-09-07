@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Referral\ReferralTrackingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -150,6 +151,15 @@ class SocialAuthController extends Controller
         ]);
 
         $this->ensureProfileExists($user);
+
+        // Parrainage : cookie lz_ref ou ref_code explicite. Les comptes provider
+        // (email validé par Google…) sont considérés vérifiés d'office côté
+        // parrainage. Never throws : ne fait jamais échouer l'inscription.
+        try {
+            app(ReferralTrackingService::class)->attributeSignup($user, $request);
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         $user->update(['last_login_at' => now()]);
 

@@ -12,6 +12,8 @@ use App\Http\Requests\Api\UpdatePasswordRequest;
 use App\Mail\ResetPasswordMail;
 use App\Mail\VerifyEmailMail;
 use App\Models\User;
+use App\Services\Referral\ReferralRewardService;
+use App\Services\Referral\ReferralTrackingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -41,6 +43,15 @@ class AuthController extends Controller
 
         $this->ensureProfileExists($user);
         $this->sendVerificationEmail($user);
+
+        // Parrainage : attribution via le cookie lz_ref (posé par /referral/track)
+        // ou un ref_code explicite du front. Never throws : une erreur de
+        // tracking ne doit jamais faire échouer une inscription.
+        try {
+            app(ReferralTrackingService::class)->attributeSignup($user, $request);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return response()->json([
             'message' => 'Compte créé. Un email de confirmation vous a été envoyé.',
@@ -124,6 +135,15 @@ class AuthController extends Controller
 
         if ($user->email_verified_at === null) {
             $user->forceFill(['email_verified_at' => now()])->save();
+
+            // Parrainage : l'email vérifié est le SEUL déclencheur de récompense
+            // (compteur parrain + évaluation des paliers). Never throws : la
+            // vérification email ne doit jamais échouer à cause du parrainage.
+            try {
+                app(ReferralRewardService::class)->onSignupValidated($user);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         return redirect()->away(

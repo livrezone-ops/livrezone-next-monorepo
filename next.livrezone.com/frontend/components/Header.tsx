@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { 
-  Menu, X, Search, Heart, ShoppingCart, User, 
+import {
+  Menu, X, Search, Heart, ShoppingCart, User,
   Settings, LogOut, MessageSquare, BookOpen, ShieldCheck,
-  Bell, CreditCard
+  Bell, CreditCard, Gift
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCommerce } from "@/lib/commerce-store";
@@ -98,8 +98,18 @@ export default function Header() {
             Bienvenue sur <strong className="text-white font-bold">LivreZone</strong>
           </div>
 
-          {/* Boutons d'action : Vendre + Demander un livre */}
+          {/* Boutons d'action : Parrainage (connectés) + Vendre + Demander un livre */}
           <div className="flex items-center gap-2 shrink-0">
+            {isLoggedIn && (
+              <Link
+                href="/referral"
+                aria-label="Parrainage"
+                className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs normal-case tracking-normal shadow-sm hover:shadow transition-all active:scale-[0.98]"
+              >
+                <Gift className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Parrainage</span>
+              </Link>
+            )}
             <Link
               href="/dashboard/demandes/create"
               className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg bg-[#6D28D9] hover:bg-violet-800 text-white font-bold text-xs normal-case tracking-normal shadow-sm hover:shadow transition-all active:scale-[0.98]"
@@ -243,8 +253,21 @@ export default function Header() {
                       <BookOpen className="h-4 w-4 text-gray-400" />
                       Mon espace
                     </Link>
-                    <Link 
-                      href="/dashboard/demandes" 
+                    <Link
+                      href="/referral"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="px-4 py-2.5 hover:bg-gray-50 hover:text-[#6D28D9] transition-colors flex items-center justify-between"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Gift className="h-4 w-4 text-emerald-600" />
+                        Parrainage
+                      </span>
+                      <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        Récompenses
+                      </span>
+                    </Link>
+                    <Link
+                      href="/dashboard/demandes"
                       onClick={() => setUserMenuOpen(false)}
                       className="px-4 py-2.5 hover:bg-gray-50 hover:text-[#6D28D9] transition-colors flex items-center gap-2"
                     >
@@ -385,8 +408,20 @@ export default function Header() {
                 })}
               </ul>
             </nav>
-            <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex gap-4 justify-center">
-              <Link 
+            <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex gap-4 justify-center flex-wrap">
+              {isLoggedIn && (
+                <>
+                  <Link
+                    href="/referral"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-600 font-semibold"
+                  >
+                    <Gift className="h-4 w-4" /> Parrainage
+                  </Link>
+                  <span className="text-gray-300">|</span>
+                </>
+              )}
+              <Link
                 href="/favorites"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-[#6D28D9] font-semibold"
@@ -394,7 +429,7 @@ export default function Header() {
                 <Heart className="h-4 w-4" /> Favoris
               </Link>
               <span className="text-gray-300">|</span>
-              <Link 
+              <Link
                 href="/cart"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-[#6D28D9] font-semibold"

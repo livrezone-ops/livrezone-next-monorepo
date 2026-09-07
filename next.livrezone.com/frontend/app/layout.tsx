@@ -4,6 +4,8 @@ import "./globals.css";
 import Providers from "./providers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import ReferralTracker from "@/components/ReferralTracker";
+import ReferralBanner from "@/components/ReferralBanner";
 import { toJsonLd } from "@/lib/safe-json-ld";
 import { SITE_URL } from "@/lib/site-url";
 import { ogDefaults } from "@/lib/og";
@@ -108,7 +110,9 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: toJsonLd(jsonLd) }}
         />
         <Providers>
+          <ReferralTracker />
           <Header />
+          <ReferralBanner />
           <main className="flex-grow flex flex-col">
             {children}
           </main>

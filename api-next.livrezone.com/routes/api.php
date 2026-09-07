@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AdminReferralController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\SocialAuthController;
 use App\Http\Controllers\Api\BookController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReferenceDataController;
+use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\SitemapController;
 use App\Http\Controllers\Api\TelegramWebhookController;
 use App\Http\Controllers\Api\WishlistController;
@@ -56,6 +58,22 @@ Route::prefix('auth')->group(function () {
     Route::post('/email/verification-notification', [AuthController::class, 'resendVerification']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth');
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+});
+
+// Parrainage — visite entrante (le front appelle au chargement de la landing
+// avec ?ref=CODE) : pose le cookie d'attribution + compte la visite unique.
+Route::post('/referral/track', [ReferralController::class, 'track'])->middleware('throttle:60,1');
+// Parrainage — infos publiques du programme (page marketing).
+Route::get('/referral/summary', [ReferralController::class, 'summary']);
+
+// Parrainage — espace utilisateur connecté.
+Route::middleware('auth:sanctum')->prefix('referral')->group(function () {
+    Route::get('/me', [ReferralController::class, 'me']);
+    Route::get('/grants', [ReferralController::class, 'grants']);
+    // Adresse de livraison d'une récompense physique (livre, cadeau).
+    Route::post('/grants/{grant}/claim', [ReferralController::class, 'claim']);
+    // Téléchargement d'un ebook gagné (3 max).
+    Route::get('/grants/{grant}/download', [ReferralController::class, 'download']);
 });
 
 Route::middleware('auth:sanctum')->prefix('dashboard')->group(function () {
@@ -211,6 +229,29 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
     Route::get('/hero-messages', [AdminController::class, 'hero']);
     Route::put('/hero-messages', [AdminController::class, 'storeHero']);
+
+    // Parrainage (menu Marketing → Parrainage). Convention WAF : POST pour
+    // update/delete — pas de PUT/DELETE.
+    Route::get('/referral/settings', [AdminReferralController::class, 'settings']);
+    Route::post('/referral/settings', [AdminReferralController::class, 'updateSettings']);
+    Route::get('/referral/rewards', [AdminReferralController::class, 'rewards']);
+    Route::post('/referral/rewards', [AdminReferralController::class, 'storeReward']);
+    Route::post('/referral/rewards/{reward}', [AdminReferralController::class, 'updateReward']);
+    Route::post('/referral/rewards/{reward}/toggle', [AdminReferralController::class, 'toggleReward']);
+    Route::post('/referral/rewards/{reward}/delete', [AdminReferralController::class, 'destroyReward']);
+    Route::get('/referral/stats', [AdminReferralController::class, 'stats']);
+    // Classement des parrains (users.referral_*_count indexées).
+    Route::get('/referral/users', [AdminReferralController::class, 'users']);
+    Route::post('/referral/users/{user}/evaluate', [AdminReferralController::class, 'evaluateUser']);
+    Route::post('/referral/users/{user}/toggle-block', [AdminReferralController::class, 'toggleUserBlock']);
+    Route::get('/referral/grants', [AdminReferralController::class, 'grants']);
+    Route::post('/referral/grants/{grant}/deliver', [AdminReferralController::class, 'deliverGrant']);
+    Route::post('/referral/grants/{grant}/cancel', [AdminReferralController::class, 'cancelGrant']);
+    Route::get('/referral/blacklists', [AdminReferralController::class, 'blacklists']);
+    Route::post('/referral/blacklists', [AdminReferralController::class, 'storeBlacklist']);
+    Route::post('/referral/blacklists/{blacklist}/delete', [AdminReferralController::class, 'destroyBlacklist']);
+    Route::get('/referral/visits', [AdminReferralController::class, 'visits']);
+    Route::get('/referral/signups', [AdminReferralController::class, 'signups']);
 });
 Route::middleware('auth:sanctum')->prefix('chat')->group(function () {
     Route::get('/threads', [ChatController::class, 'index']);

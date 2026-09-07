@@ -1,4 +1,4 @@
-# Roadmap LivreZone — Backlog consolidé 06/09/2026
+# Roadmap LivreZone — Backlog consolidé 06/09/2026 (mise à jour 07/09 : parrainage)
 
 > Source : backlog validé du 03/09 (décisions propriétaire) + audit technique complet du 06/09 (`.agents/AUDIT-2026-09-06.md`) + décision propriétaire du 06/09 : **migration du domaine frontend par POINTEUR** (pas de copie de fichiers). Détail opérationnel : `.agents/MIGRATION-livrezone-com-2026-09-06.md`.
 > Règle de session : chaque étape documentée ; git push après validation de test du propriétaire ; `lz` quand le frontend change.
@@ -14,6 +14,26 @@ Décision propriétaire 06/09 : on POINTE le domaine vers le conteneur existant 
 | **2. Bascule config** | `FRONTEND_URL=https://livrezone.com` + `NEXT_PUBLIC_SITE_URL=https://livrezone.com` (front, puis `lz`) + `SANCTUM_STATEFUL_DOMAINS=next.livrezone.com,livrezone.com` + `optimize:clear`. CORS suit automatiquement (`config/cors.php` lit `FRONTEND_URL`). `SESSION_DOMAIN=.livrezone.com` et OAuth Google : rien à faire. | ✅ 06/09 |
 | **3. Recette** | Login + OAuth Google, chat temps réel (Reverb), images `/_next/image`, liens Telegram/mails (reset, verification, paiement), canonicals en view-source, sitemap/robots. **Validée propriétaire 06/09 soir (« ça marche à 100 % »)** — en passant : broadcast Reverb serveur réparé (il passait par Cloudflare → 404 ; désormais interne `reverb:6060`), panier multi-vendeurs réparé (`user_id` manquant dans `fetchCart` → un seul groupe/lien WhatsApp) et messages reset password explicites. Détails : `MIGRATION-livrezone-com-2026-09-06.md`. | ✅ 06/09 |
 | **4. 301** | Pose AVANCÉE le 06/09 à 20:20 (go propriétaire, sudo docker NOPASSWD) : conf `next.livrezone.com` → 301 `https://livrezone.com{uri}`, validate+reload à chaud. Vérifié : 301 avec chemin+query préservés (home, /books, /annonces?page=2, fiche annonce), 0 régression (livrezone.com + api-next 200), backup ancienne conf dans `/tmp/` + `.agents/caddy-backups/`. `www.next.livrezone.com` sans DNS (bloc inerte). Fin du contenu dupliqué. Reste propriétaire : inspection GSC de `https://livrezone.com` + vérif 404 sous 48 h. | ✅ 06/09 |
+
+## 🎁 Parrainage — ✅ FULL STACK EN LIGNE le 07/09 (backend + front, programme ACTIVÉ) — reste : recette propriétaire + onglets admin front
+
+Nouveau module complet (décisions propriétaire 07/09) : récompenses automatiques sur les **inscriptions validées** (email vérifié = seul déclencheur), visites comptées et utilisables comme condition de palier (liberté éditoriale admin : « offres » type annonces — livres, réductions, jours Pro), notification Telegram admin à chaque palier/limite atteinte (pas de workflow de validation, action a posteriori : blocage/annulation), bonus filleul optionnel. Spécification as-built : `docs/parrainage-architecture.md` — enregistrée en annexe §12 de `AUDIT-2026-09-06.md`.
+
+**Déployé en prod le 07/09** : 6 migrations (colonnes `referral_*` sur **profiles** + 5 tables, batchs 32-33 — incident index > 64 car. MariaDB corrigé, leçon : nommer explicitement les index composites, invisible en tests SQLite), seeder (6 paliers 1→100 inscriptions, 31 domaines email temporaires, `referral_enabled=0`), 25 routes API (`track`/`me`/admin, POST-only WAF), purge visites 90 j planifiée 03:50, `ReferralTest` 15/15 (68 assertions). Smoke tests HTTP réels verts (summary 200 avec les 6 paliers, track code inconnu → ignored, me sans auth → 401).
+
+**Livré le 07/09 soir (front, Next.js)** :
+- **Page /parrainage `/referral`** (connecté, noindex) : lien + copier + partages WhatsApp/Telegram/Facebook/Email, compteurs (visites/inscriptions/récompenses), paliers avec barres de progression, historique des récompenses, modal claim adresse pour les récompenses physiques. Route courte `/ref/CODE` → 307 `/?ref=CODE` (vérifiée en ligne).
+- **Header** : bouton « Parrainage » (icône cadeau, vert) dans la topbar pour les connectés + entrée « Parrainage/Récompenses » dans le menu utilisateur + drawer mobile.
+- **Bannière post-connexion** : posée en sessionStorage à CHAQUE login/consentement provider (`ReferralBanner` montée dans le layout, dismissible).
+- **Tracking** : `ReferralTracker` sur la landing `?ref=CODE` → `POST /api/referral/track` (cookie d'attribution) + repli localStorage envoyé en `ref_code` à l'inscription.
+- **Activation** : `referral_enabled=1` (tinker) — le programme est OUVERT. Smoke tests en ligne : `/referral` 200, `/ref/ABC` → 307 `/?ref=ABC`, `/api/referral/summary` → `enabled:true`.
+- ⚠️ Gotcha déploiement : le conteneur/image **livrezone-next vit sur le daemon docker SYSTÈME** (`sudo docker`, contexte default) alors que la stack applicative (php-fpm, mariadb, redis, meili, apache, openvscode) est sur le daemon **rootless** (`DOCKER_HOST=unix:///run/user/1001/docker.sock`, contexte `livrezone`). Le script `lz` mélange les deux. Une build lancée sur le mauvais daemon donne « image not found » ou conflit port 3000 au run.
+
+**Reste (dans l'ordre)** :
+1. **Recette propriétaire** : se connecter, vérifier bouton topbar + bannière, copier son lien, tester /ref/CODE depuis un autre navigateur, vérifier l'alerte Telegram à l'inscription validée.
+2. **Front admin** : 4 onglets Marketing → Parrainage (Paramètres, Paliers CRUD, Stats + classement, Registre & anti-abus) — endpoints déjà servis (`/api/admin/referral/*`), en attendant le pilotage passe par tinker/API.
+3. **Ebooks** : déposer les fichiers sur le disque privé (`storage/app/...`) et renseigner `reward_payload.file_path` du palier « Bibliophile » (3 téléchargements max par gagnant, endpoint tokenisé déjà en place).
+4. **Décision** : bonus filleul (`referral_filleul_bonus_days`, recommandé 7) — actuellement 0.
 
 ## 🟠 Priorité 2 — Finir le site (Étape 1 du backlog 03/09)
 
@@ -83,6 +103,7 @@ Ajouts audit 06/09 :
 - Déploiement : `php artisan optimize` dans `lz`, tags d'images datés + procédure rollback, suppression `NODE_TLS_REJECT_UNAUTHORIZED=0` (`lz:47`, **après** avoir fait confiance au certificat local dans le conteneur), healthcheck conteneur.
 - CI : APP_KEY via `secrets.APP_KEY` + **rotation de l'APP_KEY prod** (invalidation sessions) ; mesure de couverture nightly.
 - Tests : suite `AuthTest` (login/register/reset/consent) + `TelegramWebhookTest` — domaine sensible à 0 % de couverture.
+- Ajouts 07/09 : corriger `WhatsAppDemandNotificationTest` (le test insère explicitement `effective_price`, colonne **générée** du 06/09 — rejeté par SQLite ; échec préexistant de main, audit §12.5) ; **nommer explicitement les index composites** des migrations (limite de 64 caractères des identifiants MariaDB, invisible en tests SQLite — incident de déploiement parrainage 07/09).
 
 ## 🟢 Priorité 6 — Migration `livrezone.com` / SSD dédié (03/09, après la bascule domaine)
 

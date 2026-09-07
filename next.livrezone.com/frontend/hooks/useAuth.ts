@@ -7,6 +7,27 @@ const API_ROOT = (
     process.env.NEXT_PUBLIC_API_URL || 'https://api-next.livrezone.com/api'
 ).replace(/\/api$/, '');
 
+// Flag session : déclenche la bannière d'incitation parrainage après CHAQUE
+// connexion (sessionStorage = disparu à la fermeture de l'onglet, reposé au
+// login suivant). Consommé par components/ReferralBanner.
+const REFERRAL_PROMPT_KEY = 'livrezone.referralPrompt';
+
+// Repli de tracking : code mémorisé par ReferralTracker quand ?ref= est passé
+// (le cookie d'attribution posé par l'API reste le canal principal).
+function storedReferralCode(): string | null {
+    try {
+        return localStorage.getItem('livrezone.refCode');
+    } catch {
+        return null;
+    }
+}
+
+function markReferralPrompt(): void {
+    try {
+        sessionStorage.setItem(REFERRAL_PROMPT_KEY, '1');
+    } catch {}
+}
+
 async function ensureCsrf() {
     await api.get(`${API_ROOT}/sanctum/csrf-cookie`, { baseURL: '' });
 }
@@ -75,6 +96,7 @@ export function useAuth() {
         await ensureCsrf();
         const { data } = await api.post('/auth/provider/consent', { token });
         queryClient.setQueryData(['user'], data.user);
+        markReferralPrompt();
         return data;
     };
 
@@ -82,6 +104,7 @@ export function useAuth() {
         await ensureCsrf();
         const { data } = await api.post('/auth/login', { email, password });
         queryClient.setQueryData(['user'], data.user);
+        markReferralPrompt();
         return data;
     };
 
@@ -92,11 +115,15 @@ export function useAuth() {
         password_confirmation: string,
     ) => {
         await ensureCsrf();
+        const refCode = storedReferralCode();
         const { data } = await api.post('/auth/register', {
             name,
             email,
             password,
             password_confirmation,
+            // Repli si le cookie d'attribution n'a pas survécu : le backend
+            // accepte ref_code en dernier recours (cookie prioritaire).
+            ...(refCode ? { ref_code: refCode } : {}),
         });
         return data;
     };
