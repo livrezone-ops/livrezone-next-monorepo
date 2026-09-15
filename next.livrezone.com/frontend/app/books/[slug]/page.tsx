@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { BookOpen, ArrowLeft, Layers, ChevronRight, Tag } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import OrderBookButton from "./OrderBookButton";
-import BookCatalogCard from "@/components/BookCatalogCard";
+import RelatedBooksSlider from "@/components/RelatedBooksSlider";
 import { SITE_URL } from "@/lib/site-url";
 import { ogDefaults } from "@/lib/og";
 import { bookSlug } from "@/lib/book-slug";
@@ -254,17 +254,12 @@ export default async function BookDetailsPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Maillage horizontal (SEO 06/09) : 8 fiches du même rayon — le pattern
-          « customers also viewed » d'Amazon, alimenté par /api/books/{id}/related. */}
+      {/* Maillage horizontal (SEO 06/09, slider 09/09) : 10 fiches du même
+          rayon — navigation horizontale par chevrons, 5 visibles en desktop,
+          infos restreintes (composant RelatedBooksSlider), alimenté par
+          /api/books/{id}/related. */}
       {relatedBooks.length > 0 && (
-        <section className="mt-10">
-          <h2 className="text-lg font-black text-[#1a0a40] mb-4">Du même rayon</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {relatedBooks.map((related) => (
-              <BookCatalogCard key={related.id} book={related} />
-            ))}
-          </div>
-        </section>
+        <RelatedBooksSlider books={relatedBooks.slice(0, 10)} />
       )}
     </div>
   );

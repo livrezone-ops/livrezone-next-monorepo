@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import api from "@/lib/axios";
 import { getApiErrorMessage } from "@/lib/api-error";
-import SmartCoverImage from "@/components/SmartCoverImage";
+import BookSuggestionsMenu, { type BookSuggestion } from "@/components/BookSuggestionsMenu";
+import { findExactIsbnBook } from "@/lib/books-search";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import FilterSidebar from "@/components/FilterSidebar";
 import BookCatalogCard from "@/components/BookCatalogCard";
@@ -56,15 +57,6 @@ function getPageWindow(current: number, last: number): (number | "ellipsis")[] {
     prev = p;
   }
   return out;
-}
-
-interface BookSuggestion {
-  id?: number;
-  title?: string;
-  isbn_13?: string;
-  cover_thumbnail_url?: string | null;
-  cover_url?: string | null;
-  authors?: string[] | string | null;
 }
 
 interface BooksClientProps {
@@ -167,14 +159,26 @@ export default function BooksClient({
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setShowSuggestions(false);
+    const raw = searchTerm.trim();
+
+    // ISBN exact (09/09, logique partagée lib/books-search) : si la saisie est
+    // un ISBN présent au catalogue, Entrée ouvre directement la fiche du livre.
+    // Sinon : recherche globale titre + auteur + ISBN (Meilisearch multi-champs)
+    // avec tous les résultats.
+    const exact = await findExactIsbnBook(raw);
+    if (exact?.id) {
+      router.push(`/books/${exact.id}`);
+      return;
+    }
+
     const params = buildFilterQuery({
       categories: filters.categories,
       languages: filters.languages,
       levels: filters.levels,
-      search: searchTerm.trim() || undefined,
+      search: raw || undefined,
       sort: filters.sort === "recent" ? "recent" : undefined,
       page: 1,
     });
@@ -214,6 +218,10 @@ export default function BooksClient({
       router.push(qs ? `/books?${qs}` : "/books");
     }
   };
+
+  // Entrée = recherche globale (09/09, nouvelle UX) : plus de sélection
+  // automatique de la 1ʳᵉ suggestion — le clic sur une vignette reste le seul
+  // moyen d'ouvrir une fiche depuis le menu d'autocomplétion.
 
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > lastPage) return;
@@ -374,55 +382,9 @@ export default function BooksClient({
           </button>
         </form>
 
-        {/* Menu déroulant des suggestions d'autocomplétion */}
+        {/* Menu déroulant des suggestions d'autocomplétion (composant partagé) */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute left-0 right-0 top-[calc(100%+6px)] bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-96 overflow-y-auto animate-in slide-in-from-top-2 duration-150">
-            <div className="p-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider px-3 border-b border-gray-100">
-              Suggestions de livres
-            </div>
-            <ul className="py-1">
-              {suggestions.map((item) => {
-                const cover = item.cover_thumbnail_url || item.cover_url || null;
-                const author = item.authors
-                  ? Array.isArray(item.authors)
-                    ? item.authors.join(", ")
-                    : item.authors
-                  : null;
-
-                return (
-                  <li
-                    key={item.id || item.isbn_13}
-                    onClick={() => handleSuggestionClick(item)}
-                    className="px-3.5 py-2 hover:bg-violet-50/60 cursor-pointer flex items-center gap-3 transition-colors border-b border-gray-50 last:border-0 group"
-                  >
-                    <div className="w-10 h-13 bg-gray-100 rounded-md shrink-0 overflow-hidden relative border border-gray-200/80 flex items-center justify-center">
-                      {cover ? (
-                        <SmartCoverImage src={cover} alt="" className="object-cover" sizes="40px" />
-                      ) : (
-                        <BookOpen className="w-4 h-4 text-gray-400" />
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-gray-900 truncate group-hover:text-[#6D28D9] transition-colors">
-                        {item.title}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                        {author && <span className="truncate max-w-[200px]">De : {author}</span>}
-                        {item.isbn_13 && (
-                          <span className="text-[10px] font-mono text-gray-400 hidden sm:inline">
-                            · ISBN: {item.isbn_13}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#6D28D9] group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+          <BookSuggestionsMenu suggestions={suggestions} onPick={handleSuggestionClick} />
         )}
       </div>
 

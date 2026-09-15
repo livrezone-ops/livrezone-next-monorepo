@@ -75,3 +75,20 @@ Inspection de l'index `books` Meilisearch (697 172 documents, conforme aux 697 1
       697 165/697 172 livres renseignés en base. Reste : UI (FilterSidebar + param API
       `subject`) dans le chantier « Finir le site ».
 - [ ] Backlog : check quotidien fieldDistribution au cron 03:40 (après configure-search)
+
+## ⚠️ RÉCIDIVE — 07/09 à 01h32–01h42 (constatée 07/09, session fix /books)
+
+- L'index a été **re-écrasé** : tâches `documentAdditionOrUpdate` sur `books`
+  (07/09 01:32→01:42, ~200 lots de 5 000 = 697 172 docs) avec documents
+  **partiels `{id, authors_list}`** — même schéma que l'écriture hors dépôt du 04-05/09.
+- Symptômes identiques : `fieldDistribution` réduit à `id` + `authors_list`,
+  filtres catégories → total 0 (même ID numérique), facettes vides, recherche
+  « normale » fonctionnelle (hydratation MySQL par PK → effet trompeur).
+  Exemple : `documents/408508` = `{"id":408508,"authors_list":["Harry"]}`.
+- **Action requise** : identifier ce qui a tourné à 01h32 le 07/09 (history shell,
+  cron, script tinker résiduel de la session du 04-05/09) — sans ça, la réparation
+  sera de nouveau écrasée à la prochaine exécution.
+- **Garde-fou livré** : commande `books:check-meili` (BooksMeiliHealthCheck.php)
+  + planification quotidienne 03:45 dans routes/console.php (concrétise le point
+  backlog ci-dessus). Alerte critical si champs manquants / dérive de count.
+

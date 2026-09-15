@@ -161,10 +161,18 @@ export interface PublishersPage {
   last_page: number;
 }
 
-async function fetchJson<T>(path: string, revalidate: number): Promise<T | null> {
+async function fetchJson<T>(
+  path: string,
+  revalidate: number,
+  opts?: { noCache?: boolean },
+): Promise<T | null> {
   try {
     const res = await fetch(`${API_BASE}${path}`, {
-      next: { revalidate },
+      // noCache → « cache: no-store » (contourne la limite du data cache Next.js :
+      // 2 Mo max par entrée — cf. sitemap éditeurs, 08/09).
+      ...(opts?.noCache
+        ? { cache: "no-store" as RequestCache }
+        : { next: { revalidate } }),
       headers: { Accept: "application/json", Host: "api-next.livrezone.com" },
     });
     if (!res.ok) return null;
@@ -209,6 +217,25 @@ export async function getPublishersPage(
     `/api/sitemap/publishers?page=${page}&per_page=${perPage}`,
     86400,
   );
+}
+
+// Le sitemap éditeurs (~47k hubs) fait ~6.8 Mo en un seul appel (per_page=50000) :
+// au-dessus de la limite du data cache Next.js (2 Mo par entrée) → au build (lz),
+// « Failed to set Next.js data cache … items over 2MB can not be cached ».
+// On pagine par lots de 10 000 (~1.4 Mo, chaque lot est cacheable 24 h).
+// Cap à 20 pages par sécurité (20 × 10 000 = 200 000 éditeurs max).
+export async function getPublishersAll(perPage = 10000): Promise<PublisherRef[]> {
+  const all: PublisherRef[] = [];
+  const first = await getPublishersPage(1, perPage);
+  if (!first?.data?.length) return all;
+  all.push(...first.data);
+  const lastPage = Math.min(first.last_page || 1, 20);
+  for (let page = 2; page <= lastPage; page++) {
+    const result = await getPublishersPage(page, perPage);
+    if (!result?.data?.length) break;
+    all.push(...result.data);
+  }
+  return all;
 }
 
 export async function getPublisher(slug: string): Promise<PublisherRef | null> {

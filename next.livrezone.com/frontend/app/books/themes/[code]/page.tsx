@@ -145,9 +145,20 @@ export default async function ThemePage({ params, searchParams }: PageProps) {
 
       <Breadcrumbs items={breadcrumbItems} />
 
-      {/* En-tête du rayon */}
-      <div className="bg-gradient-to-r from-[#1a0a40] via-[#2a1154] to-[#6D28D9] text-white rounded-2xl p-6 sm:p-8 shadow-md mb-8 relative overflow-hidden">
-        <div className="relative z-10">
+      {/* En-tête du rayon — deux couches : le décor (dégradé + icône en
+          débord) reste clippé (overflow-hidden), mais le contenu passe dans une
+          couche au-dessus SANS overflow, pour que le dropdown d'autocomplétion
+          (z-50) dépasse le bandeau (fix 09/09, même cause que BooksHome 08/09). */}
+      <div className="relative mb-8">
+        <div
+          className="absolute inset-0 bg-gradient-to-r from-[#1a0a40] via-[#2a1154] to-[#6D28D9] rounded-2xl shadow-md overflow-hidden"
+          aria-hidden="true"
+        >
+          <div className="absolute right-[-20px] bottom-[-30px] opacity-10 pointer-events-none hidden md:block">
+            <BookOpen className="w-56 h-56 text-white" />
+          </div>
+        </div>
+        <div className="relative z-10 text-white p-6 sm:p-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-violet-200 text-xs font-bold mb-3 border border-white/15 backdrop-blur-xs">
             <Tag className="w-3.5 h-3.5 text-violet-300" />
             <span>Rayon</span>
@@ -165,9 +176,6 @@ export default async function ThemePage({ params, searchParams }: PageProps) {
 
           {/* Recherche restreinte au rayon (autocomplétion filtrée côté API) */}
           <BookThemeSearch themeCode={code} />
-        </div>
-        <div className="absolute right-[-20px] bottom-[-30px] opacity-10 pointer-events-none hidden md:block">
-          <BookOpen className="w-56 h-56 text-white" />
         </div>
       </div>
 

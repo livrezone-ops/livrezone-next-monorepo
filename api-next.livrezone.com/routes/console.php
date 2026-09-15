@@ -23,6 +23,13 @@ Schedule::command('listings:configure-search')->dailyAt('03:40')->runInBackgroun
 Schedule::command('demandes:configure-search')->dailyAt('03:40')->runInBackground();
 Schedule::command('profiles:configure-search')->dailyAt('03:40')->runInBackground();
 
+// Garde-fou anti-récidive (backlog incident-index-books-20260906.md) : vérifie
+// chaque jour que l'index `books` contient tous les champs du toSearchableArray.
+// L'index a été 2 fois écrasé par des écritures hors dépôt de documents partiels
+// {id, authors_list} (05/09 puis 07/09) → filtres/facettes morts sans erreur
+// visible. Alerte critical dans les logs si champs manquants ou dérive de count.
+Schedule::command('books:check-meili')->dailyAt('03:45')->runInBackground();
+
 // Supervision de la queue `database` (jobs Scout + mails) : alerte dans les logs
 // (critical) si backlog, worker bloqué ou jobs échoués. Ne log rien si tout va bien.
 Schedule::command('app:queue-health')->everyFiveMinutes();

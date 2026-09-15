@@ -77,9 +77,9 @@ class BookController extends Controller
      */
     public function related(Book $book)
     {
-        // Clé v2 + tableau PHP pur dans le cache (jamais une Collection/Eloquent) :
+        // Clé v3 + tableau PHP pur dans le cache (jamais une Collection/Eloquent) :
         // les entrées v1 sérialisées ressortent en « incomplete object » en prod.
-        $books = Cache::remember('book:related2:'.$book->id, 21600, function () use ($book) {
+        $books = Cache::remember('book:related3:'.$book->id, 21600, function () use ($book) {
             $filter = $book->default_category_id
                 ? 'default_category_id = '.$book->default_category_id.' AND NOT id = '.$book->id
                 : 'NOT id = '.$book->id;
@@ -88,7 +88,7 @@ class BookController extends Controller
                 $ids = Book::search('', function ($meilisearch, $query) use ($filter) {
                     return $meilisearch->search($query, [
                         'filter' => $filter,
-                        'limit' => 8,
+                        'limit' => 10,
                         'attributesToRetrieve' => ['id'],
                     ]);
                 })->keys();
@@ -98,15 +98,15 @@ class BookController extends Controller
             }
 
             // Complément avec des fiches récentes si le rayon est trop petit.
-            if ($ids->count() < 8) {
+            if ($ids->count() < 10) {
                 $extra = Book::query()
                     ->whereNot('id', $book->id)
                     ->when($book->default_category_id, fn ($q) => $q->where('default_category_id', $book->default_category_id))
                     ->whereNotNull('cover_path')
                     ->orderByDesc('updated_at')
-                    ->limit(8 - $ids->count())
+                    ->limit(10 - $ids->count())
                     ->pluck('id');
-                $ids = $ids->merge($extra)->unique()->take(8);
+                $ids = $ids->merge($extra)->unique()->take(10);
             }
 
             if ($ids->isEmpty()) {

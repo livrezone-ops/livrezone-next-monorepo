@@ -9,22 +9,14 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import SmartCoverImage from "@/components/SmartCoverImage";
 import BookCatalogCard from "@/components/BookCatalogCard";
+import BookSuggestionsMenu, { type BookSuggestion } from "@/components/BookSuggestionsMenu";
 import { useRouter } from "next/navigation";
-import { Search, Loader2, BookOpen, SlidersHorizontal, X, ArrowRight } from "lucide-react";
+import { Search, Loader2, SlidersHorizontal, X } from "lucide-react";
 import api from "@/lib/axios";
 import { CATEGORIES, LEVELS, LANGUAGES } from "@/lib/reference-data";
+import { findExactIsbnBook } from "@/lib/books-search";
 import type { BookSearchItem } from "@/lib/books-api";
-
-interface BookSuggestion {
-  id?: number;
-  title?: string;
-  isbn_13?: string;
-  cover_thumbnail_url?: string | null;
-  cover_url?: string | null;
-  authors?: string[] | string | null;
-}
 
 export default function BooksHome({ newBooks = [] }: { newBooks?: BookSearchItem[] }) {
   const router = useRouter();
@@ -82,13 +74,27 @@ export default function BooksHome({ newBooks = [] }: { newBooks?: BookSearchItem
     };
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setShowSuggestions(false);
+    const rawTerm = term.trim();
+
+    // ISBN exact (09/09, logique partagée lib/books-search) : si la saisie est
+    // un ISBN présent au catalogue, Entrée ouvre directement la fiche du livre.
+    // Sinon (ISBN inconnu, ou saisie non-ISBN) : recherche globale titre +
+    // auteur + ISBN (Meilisearch multi-champs) avec l'ensemble des résultats.
+    if (!author.trim()) {
+      const exact = await findExactIsbnBook(rawTerm);
+      if (exact?.id) {
+        router.push(`/books/${exact.id}`);
+        return;
+      }
+    }
+
     // Auteur : pas de paramètre dédié côté API — les termes sont fusionnés dans
     // la recherche (Meilisearch matche aussi les auteurs), ce qui combine
     // naturellement titre + auteur.
-    const search = [term.trim(), author.trim()].filter(Boolean).join(" ");
+    const search = [rawTerm, author.trim()].filter(Boolean).join(" ");
     const params = new URLSearchParams();
     if (search) params.set("search", search);
     if (category) params.set("categories", category);
@@ -107,10 +113,16 @@ export default function BooksHome({ newBooks = [] }: { newBooks?: BookSearchItem
     }
   };
 
+  // Entrée = recherche globale (09/09, nouvelle UX) : plus de sélection
+  // automatique de la 1ʳᵉ suggestion — le clic sur une vignette reste le seul
+  // moyen d'ouvrir une fiche depuis le menu d'autocomplétion.
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Hero + recherche */}
-      <div className="bg-gradient-to-r from-[#1a0a40] via-[#2a1154] to-[#6D28D9] text-white rounded-2xl p-6 sm:p-8 shadow-md relative overflow-hidden mb-8">
+      {/* Hero + recherche — sans overflow-hidden : le dropdown
+          d'autocomplétion (z-50) doit pouvoir dépasser le bandeau,
+          sinon il est clippé et invisible (fix 08/09). */}
+      <div className="bg-gradient-to-r from-[#1a0a40] via-[#2a1154] to-[#6D28D9] text-white rounded-2xl p-6 sm:p-8 shadow-md relative mb-8">
         <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mb-2.5">
           Catalogue &amp; Référentiel des livres
         </h1>
@@ -242,52 +254,9 @@ export default function BooksHome({ newBooks = [] }: { newBooks?: BookSearchItem
             </div>
           </form>
 
-          {/* Menu déroulant des suggestions (live) */}
+          {/* Menu déroulant des suggestions (composant partagé) */}
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-[calc(100%+6px)] bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-96 overflow-y-auto animate-in slide-in-from-top-2 duration-150">
-              <div className="p-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider px-3 border-b border-gray-100">
-                Suggestions de livres
-              </div>
-              <ul className="py-1">
-                {suggestions.map((item) => {
-                  const cover = item.cover_thumbnail_url || item.cover_url || null;
-                  const authorLabel = item.authors
-                    ? Array.isArray(item.authors)
-                      ? item.authors.join(", ")
-                      : item.authors
-                    : null;
-                  return (
-                    <li
-                      key={item.id || item.isbn_13}
-                      onClick={() => handleSuggestionClick(item)}
-                      className="px-3.5 py-2 hover:bg-violet-50/60 cursor-pointer flex items-center gap-3 transition-colors border-b border-gray-50 last:border-0 group"
-                    >
-                      <div className="w-10 h-13 bg-gray-100 rounded-md shrink-0 overflow-hidden relative border border-gray-200/80 flex items-center justify-center">
-                        {cover ? (
-                          <SmartCoverImage src={cover} alt="" className="object-cover" sizes="40px" />
-                        ) : (
-                          <BookOpen className="w-4 h-4 text-gray-400" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-gray-900 truncate group-hover:text-[#6D28D9] transition-colors">
-                          {item.title}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                          {authorLabel && <span className="truncate max-w-[200px]">De : {authorLabel}</span>}
-                          {item.isbn_13 && (
-                            <span className="text-[10px] font-mono text-gray-400 hidden sm:inline">
-                              · ISBN : {item.isbn_13}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#6D28D9] group-hover:translate-x-0.5 transition-all shrink-0" />
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+            <BookSuggestionsMenu suggestions={suggestions} onPick={handleSuggestionClick} />
           )}
         </div>
       </div>

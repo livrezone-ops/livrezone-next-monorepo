@@ -1,4 +1,4 @@
-# Roadmap LivreZone — Backlog consolidé 06/09/2026 (mise à jour 07/09 : parrainage)
+# Roadmap LivreZone — Backlog consolidé 06/09/2026 (mises à jour 07/09 : parrainage · 09/09 : index Meili, recherche catalogue, maillage fiche livre)
 
 > Source : backlog validé du 03/09 (décisions propriétaire) + audit technique complet du 06/09 (`.agents/AUDIT-2026-09-06.md`) + décision propriétaire du 06/09 : **migration du domaine frontend par POINTEUR** (pas de copie de fichiers). Détail opérationnel : `.agents/MIGRATION-livrezone-com-2026-09-06.md`.
 > Règle de session : chaque étape documentée ; git push après validation de test du propriétaire ; `lz` quand le frontend change.
@@ -60,8 +60,36 @@ Parcours publics restants + manques produit (revue 29/08). Ajouts 06/09 :
   `TelegramNotificationService` pointait `/books/{id}` ; désormais
   `/{nickname}/{id}-{isbn}-{titre-slugifié}` (format `[nickname]/[slug]` du front,
   vérifié 200 en ligne).
-- Enquête : identifier l'origine des builds front du 05/09 soir (22h41 → 02h47) et
-  du run manuel Meili 05/09 02:40 (cause de l'appauvrissement de l'index books).
+- Enquête : identifier l'origine des builds front du 05/09 soir (22h41 → 02h47).
+  ~~Run manuel Meili 05/09 02:40~~ → **cause de l'appauvrissement de l'index books
+  identifiée le 09/09** : scripts ponctuels de correction d'auteurs (07/09 01:32-01:42)
+  qui écrasaient les docs Meili — voir « Ajouts 09/09 » ci-dessous et
+  `.agents/incident-index-books-20260906.md` (reste à identifier : le script précis, côté serveur).
+
+- **Ajouts 09/09 (session du matin — audit delta : `AUDIT-2026-09-09.md`)** :
+  - **Index Meili `books` réparé** (réimport Scout : 697 172 docs × 12 champs, recette verte :
+    JEUNESSE 92 167, ROMANS 117 884, facettes, `sort=recent`, `field=isbn`) après 3ᵉ
+    appauvrissement (scripts auteurs qui POSTent des docs partiels). **Garde-fou** :
+    `books:check-meili` (`BooksMeiliHealthCheck` — fieldDistribution + drift,
+    `Log::critical`) planifié 03:45. Règle d'or : fix MySQL puis `$books->searchable()` —
+    jamais de POST direct Meili.
+  - **Sitemap éditeurs** : fix build « items over 2MB » (plafond data cache Next) —
+    `getPublishersAll()` paginé 10k/page (cap 20) dans `lib/books-api.ts` + route mise à jour.
+  - **UX recherche catalogue (décision propriétaire)** : Entrée = recherche globale
+    titre+auteur+ISBN avec tous les résultats ; ISBN valide présent une fois au catalogue →
+    ouverture directe de la fiche (fast-path `field=isbn`, API inchangée). Retrait du
+    « Entrée = 1ʳᵉ suggestion ». Appliqué à la vitrine `/books`, à la vue recherche et aux
+    hero des rayons. Nouveaux modules partagés : `lib/isbn.ts` (checksums 13/10),
+    `lib/books-search.ts`.
+  - **Refactor front recherche** : dropdown d'autocomplétion unifié
+    (`components/BookSuggestionsMenu.tsx`, markup ×3 → 1) ; hero des rayons en deux couches
+    (fix suggestions clippées par `overflow-hidden`, même cause que vitrine 08/09) ;
+    `BookThemeSearch` aligné sur la même UX.
+  - **Fiche livre « Du même rayon »** : grille statique 8 cartes → `RelatedBooksSlider`
+    (10 fiches, 5 visibles desktop, chevrons + scroll snap, infos restreintes) ; API
+    `related` 8 → 10 avec clé de cache v3.
+  - **En attente** : push/pull API + front, `lz`, recette propriétaire (recherche, ISBN,
+    slider, sitemap), identification du script du 07/09.
 
 ## 🟠 Priorité 3 — Quick wins audit C5-C7 — ✅ FAITS le 06/09 soir
 
@@ -86,7 +114,7 @@ Décision propriétaire 06/09 : bloquer le scraping même avec rotation de proxi
 
 ## 🟣 Priorité 3-bis — SEO catalogue 697k fiches — SEO-1 + SEO-2 ✅ livrés 06/09 soir (lz en attente)
 
-Stratégie complète : `.agents/SEO-catalogue-697k-2026-09-06.md` (données mesurées : 100 % ISBN, 0 doublon, 90 % résumés → indexation massive justifiée type Goodreads/OpenLibrary). **Livrés** : sitemap index+chunks (`/sitemap.xml` = index, ~14 chunks de 50k livres + annonces + 47k éditeurs, API `SitemapController` paginée + cachée), canonical/308 des slugs books+annonces (`lib/book-slug.ts`), JSON-LD Book+Breadcrumb sur les fiches catalogue, « Du même rayon » (`/api/books/{id}/related`, cache 6 h), hubs `/books/editeurs` (+[slug], noindex < 3 livres), noindex des facettes /books. **R6 auteurs EXCLU** (décision propriétaire 06/09 : liste d'auteurs pas fiable — à re-étudier après nettoyage des données). Reste : **SEO-4 (P3)** suivi GSC + enrichissement des 35 690 fiches minimales.
+Stratégie complète : `.agents/SEO-catalogue-697k-2026-09-06.md` (données mesurées : 100 % ISBN, 0 doublon, 90 % résumés → indexation massive justifiée type Goodreads/OpenLibrary). **Livrés** : sitemap index+chunks (`/sitemap.xml` = index, ~14 chunks de 50k livres + annonces + 47k éditeurs, API `SitemapController` paginée + cachée), canonical/308 des slugs books+annonces (`lib/book-slug.ts`), JSON-LD Book+Breadcrumb sur les fiches catalogue, « Du même rayon » (`/api/books/{id}/related`, cache 6 h), hubs `/books/editeurs` (+[slug], noindex < 3 livres), noindex des facettes /books. **MàJ 09/09** : sitemap éditeurs paginé (`getPublishersAll`, fix entrée > 2 Mo du build) ; « Du même rayon » modernisé en slider horizontal (`RelatedBooksSlider`, 10 fiches / 5 visibles — `AUDIT-2026-09-09.md`). **R6 auteurs EXCLU** (décision propriétaire 06/09 : liste d'auteurs pas fiable — à re-étudier après nettoyage des données). Reste : **SEO-4 (P3)** suivi GSC + enrichissement des 35 690 fiches minimales.
 
 ## 🟡 Priorité 4 — Z7 : recette front notifications V2 (03/09, inchangée)
 
