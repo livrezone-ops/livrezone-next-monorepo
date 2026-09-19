@@ -1,11 +1,25 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import OrderForm from "@/components/OrderForm";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function CreateDemandePage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  if (authLoading || !isAuthenticated) return null;
+
   return (
     <div className="w-[92%] max-w-3xl mx-auto py-8">
       <Breadcrumbs

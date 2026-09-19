@@ -7,6 +7,7 @@ import nextDynamic from "next/dynamic";
 import { toJsonLd } from "@/lib/safe-json-ld";
 import { SITE_URL } from "@/lib/site-url";
 import { ogDefaults } from "@/lib/og";
+import { resolveListingCover } from "@/lib/listings-api";
 import {
   BookOpen,
   Store,
@@ -30,10 +31,12 @@ interface Listing {
   book_condition: string;
   isbn_13?: string | null;
   cover_path?: string | null;
+  cover_url?: string | null;
   cover_source_url?: string | null;
   book?: {
     isbn_13?: string | null;
     authors?: string[] | string | null;
+    cover_path?: string | null;
     cover_url?: string | null;
   } | null;
   user?: {
@@ -104,10 +107,9 @@ function toSlimListing(listing: Listing): SlimListing {
     ? (Array.isArray(listing.book.authors) ? listing.book.authors.join(", ") : listing.book.authors)
     : null;
 
-  let coverUrl = listing.book?.cover_url 
-    || (listing.cover_path ? `https://api-next.livrezone.com/storage/${listing.cover_path}` : null)
-    || listing.cover_source_url 
-    || null;
+  // Chaîne partagée (lib/listings-api) : couverture catalogue réelle
+  // (cover_path) > photo uploadée par le vendeur > fallbacks externes.
+  let coverUrl = resolveListingCover(listing);
 
   // Utiliser la vignette 320px pour les grilles
   if (coverUrl && coverUrl.includes("/book-cover-proxy/") && !coverUrl.includes("/thumbnails/")) {
@@ -242,13 +244,9 @@ const slugify = (text: string) => {
 
 // Convertit un listing en entrée du mur de couvertures du hero
 function toHeroListing(listing: Listing): HeroListing {
-  let coverUrl =
-    listing.book?.cover_url ||
-    (listing.cover_path
-      ? `https://api-next.livrezone.com/storage/${listing.cover_path}`
-      : null) ||
-    listing.cover_source_url ||
-    null;
+  // Chaîne partagée (lib/listings-api) : catalogue réelle > upload vendeur >
+  // fallbacks externes — la photo du vendeur ne doit plus être masquée.
+  let coverUrl = resolveListingCover(listing);
 
   if (coverUrl && coverUrl.includes("/book-cover-proxy/") && !coverUrl.includes("/thumbnails/")) {
     coverUrl = coverUrl.replace("/book-cover-proxy/", "/book-cover-proxy/thumbnails/320/");

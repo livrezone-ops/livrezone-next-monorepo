@@ -658,7 +658,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
         {filteredListings.length > 0 ? (
           <>
             {/* Table View */}
-            <div className={`bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xs mb-8 ${viewMode === "table" ? "hidden sm:block" : "hidden"}`}>
+            <div className={`bg-white border border-gray-200 rounded-xl overflow-x-auto shadow-xs mb-8 ${viewMode === "table" ? "hidden sm:block" : "hidden"}`}>
               <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-gray-50 border-b border-gray-150 text-gray-500 uppercase text-[10px] font-bold">
                     <tr>
@@ -720,19 +720,19 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                                   <span className="text-[8px] bg-teal-600 text-white font-bold px-1 rounded-sm uppercase scale-90">Occas</span>
                                 )}
                               </div>
-                              <div className="flex-1">
+                              <div className="flex-1 min-w-0 max-w-[320px]">
                                 {isEditing ? (
-                                  <input 
-                                    type="text" 
-                                    value={editTitle} 
-                                    onChange={(e) => setEditTitle(e.target.value)} 
+                                  <input
+                                    type="text"
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
                                     className="w-full text-xs py-1 border border-gray-300 rounded px-2 focus:ring-1 focus:ring-[#6D28D9]"
                                   />
                                 ) : (
                                   <div>
                                     <div className="flex items-center gap-1.5 group/title">
-                                      <Link href={buildListingUrl(l)} className="font-bold text-gray-950 text-sm block leading-snug hover:text-[#6D28D9]">
-                                        {l.title}
+                                      <Link href={buildListingUrl(l)} title={l.title} className="font-bold text-gray-950 text-sm block leading-snug truncate hover:text-[#6D28D9]">
+                                        {l.title.length > 50 ? `${l.title.slice(0, 50)}…` : l.title}
                                       </Link>
                                       <button 
                                         onClick={() => handleStartEdit(l)}
@@ -750,7 +750,7 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             {isEditing ? (
                               <div className="flex flex-col gap-1 w-24">
                                 <input 
@@ -793,12 +793,12 @@ export default function DashboardClient({ initialListings }: DashboardClientProp
                               </div>
                             )}
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             {(() => { const b = statusBadge(l); return (
                               <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${b.className}`}>{b.label}</span>
                             ); })()}
                           </td>
-                          <td className="px-6 py-4 text-gray-400 font-medium">
+                          <td className="px-6 py-4 text-gray-400 font-medium whitespace-nowrap">
                             {new Date(l.created_at).toLocaleDateString("fr-FR")}
                           </td>
                           <td className="px-6 py-4 text-right pr-6">

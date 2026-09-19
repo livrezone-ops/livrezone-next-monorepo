@@ -2,12 +2,13 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { 
-  Heart, ShoppingCart, Share2, Phone, MessageSquare, 
-  Truck, MapPin, Star, BookOpen, 
+import {
+  Heart, ShoppingCart, Share2, Phone, MessageSquare,
+  Truck, MapPin, Star, BookOpen,
   MessageCircle, Copy, X, Store, CheckCircle
 } from "lucide-react";
+import SmartCoverImage from "@/components/SmartCoverImage";
+import { resolveListingCover } from "@/lib/listings-api";
 import { useCommerce } from "@/lib/commerce-store";
 import { useToast } from "@/components/Toast";
 
@@ -131,16 +132,18 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
   };
 
   const authors = listing.book?.authors ? listing.book.authors.join(", ") : null;
-  // Priorité : couverture du livre catalogue (proxy) > couverture uploadée par
-  // l'utilisateur (listings sans book — API cover_url ou cover_path → /storage)
-  // > URL source externe > null
-  const coverUrl = listing.book?.cover_url
-    || listing.cover_url
-    || (listing.cover_path
-      ? `https://api-next.livrezone.com/storage/${listing.cover_path}`
-      : null)
-    || listing.cover_source_url
-    || null;
+  // Chaîne partagée (lib/listings-api) : couverture catalogue réelle (cover_path)
+  // > upload user (cover_url / cover_path → /storage) > fallbacks externes.
+  const coverUrl = resolveListingCover(listing);
+  // Repli affiché en <img> natif si la source principale échoue
+  // (SmartCoverImage) : upload user, puis source externe.
+  const fallbackCover =
+    listing.cover_url
+      || (listing.cover_path
+        ? `https://api-next.livrezone.com/storage/${listing.cover_path}`
+        : null)
+      || listing.cover_source_url
+      || null;
 
   const sellerNickname = listing.user.profile?.nickname || `utilisateur-${listing.user.id}`;
   const sellerPath = `/${sellerNickname}`;
@@ -195,11 +198,12 @@ export default function ListingDetailsCard({ listing }: ListingDetailsCardProps)
             )}
 
             {coverUrl ? (
-              <Image 
-                src={coverUrl} 
-                alt={`Couverture du livre ${listing.title} - LivreZone Maroc`} 
-                fill
+              <SmartCoverImage
+                src={coverUrl}
+                fallbackSrc={fallbackCover !== coverUrl ? fallbackCover : null}
+                alt={`Couverture du livre ${listing.title} - LivreZone Maroc`}
                 className="object-contain p-6 sm:p-8 transition-transform duration-500 ease-out group-hover:scale-105"
+                sizes="(max-width: 768px) 100vw, 40vw"
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 text-slate-400">

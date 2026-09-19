@@ -67,7 +67,7 @@ export default function SmartCoverImage({
         <img
           src={fallbackSrc}
           alt={alt}
-          className={className}
+          className={`absolute inset-0 h-full w-full ${className ?? ""}`}
           loading="lazy"
           onError={() => setFailedFallbackUrl(fallbackSrc)}
         />
@@ -77,11 +77,14 @@ export default function SmartCoverImage({
   }
 
   if (!isOptimizableCover(src)) {
+    // <img> natif mais positionné comme la branche fill : le parent (boîte
+    // relative à ratio fixe, ex. pb-[135%]) doit rester à sa taille, sinon
+    // l'image en flux normal l'étire (fiche détail deux fois trop haute).
     return (
       <img
         src={src}
         alt={alt}
-        className={className}
+        className={`absolute inset-0 h-full w-full ${className ?? ""}`}
         loading="lazy"
         onError={() => setFailedUrl(src)}
       />

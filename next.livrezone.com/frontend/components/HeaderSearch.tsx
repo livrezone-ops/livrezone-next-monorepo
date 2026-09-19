@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
-import { buildListingPath, type ListingSummary } from "@/lib/listings-api";
+import { buildListingPath, resolveListingCover, type ListingSummary } from "@/lib/listings-api";
 import SmartCoverImage from "@/components/SmartCoverImage";
 
 interface HeaderSearchProps {
@@ -116,15 +116,15 @@ export default function HeaderSearch({ onCloseMobile, isMobile = false }: Header
           <div className="absolute left-0 right-0 top-[calc(100%+4px)] bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto animate-in slide-in-from-top-2 duration-150">
             <ul className="py-2">
               {suggestions.map((listing) => {
-                // Miniature en priorité (160 webp ~5-13 Ko vs original ~65 Ko) ;
-                // le backend inclut déjà les fallbacks (book, source, placeholder)
+                // Chaîne partagée (lib/listings-api) : couverture catalogue
+                // réelle (cover_path) > photo uploadée par le vendeur >
+                // fallbacks externes. Vignette vendeur si son upload est
+                // retenu (160 webp ~5-13 Ko vs original ~65 Ko).
+                const resolvedCover = resolveListingCover(listing);
                 const cover =
-                  listing.cover_thumbnail_url ||
-                  listing.book?.cover_thumbnail_url ||
-                  listing.book?.cover_url ||
-                  listing.cover_url ||
-                  listing.cover_source_url ||
-                  null;
+                  resolvedCover && resolvedCover === listing.cover_url && listing.cover_thumbnail_url
+                    ? listing.cover_thumbnail_url
+                    : resolvedCover;
                 const author = listing.book?.authors
                   ? Array.isArray(listing.book.authors)
                     ? listing.book.authors.join(", ")

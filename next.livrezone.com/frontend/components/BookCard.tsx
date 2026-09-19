@@ -2,8 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Heart, ShoppingCart, MapPin, BookOpen } from "lucide-react";
+import SmartCoverImage from "./SmartCoverImage";
 import { useCommerce, type StoreListing } from "@/lib/commerce-store";
 
 interface BookCardProps {
@@ -89,10 +89,9 @@ export default function BookCard({
         {/* Cover Image with Link */}
         <Link href={url} className="block relative w-full pb-[140%] overflow-hidden">
           {cover ? (
-            <Image
+            <SmartCoverImage
               src={cover}
               alt={author ? `${title} par ${author} - LivreZone Maroc` : `${title} - LivreZone Maroc`}
-              fill
               sizes="(max-width: 640px) 140px, (max-width: 1024px) 200px, 300px"
               className="object-contain p-3 scale-95 transition-transform duration-500 ease-out group-hover:scale-100"
             />

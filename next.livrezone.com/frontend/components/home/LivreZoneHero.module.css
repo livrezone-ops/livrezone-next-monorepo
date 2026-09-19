@@ -242,16 +242,23 @@
   transform: translateY(-8px) scale(1.035);
 }
 
-.cover {
+/* Boîte à ratio fixe : la taille est portée par le conteneur, l'image
+   (SmartCoverImage, absolute inset-0) le remplit — cf. contrat du composant. */
+.coverBox {
+  position: relative;
   display: block;
   width: calc(100% - 12px);
   aspect-ratio: 2 / 3;
   border-radius: 3px;
   background: #eee8dc;
-  object-fit: cover;
+  overflow: hidden;
   box-shadow:
     8px 10px 0 rgb(109 40 217 / 12%),
     0 18px 30px rgb(24 39 46 / 14%);
+}
+
+.coverImg {
+  object-fit: cover;
 }
 
 .coverPlaceholder {

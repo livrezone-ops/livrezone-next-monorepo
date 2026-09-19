@@ -7,8 +7,8 @@ import {
   useRef,
   useState,
 } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import SmartCoverImage from "@/components/SmartCoverImage";
 import type { HeroMessage } from "./types";
 import styles from "./LivreZoneHero.module.css";
 
@@ -214,15 +214,15 @@ export default function LivreZoneHero({
                           }
                         >
                           {book.coverUrl ? (
-                            <Image
-                              src={book.coverUrl}
-                              alt={`Couverture de ${book.title}`}
-                              className={styles.cover}
-                              width={300}
-                              height={450}
-                              sizes="(max-width: 640px) 140px, (max-width: 1024px) 200px, 300px"
-                              priority={isActive && slideIndex === 0 && bookIndex < 2}
-                            />
+                            <span className={styles.coverBox}>
+                              <SmartCoverImage
+                                src={book.coverUrl}
+                                alt={`Couverture de ${book.title}`}
+                                className={styles.coverImg}
+                                sizes="(max-width: 640px) 140px, (max-width: 1024px) 200px, 300px"
+                                priority={isActive && slideIndex === 0 && bookIndex < 2}
+                              />
+                            </span>
                           ) : (
                             <span
                               className={styles.coverPlaceholder}

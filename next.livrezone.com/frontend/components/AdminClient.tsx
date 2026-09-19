@@ -824,7 +824,7 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xs">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto shadow-xs">
         {isLoading ? (
           <div className="py-16 text-center text-sm text-gray-400">Chargement des annonces...</div>
         ) : isError ? (
@@ -869,13 +869,13 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
                             <BookOpen className="w-4 h-4 text-gray-300" />
                           )}
                         </Link>
-                        <div className="min-w-0">
+                        <div className="min-w-0 max-w-[320px]">
                           <Link
                             href={listingDetailPath(l)}
-                            title="Voir la fiche de l'annonce"
+                            title={l.title}
                             className="font-bold text-gray-950 text-xs truncate hover:text-[#6D28D9] hover:underline block cursor-pointer"
                           >
-                            {l.title}
+                            {l.title.length > 50 ? `${l.title.slice(0, 50)}…` : l.title}
                           </Link>
                           <span className="text-[10px] text-gray-400 block truncate">ISBN : {l.isbn_13 || "N/A"}</span>
                           {l.category && (
@@ -884,8 +884,8 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{l.user?.profile?.nickname || `utilisateur-${l.user_id ?? "?"}`}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{l.user?.profile?.nickname || `utilisateur-${l.user_id ?? "?"}`}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
                       {l.discount_price ? (
                         <div>
                           <span className="text-[10px] text-gray-400 line-through mr-1">{Number(l.price).toFixed(2)}</span>
@@ -895,10 +895,10 @@ function ListingsTab({ pushToast, initialFilter = "all" }: { pushToast: (m: stri
                         <span className="font-bold text-gray-900 text-xs">{Number(l.price).toFixed(2)} MAD</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${b.className}`}>{b.label}</span>
                     </td>
-                    <td className="px-4 py-3 text-gray-400">{formatDate(l.created_at)}</td>
+                    <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{formatDate(l.created_at)}</td>
                     <td className="px-4 py-3 text-right pr-4">
                       <div className="flex gap-1.5 justify-end items-center">
                         <Link

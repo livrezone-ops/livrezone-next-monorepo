@@ -17,6 +17,7 @@ export interface ListingSummary {
   book?: {
     isbn_13?: string | null;
     authors?: string[] | string | null;
+    cover_path?: string | null;
     cover_url?: string | null;
     cover_thumbnail_url?: string | null;
   } | null;
@@ -115,10 +116,16 @@ export function resolveListingCover(
     "cover_url" | "cover_path" | "cover_source_url" | "book"
   >,
 ): string | null {
-  if (listing.book?.cover_url) return listing.book.cover_url;
+  // La couverture catalogue n'est fiable que si le livre possède un
+  // cover_path (proxy / storage). Sans cover_path, book.cover_url n'est
+  // qu'un fallback externe (source d'import, parfois un placeholder du
+  // type woocommerce-placeholder) qui ne doit pas masquer la photo réelle
+  // uploadée par le vendeur.
+  const bookCover = listing.book?.cover_url;
+  if (bookCover && listing.book?.cover_path) return bookCover;
   if (listing.cover_url) return listing.cover_url;
   if (listing.cover_path) return `${API_BASE}/storage/${listing.cover_path}`;
-  return listing.cover_source_url || null;
+  return bookCover || listing.cover_source_url || null;
 }
 
 const API_BASE = (process.env.INTERNAL_API_URL
@@ -210,10 +217,14 @@ export interface ListingDetail {
     cover_path?: string | null;
     cover_url?: string | null;
     cover_thumbnail_url?: string | null;
+    /** MAJ du livre catalogue — fait aussi bouger la version de l'image OG. */
+    updated_at?: string | null;
   } | null;
   category?: { name_fr: string; parent?: { name_fr: string } | null } | null;
   level?: { name_fr: string; code?: string } | null;
   subject?: { name_fr: string; code?: string } | null;
+  /** Horodatage de dernière modification — clé de version de l'image OG. */
+  updated_at?: string | null;
 }
 
 export async function getPublicListing(id: string): Promise<ListingDetail | null> {
@@ -230,24 +241,35 @@ export async function getPublicListing(id: string): Promise<ListingDetail | null
       Host: "api-next.livrezone.com",
     };
 
-    const res = await fetch(`${API_BASE}/api/listings/${encodeURIComponent(id)}`, {
-      ...(cookieHeader
-        ? {
-            cache: "no-store",
-            headers: {
-              ...baseHeaders,
-              Cookie: cookieHeader,
-              Referer: SITE_URL,
-            },
-          }
-        : {
-            next: { revalidate: 60 },
-            headers: baseHeaders,
-          }),
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.data ?? null;
+    // no-store systématique : une réponse d'erreur figée en cache Next
+    // (revalidate 60) afficherait 404 à tous les visiteurs pendant 60 s —
+    // observé au démarrage du conteneur (fetch API en course au boot).
+    const fetchOptions: RequestInit = cookieHeader
+      ? {
+          cache: "no-store",
+          headers: { ...baseHeaders, Cookie: cookieHeader, Referer: SITE_URL },
+        }
+      : { cache: "no-store", headers: baseHeaders };
+
+    // Un retry sur erreur réseau (boot conteneur, DNS…) : un simple échec
+    // transitoire ne doit pas rendre notFound() sur la fiche.
+    let data: ListingDetail | null = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/listings/${encodeURIComponent(id)}`,
+          fetchOptions,
+        );
+        if (!res.ok) return null;
+        const json = await res.json();
+        data = (json.data as ListingDetail) ?? null;
+        break;
+      } catch {
+        if (attempt === 1) return null;
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+    }
+    return data;
   } catch {
     return null;
   }

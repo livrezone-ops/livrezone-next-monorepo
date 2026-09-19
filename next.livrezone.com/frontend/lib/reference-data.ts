@@ -80,13 +80,13 @@ export const CATEGORIES: CategoryRef[] = [
   {
     code: "RELIGION",
     name: "Religion",
+    // SPIRITUALITE et R_AUTRES retirées de la navigation (demande 19/09/2026) :
+    // leurs livres ne sont accessibles qu'en recherche par titre ou ISBN.
     children: [
       { code: "QURAN", name: "Quran" },
       { code: "HADITH", name: "Hadith" },
       { code: "FIQH", name: "Fiqh" },
       { code: "SIRA", name: "Sira" },
-      { code: "SPIRITUALITE", name: "Spiritualité" },
-      { code: "R_AUTRES", name: "Autres" },
     ],
   },
   {
