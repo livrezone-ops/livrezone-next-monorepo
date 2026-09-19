@@ -25,6 +25,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // puppeteer-core doit rester externe (chargé au runtime, binaire Chromium
+  // système) et sharp aussi — sinon Turbopack tente de les bundler.
+  serverExternalPackages: ["puppeteer-core", "sharp"],
   async headers() {
     return [
       {
@@ -100,6 +103,12 @@ const nextConfig: NextConfig = {
         // « url parameter is not allowed » et l'avatar ne s'affiche pas.
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
+      },
+      {
+        // Couvertures d'import catalogue (leslibraires) rendues par next/image
+        // sur /books et BookCatalogCard — sinon /_next/image renvoie 400.
+        protocol: "https",
+        hostname: "leslibraires.b-cdn.net",
       },
     ],
   },

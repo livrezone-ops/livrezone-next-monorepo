@@ -2,13 +2,12 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { listingSlug } from "@/lib/book-slug";
 import ListingDetailFetcher from "./ListingDetailFetcher";
-import { getPublicListing } from "@/lib/listings-api";
+import { getPublicListing, resolveListingCover } from "@/lib/listings-api";
 import { toJsonLd } from "@/lib/safe-json-ld";
 
 export const dynamic = 'force-dynamic';
 
 import { SITE_URL } from "@/lib/site-url";
-import { ogImage, ogImageUrl } from "@/lib/og";
 
 interface PageProps {
   params: Promise<{
@@ -60,14 +59,11 @@ interface Listing {
 }
 
 function resolveCoverUrl(listing: Listing): string | null {
-  // Même chaîne que ListingDetailsCard : catalogue > upload user (URL ou
-  // cover_path → /storage) > source externe. Utilisée pour l'image OpenGraph.
-  if (listing.book?.cover_url) return listing.book.cover_url;
-  if (listing.cover_url) return listing.cover_url;
-  if (listing.cover_path) {
-    return `https://api-next.livrezone.com/storage/${listing.cover_path}`;
-  }
-  return listing.cover_source_url || null;
+  // Même chaîne que ListingDetailsCard (lib/listings-api) : couverture
+  // catalogue réelle (cover_path présent) > upload user (URL ou
+  // cover_path → /storage) > fallbacks (catalogue externe, source externe).
+  // Utilisée pour l'image OpenGraph.
+  return resolveListingCover(listing);
 }
 
 function buildTitle(listing: Listing): string {
@@ -85,6 +81,48 @@ function buildDescription(listing: Listing): string {
       ? listing.description.trim()
       : `Achetez ${listing.title} sur LivreZone.`;
   return base.length > 160 ? `${base.slice(0, 157)}...` : base;
+}
+
+/** Prix affiché (discount si applicable) en MAD, pour og:title. */
+function displayPrice(listing: Listing): number {
+  const original = Number(listing.price);
+  const discounted = Number(listing.discount_price);
+  const hasDiscount =
+    listing.discount_price != null &&
+    Number.isFinite(discounted) &&
+    discounted < original;
+  return hasDiscount ? discounted : original;
+}
+
+function formatPrice(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
+/**
+ * Texte NATIF de la carte Facebook (og:title / og:description) — c'est là que
+ * le titre, l'ISBN et l'état sont lisibles désormais : l'image OG (template
+ * v4) ne porte plus que couverture + marque + prix, le texte rasterisé fin
+ * étant illisible après la réduction + recompression de Facebook.
+ */
+function buildSocialTitle(listing: Listing): string {
+  return `${listing.title} — ${formatPrice(displayPrice(listing))} MAD`;
+}
+
+function buildSocialDescription(listing: Listing): string {
+  const label =
+    listing.book_condition === "neuf"
+      ? "Neuf"
+      : listing.book_condition === "occas"
+        ? "Occasion"
+        : null;
+  const isbn = listing.book?.isbn_13 || listing.isbn_13;
+  const parts = [
+    label,
+    isbn ? `ISBN ${isbn}` : null,
+    listing.user?.profile?.nickname ? `Vendu par @${listing.user.profile.nickname}` : null,
+  ].filter(Boolean);
+  const base = `${parts.join(" · ")}${parts.length ? " — " : ""}${buildDescription(listing)}`;
+  return base.length > 200 ? `${base.slice(0, 197)}...` : base;
 }
 
 export async function generateMetadata({
@@ -107,28 +145,34 @@ export async function generateMetadata({
   const canonical = `${SITE_URL}/${nickname}/${canonicalSlug}`;
   const title = buildTitle(listing);
   const description = buildDescription(listing);
-  const coverUrl = resolveCoverUrl(listing);
+  // Image OG : template visuelle (couverture entière + marque + prix) rendue
+  // et mise en cache par /api/og/listing/<id> — le texte (titre/ISBN/état)
+  // est porté par og:title/og:description, natif et net. Ne pas pointer
+  // directement sur la couverture brute : Facebook la recadre.
+  const socialImage = `${SITE_URL}/api/og/listing/${listing.id}`;
+  const socialTitle = buildSocialTitle(listing);
+  const socialDescription = buildSocialDescription(listing);
 
   return {
     title,
     description,
     alternates: { canonical },
     openGraph: {
-      title: listing.title,
-      description,
+      title: socialTitle,
+      description: socialDescription,
       type: "book",
       locale: "fr_MA",
       siteName: "LivreZone",
       url: canonical,
-      // Couverture de l'annonce si disponible, sinon visuel de marque
-      // (images: [] ferait tomber le partage sans aucune vignette).
-      images: coverUrl ? [{ url: coverUrl, alt: listing.title }] : [ogImage()],
+      images: [
+        { url: socialImage, width: 1200, height: 630, alt: `${listing.title} — LivreZone` },
+      ],
     },
     twitter: {
-      card: coverUrl ? "summary_large_image" : "summary",
-      title: listing.title,
-      description,
-      images: coverUrl ? [coverUrl] : [ogImageUrl()],
+      card: "summary_large_image",
+      title: socialTitle,
+      description: socialDescription,
+      images: [socialImage],
     },
     robots: { index: true, follow: true },
   };
