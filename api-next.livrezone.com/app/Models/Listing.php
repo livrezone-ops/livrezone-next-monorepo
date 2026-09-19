@@ -332,16 +332,16 @@ class Listing extends Model
     }
 
     /**
-     * Fallback miniature : délégation à la miniature du livre associé
-     * (catalogue : /thumbnails/{taille}) au lieu de la couverture source
-     * externe pleine taille. Sans livre couvert, comportement historique
-     * (cover_source_url), aligné sur Order::coverFallbackUrl().
+     * Fallback : couverture du livre associé (URLs internes du proxy
+     * catalogue) avant tout recours externe. Sans livre couvert,
+     * comportement historique (cover_source_url), aligné sur
+     * Order::coverFallbackUrl().
      */
     protected function coverFallbackUrl(bool $thumbnail = false): ?string
     {
-        if ($thumbnail && ($book = $this->book) !== null
+        if (($book = $this->book) !== null
             && trim((string) $book->cover_path) !== '') {
-            return $book->cover_thumbnail_url;
+            return $thumbnail ? $book->cover_thumbnail_url : $book->cover_url;
         }
 
         $external = trim((string) ($this->cover_source_url ?? ''));

@@ -58,7 +58,7 @@ class BookCatalogueService
             if ($author !== '') {
                 // Filtre EXACT par auteur (égalité sur un élément du tableau
                 // authors_list) — pas de recherche plein-texte fuzzy ici.
-                $facetBuilder->where('authors_list', $author);
+                $facetBuilder->where('authors_list', $this->escapeFilterValue($author));
             }
             $this->applyCrossFilters($facetBuilder, $request, ['languages']);
 
@@ -75,16 +75,33 @@ class BookCatalogueService
         }
 
         // --- 2. Requête principale (avec tous les filtres) ---
+        // Demande 19/09/2026 : hors recherche texte (titre/ISBN), les livres des
+        // catégories masquées (Spiritualité, Religion-Autres) sont exclus du
+        // browse (thème, filtres, catalogue général). Une recherche texte les
+        // laisse visibles.
+        $hiddenIds = $search !== '' ? [] : Category::hiddenIds();
+        $withHiddenFilter = function ($meilisearch, $query, $options) use ($hiddenIds) {
+            if (! empty($hiddenIds)) {
+                $mine = 'NOT default_category_id IN ['.implode(', ', $hiddenIds).']';
+                $existing = $options['filter'] ?? null;
+                $options['filter'] = is_array($existing)
+                    ? array_merge($existing, [$mine])
+                    : (filled($existing) ? $existing.' AND '.$mine : $mine);
+            }
+
+            return $meilisearch->search($query, $options);
+        };
+
         if ($author !== '') {
             // Requête vide + filtre EXACT authors_list = "{author}" : Meilisearch
             // renvoie uniquement les livres dont un auteur correspond exactement
             // (insensible à la casse), sans fuzzy ni fallback approximatif.
             // paginate()/orderBy() du builder restent appliqués :
             // Scout fusionne leurs options avant d'invoquer le callback.
-            $builder = Book::search('');
-            $builder->where('authors_list', $author);
+            $builder = Book::search('', $withHiddenFilter);
+            $builder->where('authors_list', $this->escapeFilterValue($author));
         } else {
-            $builder = Book::search($search);
+            $builder = Book::search($search, $withHiddenFilter);
         }
         $this->applyCrossFilters($builder, $request);
         $this->applySort($builder, $request);
@@ -115,6 +132,10 @@ class BookCatalogueService
         foreach ($categoryFacets as $id => $count) {
             $code = $categoryMap[$id] ?? $id;
             $mappedCategories[$code] = ($mappedCategories[$code] ?? 0) + $count;
+        }
+        // Catégories masquées : jamais proposées dans la navigation (demande 19/09/2026).
+        foreach (Category::HIDDEN_FROM_NAVIGATION as $hiddenCode) {
+            unset($mappedCategories[$hiddenCode]);
         }
         $mappedLanguages = [];
         foreach ($languageFacets as $id => $count) {
@@ -210,6 +231,12 @@ class BookCatalogueService
         if (! in_array('categories', $exclude, true)) {
             $categoryIds = $this->filterService->resolveCategoryIds($request, ['categories', 'category', 'category_id', 'c']);
             if (! empty($categoryIds)) {
+                // Browse (sans recherche texte) : on retire les catégories masquées
+                // de la résolution ; si le filtre ne visait qu'elles → aucun résultat.
+                if (trim($request->get('search', '')) === '') {
+                    $remaining = array_values(array_diff($categoryIds, Category::hiddenIds()));
+                    $categoryIds = $remaining ?: [0];
+                }
                 $builder->whereIn('default_category_id', $categoryIds);
             }
         }
@@ -243,8 +270,20 @@ class BookCatalogueService
         if (! in_array('publisher', $exclude, true)) {
             $publisher = trim((string) $request->get('publisher', ''));
             if ($publisher !== '') {
-                $builder->where('publisher', $publisher);
+                $builder->where('publisher', $this->escapeFilterValue($publisher));
             }
         }
+    }
+
+    /**
+     * Scout construit les filtres en collant field="value" SANS échapper la
+     * valeur (MeilisearchEngine::filters). Une valeur contenant " ou \ casse
+     * donc la syntaxe → ApiException 400 (≈1 000 erreurs/sem. en prod 09/2026 :
+     * éditeurs genre « "Lea.fr" (Paris) », auteurs « NOM\ AUTRE »).
+     * Échappement côté appelant : \ → \\ et " → \".
+     */
+    private function escapeFilterValue(string $value): string
+    {
+        return str_replace(['\\', '"'], ['\\\\', '\\"'], $value);
     }
 }

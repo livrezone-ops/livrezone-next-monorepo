@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Book;
+use App\Models\Category;
 use App\Services\BookAutocompleteService;
 use App\Services\BookCatalogueService;
 use App\Services\BookDetailService;
@@ -77,12 +78,15 @@ class BookController extends Controller
      */
     public function related(Book $book)
     {
-        // Clé v3 + tableau PHP pur dans le cache (jamais une Collection/Eloquent) :
+        // Clé v4 + tableau PHP pur dans le cache (jamais une Collection/Eloquent) :
         // les entrées v1 sérialisées ressortent en « incomplete object » en prod.
-        $books = Cache::remember('book:related3:'.$book->id, 21600, function () use ($book) {
+        // v4 : exclut les catégories masquées de la navigation (19/09/2026).
+        $hiddenIds = Category::hiddenIds();
+        $books = Cache::remember('book:related4:'.$book->id, 21600, function () use ($book, $hiddenIds) {
+            $hiddenClause = empty($hiddenIds) ? '' : ' AND NOT default_category_id IN ['.implode(', ', $hiddenIds).']';
             $filter = $book->default_category_id
-                ? 'default_category_id = '.$book->default_category_id.' AND NOT id = '.$book->id
-                : 'NOT id = '.$book->id;
+                ? 'default_category_id = '.$book->default_category_id.' AND NOT id = '.$book->id.$hiddenClause
+                : 'NOT id = '.$book->id.$hiddenClause;
 
             try {
                 $ids = Book::search('', function ($meilisearch, $query) use ($filter) {
@@ -102,6 +106,7 @@ class BookController extends Controller
                 $extra = Book::query()
                     ->whereNot('id', $book->id)
                     ->when($book->default_category_id, fn ($q) => $q->where('default_category_id', $book->default_category_id))
+                    ->when(! empty($hiddenIds), fn ($q) => $q->whereNotIn('default_category_id', $hiddenIds))
                     ->whereNotNull('cover_path')
                     ->orderByDesc('updated_at')
                     ->limit(10 - $ids->count())

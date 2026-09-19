@@ -9,6 +9,21 @@ class Category extends Model
 {
     use HasFactory;
 
+    /**
+     * Catégories retirées de la navigation (demande 19/09/2026) : leurs livres
+     * ne sont visibles qu'en recherche par titre ou ISBN, jamais en browse
+     * (page thème, filtres, facettes, livres similaires).
+     */
+    public const HIDDEN_FROM_NAVIGATION = ['SPIRITUALITE', 'R_AUTRES'];
+
+    /** IDs des catégories masquées (cache 1 h). */
+    public static function hiddenIds(): array
+    {
+        return \Cache::remember('categories_hidden_ids_v1', 3600, function () {
+            return static::query()->whereIn('code', self::HIDDEN_FROM_NAVIGATION)->pluck('id')->all();
+        });
+    }
+
     protected $fillable = [
         'parent_id',
         'code',

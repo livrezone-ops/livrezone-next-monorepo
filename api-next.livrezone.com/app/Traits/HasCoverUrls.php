@@ -133,7 +133,15 @@ trait HasCoverUrls
     {
         $external = trim((string) ($this->cover_source_url ?? ''));
 
-        return $external !== '' ? $external : null;
+        // Imports catalogue : certaines cover_source_url sont des images
+        // placeholder (ex. woocommerce-placeholder-*.png) et non de vraies
+        // couvertures. Les exposer en fallback masquerait la photo réelle
+        // uploadée par le vendeur sur la fiche → on les ignore.
+        if ($external === '' || str_contains($external, 'woocommerce-placeholder')) {
+            return null;
+        }
+
+        return $external;
     }
 
     /**

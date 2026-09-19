@@ -108,6 +108,11 @@ class DashboardController extends Controller
         $status = $this->validationService->determineRepublishStatus($listing);
 
         $newListing = $listing->replicate();
+        // Colonne GÉNÉRÉE MariaDB : replicate() la copie depuis l'annonce
+        // d'origine et l'INSERT explicite déclenche l'erreur 1906 (500 sur
+        // chaque republication depuis la migration du 06/09). Il faut la
+        // retirer pour que MariaDB la recalcule à l'insert.
+        $newListing->offsetUnset('effective_price');
         $newListing->status = $status;
         $newListing->submitted_at = now();
         $newListing->reviewed_at = null;
