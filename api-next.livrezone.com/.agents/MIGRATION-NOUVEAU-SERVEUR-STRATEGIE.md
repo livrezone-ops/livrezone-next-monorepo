@@ -11,6 +11,15 @@ Apache 28/08), `.agents/MIGRATION-SSD4SERVER-STRATEGIE.md` (supersédée, reste
 le modèle de procédure rsync/fenêtre/rollback), `.agents/INFRASTRUCTURE.md`,
 `.agents/ROTATION-MOTS-DE-PASSE.md`.
 
+> **MISE À JOUR 20/09 (nuit)** : **Meilisearch et MariaDB tournent DÉJÀ sur
+> SSD4server** (`/media/ouahib/SSD4server/livrezone/{meili,mysql}`, conteneurs
+> rootless recréés avec bind SSD — bilan détaillé dans la doc supersédée).
+> Conséquence pour CE runbook : la phase de copie des données vers le nouveau
+> serveur est simplifiée — les données applicatives seront transportées par
+> le SSD lui-même (arrêt propre → débranchement → branchement sur la nouvelle
+> machine), seuls le code, les confs Caddy/WAF et les DNS restent à migrer.
+> Anciennes copies sur `/` = rollback jusqu'à J+7 (ne pas supprimer avant).
+
 ---
 
 ## 1. CE QUI DÉMÉNAGE (périmètre inventorié au 19-20/09)

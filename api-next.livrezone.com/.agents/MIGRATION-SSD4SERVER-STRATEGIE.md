@@ -19,6 +19,25 @@ STOCKAGE.*
 > procédure (pré-copie rsync, fenêtre courte, comptages avant/après, rollback
 > écrit avant exécution) pour la migration vers le nouveau serveur.
 
+> **✅ ACTION B EXÉCUTÉE dans la nuit du 19 au 20/09/2026** (fenêtre ~2 min
+> par service, 00:44-00:46) : **Meilisearch ET MariaDB tournent désormais sur
+> SSD4server** (`/media/ouahib/SSD4server/livrezone/{meili,mysql}`). Bilan :
+> Meili recréé (v1.10, bind SSD, health `available`, trafic Scout 200, site
+> /books 200) ; MariaDB recréé (datadir bind SSD, démarrage InnoDB propre,
+> **books = 697 172 exactement comme avant** — le 644 863 d'information_schema
+> n'était qu'une estimation InnoDB, confirmé propriétaire), listings 133,
+> users 42, site/API/recherche/OG 200, queue verte (0 failed, âge 0).
+> Backup SQL de sûreté pré-migration : `lz-backup/pre-migration-ssd-20260920.sql.gz`
+> (113 Mo). Config exacte des 2 conteneurs : `lz-backups/configs-migration-20260920.txt`
+> (chmod 600, hors git). **Rollback possible jusqu'à J+7** : les anciennes
+> données sont INTACTES sur `/` (`docker-data/meilisearch_data` + volume
+> `livrezone_mysql_data`) — revenir = recréer le conteneur avec l'ancien
+> montage. Backup Drive : insensible à la bascule (dump vivant via
+> mysqldump + API Meili du conteneur). L'ancienne copie de `/` (≈ 4,5 Go)
+> pourra être supprimée après J+7 de fonctionnement nominal.
+> La migration VERS LE NOUVEAU SERVEUR est ainsi facilitée : les données
+> applicatives voyageront avec le SSD.
+
 ## 1. État des lieux mesuré (19/09/2026)
 
 | Élément | Localisation | Taille | Notes |
