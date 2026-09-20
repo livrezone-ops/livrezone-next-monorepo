@@ -29,16 +29,24 @@ IMPORTANT : commence la session par poser les DÉCISIONS PROPRIÉTAIRE
 restantes (section ci-dessous) via AskUserQuestion. Ne déploie rien avant
 leurs réponses.
 
-## CONTEXTE MATÉRIEL ET INFRA (état mesuré au 19/09/2026)
+## CONTEXTE MATÉRIEL ET INFRA (état mesuré au 20/09/2026)
 
 - Machine : 4 cœurs, 11 GiB RAM (~4,4 GiB disponibles à chaud, 7,2 utilisés),
-  **disque 116 Go dont seulement ~20 Go libres (83 % occupé)**.
+  disque système 116 Go — **~48 Go libres depuis le nettoyage Docker du
+  19/09** (29 Go récupérés ; procédure + bilan dans
+  `.agents/MIGRATION-SSD4SERVER-STRATEGIE.md`).
+- **MariaDB et Meilisearch tournent désormais sur SSD4server**
+  (`/media/ouahib/SSD4server/livrezone/{mysql,meili}`, bascule faite la nuit
+  du 19 au 20/09) — leurs données applicatives partiront avec le disque lors
+  de la migration serveur.
 - ⚠️ Antécédent incident 524 : pression RAM sur cette machine — tout service
   résident supplémentaire doit être dimensionné prudemment et limité
   (`mem_limit` docker obligatoire).
 - Docker ROOTFUL : `sudo -n docker ...` (PAS `sudo -n bash`). Le frontend
   `livrezone-next` tourne ici (port 3000). La stack API (php-fpm-8.5, MariaDB,
-  Redis, Meilisearch) tourne en ROOTLESS (DOCKER_HOST conservé via sudoers).
+  Redis, Meilisearch) tourne en ROOTLESS (DOCKER_HOST conservé via sudoers ;
+  piège : `sudo -n env DOCKER_HOST=...` est REFUSÉ — passer l'env AVANT
+  `sudo`).
 - Reverse proxy : **Caddy OpenPanel** (`/etc/openpanel/caddy/domains/`,
   `import domains/*`). ⚠️ Piège documenté : ne JAMAIS déposer de `.bak` ni de
   copie dans `domains/` — le glob charge tout fichier. Sauvegardes →
@@ -70,12 +78,13 @@ plateforme, **ressources ffmpeg (rendu = CPU → pas sur la machine prod)**.
 
 ## CE QUI A CHANGÉ DEPUIS LE CADRAGE (à intégrer dans ton analyse)
 
-1. **Pas de migration SSD** : la « bascule livrezone.com » du 06/09 est devenue
-   un simple POINTEUR de domaine (livrezone.com → conteneur `livrezone-next`
-   existant). Il n'y a donc PAS de nouveau stockage/machine dédiée — le
-   prérequis d'installation « sur le nouveau stockage » est caduc. La question
-   « installe-t-on sur cette machine ? » est de nouveau OUVERTE (décision
-   propriétaire).
+1. **Le site migre exclusivement sur un NOUVEAU SERVEUR** (décision
+   propriétaire 20/09 — runbook `.agents/MIGRATION-NOUVEAU-SERVEUR-STRATEGIE.md`),
+   et **les données (MariaDB + Meilisearch) tournent déjà sur SSD4server**
+   (bascule faite la nuit du 19 au 20/09) : elles voyageront avec le disque.
+   L'audit 28/08 prévoyait la stack marketing sur le nouveau matériel — le
+   worker ffmpeg y sera enfin viable. La question « où installe-t-on n8n » est
+   une question de CALENDRIER (cf. décisions propriétaire en bas).
 2. **La carte de partage OG est prête** (v10, 19/09) : chaque annonce expose
    `${FRONTEND_URL}/api/og/listing/<id>` — image 1200×630 formatée pour les
    réseaux (titre, prix, état, couverture 3D), cachée et versionnée. Les
